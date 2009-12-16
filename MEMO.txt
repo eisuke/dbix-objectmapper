@@ -1,0 +1,56 @@
+ Mapperオブジェクトを作成して、Sessionと同一にする。
+ オブジェクト内にunit_of_workを記録する
+
+  $mapper = Data::ObjectMapper->new( driver => $driver, meta => $meta );
+  $mapper->maps( $meta->t('users'), 'Users', { .... } );
+  $mapper->get_class('Users')->new('foo');
+  $mapper->metadata->t('users');
+  my $query = $mapper->metadata->select()->from('users')->where()->limit;
+  my $user = $mapper->find( Users => 1 );
+             $mapper->all('Users' => 'UserAddress')->filter( )->group_by( )->limit->offset->pager;
+  User->new({ name => 'hoge' });
+  $mapper->save($user);
+
+
+-----
+mapperをクラスに定義する
+
+package My::Model::Metadata;
+use Data::ObjectMapper::Metadata;
+
+$meta ...
+
+
+1;
+
+package My::Model::Driver;
+
+$driver;
+
+1;
+
+package My::Model;
+use Data::ObjectMapper;
+
+use Data::ObjectMapper::Driver;
+
+my $driver = ...
+my $meta = ...
+my $mapper = new( class_prefix => 'My::Model::')....
+.....
+
+sub mapper() { $mapper } # and export
+
+sub another_mapper() { $another_mapper }
+1;
+
+use My::Model qw(mapper);
+
+my $users = mapper->find('Users' => 1 );
+my $users = mapper->mapped_class('Users')->new({ name => 'Michel' });
+my $it = mapper->metadata->select->from('users')->where( mapper->metadata->t('users')->c('id') == 1 );
+
+My::Model::Users->new();
+mapper->save($users);
+....
+

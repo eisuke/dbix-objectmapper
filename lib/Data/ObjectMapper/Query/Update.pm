@@ -1,0 +1,32 @@
+package Data::ObjectMapper::Query::Update;
+use strict;
+use warnings;
+use base qw(Data::ObjectMapper::Query);
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new(@_);
+    $self->builder( $self->engine->query->update );
+    return $self;
+}
+
+{
+    no strict 'refs';
+    my $pkg = __PACKAGE__;
+    for my $meth ( qw( table set where add_table add_set add_where ) ) {
+        *{"$pkg\::$meth"} = sub {
+            my $self = shift;
+            $self->builder->$meth(@_);
+            return $self;
+        };
+    }
+};
+
+sub execute {
+    my $self = shift;
+    my $callback = shift || $self->callback;
+    return $self->engine->update( $self->builder, $callback );
+}
+
+1;
+
