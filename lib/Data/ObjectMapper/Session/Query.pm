@@ -3,9 +3,16 @@ use strict;
 use warnings;
 
 sub new {
-    my ( $class, $mapped_class ) = @_;
-
+    my ( $class, $session, $target_class, $option ) = @_;
+    bless {
+        target_class => $target_class,
+        session      => $session,
+        option       => $option,
+    }, $class;
 }
+
+sub target_class { $_[0]->{target_class} }
+sub session      { $_[0]->{session} }
 
 sub all {
 
@@ -14,10 +21,12 @@ sub all {
 sub find {
     my $self = shift;
     my $id = shift;
-    my $result = $self->table->find($id) || return;
 
-    my $constructor = $self->constructor_config->{name};
-    my $type = $self->constructor_config->{type};
+    my $mapper = $self->target_class->__mapper__;
+    my $result = $mapper->table->find($id) || return;
+
+    my $constructor = $mapper->constructor_config->{name};
+    my $type = $mapper->constructor_config->{type};
 
     ## XXX TODO
     ## unit_of_work
@@ -26,12 +35,12 @@ sub find {
     ## ......
 
     my %param;
-    for my $attr ( keys %{$self->attributes_config} ) {
-        my $isa = $self->attributes_config->{$attr}{isa};
+    for my $attr ( keys %{$mapper->attributes_config} ) {
+        my $isa = $mapper->attributes_config->{$attr}{isa};
         $param{$attr} = $result->{$isa->name};
     }
 
-    return $self->mapped_class->${constructor}(%param);
+    return $self->target_class->${constructor}(%param);
 }
 
 1;

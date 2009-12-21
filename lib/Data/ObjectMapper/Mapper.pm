@@ -20,8 +20,8 @@ my %OPTIONS_VALIDATE = (
     },
     accessors => {
         auto       => { type => BOOLEAN,  default => 0 },
-        exclude    => { type => ARRAYREF, default => +[] },
-        do_replace => { type => BOOLEAN,  default => 0 },
+        exclude    => { type => ARRAYREF, default => +[], depends => 'auto' },
+        do_replace => { type => BOOLEAN,  default => 0, depends => 'auto' },
     },
     constructor => {
         name     => { type => SCALAR, default => 'new' },
@@ -38,8 +38,36 @@ my %OPTIONS_VALIDATE = (
     },
 );
 
+my $DEFAULT_ATTRIBUTE_PROPERTY = {
+    isa               => undef,
+    lazy              => 0,
+    validation        => 0,
+    validation_method => undef,
+    getter            => undef,
+};
+
+{
+    my %MAPPED_CLASSES;
+
+    sub _regist_mapped_class {
+        my $self = shift;
+        $MAPPED_CLASSES{$self->mapped_class} = $self;
+    }
+
+    sub is_mapped {
+        my $self = shift;
+        my $class = shift;
+        return $MAPPED_CLASSES{$class};
+    }
+};
+
 sub new {
     my $class = shift;
+
+    if( my $mapped_class = $class->is_mapped( $_[1]) ) {
+        cluck "$_[1] is already mapped. this return the mapped object.";
+        return $mapped_class;
+    }
 
     my $self = bless {
         table              => undef,
@@ -70,37 +98,43 @@ sub new {
     $self->{table} = $option{table};
     $self->{mapped_class} = $option{mapped_class};
 
-    $self->{accessors_config}
-        = $self->option_validate( 'accessors', %{ $option{accessors} } );
-    $self->{constructor_config}
-        = $self->option_validate( 'constructor', %{ $option{constructor} } );
     $self->init_attributes_config( %{ $option{attributes} } );
+    $self->init_acceesors_config( %{ $option{accessors} } );
+    $self->init_constructor_config( %{ $option{constructor} } );
 
+    $self->mapping;
     return $self;
-}
-
-sub option_validate {
-    my $self = shift;
-    my $type = shift;
-    return { validate( @_, $OPTIONS_VALIDATE{$type} ) };
 }
 
 {
     no strict 'refs';
     my $package = __PACKAGE__;
-    for my $meth (qw(table mapped_class attributes_config accessors_config
-            constructor_config mapped )) {
+    for my $meth (qw(table mapped_class attributes_config
+                     accessors_config constructor_config)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
 
-my $DEFAULT_ATTRIBUTE_PROPERTY = {
-    isa               => undef,
-    lazy              => 0,
-    validation        => 0,
-    getter            => undef,
-    validation_method => undef,
-};
+sub init_constructor_config {
+    my $self = shift;
+    my %option = validate( @_, $OPTIONS_VALIDATE{constructor} );
+    $self->{constructor_config} = \%option;
+}
+
+sub init_acceesors_config {
+    my $self = shift;
+
+    my %option = validate( @_, $OPTIONS_VALIDATE{accessors} );
+    if( $option{exclude} ) {
+        for my $ex ( @{$option{exclude}}) {
+            # XXX fixed English
+            confess "Can't exlude $ex. not included attributes."
+                unless $self->attributes_config->{$ex};
+        }
+    }
+    $option{exclude} = +{ map { $_ => 1 } @{ $option{exclude} } };
+    $self->{accessors_config} = \%option;
+}
 
 sub init_attributes_config {
     my $self = shift;
@@ -129,7 +163,7 @@ sub init_attributes_config {
 
     if( $option{exclude} ) {
         my %exclude = map {
-              ( ref($_) eq $table->column_metadata )
+              ( ref($_) eq $table->column_metaclass )
             ? ( $_->name => 1 )
             : ( $_ => 1 );
         } grep { $_ } @{ $option{exclude} };
@@ -147,7 +181,7 @@ sub init_attributes_config {
         my @properties;
         for my $prop ( @{ $option{properties} } ) {
             my $isa = $prop->{isa} || confess "set property \"isa\". ";
-            $prop->{getter} ||= $isa->name;
+            $prop->{getter} ||= $prop->{isa}->name;
             push @properties,
                 Data::ObjectMapper::Utils::merge_hashref(
                     $DEFAULT_ATTRIBUTE_PROPERTY, $prop,
@@ -168,11 +202,13 @@ sub init_attributes_config {
                 = $option{properties}->{isa}
                 || $table->c($name)
                 || confess "$name : column not found. set property \"isa\". ";
+
+            $option{properties}->{getter} ||= $name;
             $settle_attribute{ $isa->name } = 1;
-            $properties{$name}
-                = Data::ObjectMapper::Utils::merge_hashref(
-                $DEFAULT_ATTRIBUTE_PROPERTY, $option{properties}->{$name},
-                );
+            $properties{$name} = Data::ObjectMapper::Utils::merge_hashref(
+                $DEFAULT_ATTRIBUTE_PROPERTY,
+                $option{properties}->{$name},
+            );
 
             # XXXX TODO RELATION, SELECT, ETC...
         }
@@ -182,7 +218,6 @@ sub init_attributes_config {
             $properties{ $attr->name } = {
                 %$DEFAULT_ATTRIBUTE_PROPERTY,
                 isa    => $attr,
-                getter => $attr->name,
             };
             $settle_attribute{ $attr->name } = 1;
         }
@@ -199,51 +234,53 @@ sub init_attributes_config {
 sub mapping {
     my $self = shift;
 
-    my %add_methods;
-    my $attribute_generator;
-    my $needs_meta = 0;
     my $meta;
-    for my $attr_name ( keys %{$self->attributes_config} ) {
-        my $attr_config = $self->attributes_config->{$attr_name};
-
-        if( $self->accessors_config->{auto} ) {
+    if( $self->accessors_config->{auto} ) {
+        for my $attr_name ( keys %{$self->attributes_config} ) {
+            next if $self->accessors_config->{exclude}->{$attr_name};
             $meta = Class::MOP::Class->create($self->mapped_class);
 
             if ( $meta->find_all_methods_by_name($attr_name)
                 and !$self->accessors_config->{do_replace} )
             {
                 # TODO fix english ....
-                confess "$attr_name method already exists."
+                confess "the $attr_name method already exists."
                     . "use do_replace option or exclude option.";
             }
             else {
+                my $attr_config = $self->attributes_config->{$attr_name};
                 $meta->add_method (
                     $attr_name => sub {
-                        my $self = shift;
+                        my $obj = shift;
                         if ( @_ ) {
                             my $val = shift;
-                            if( my $meth = $attr_config->{validation_method} ) {
-                                unless( $self->$meth($val) ) {
-                                    confess "XXX validation error";
-                                }
-                            }
-                            elsif ( $attr_config->{validation}
-                                and $attr_config->{isa}->validation )
-                            {
-                                unless (
-                                    $attr_config->{isa}->validation->($val) )
-                                {
-                                    confess "XXX validation error";
-                                }
-                            }
-
-                            $self->{$attr_name} = $val;
+                            $obj->{$attr_name} = $val;
                         }
 
-                        return $self->{$attr_name};
+                        return $obj->{$attr_name};
                     }
                 );
+
+                if ( my $meth = $attr_config->{validation_method} ) {
+                    $meta->add_before_method_modifier(
+                        $attr_name => sub { shift->${meth}(@_) }
+                    );
+                }
+                elsif ( $attr_config->{validation}
+                    and my $code = $attr_config->{isa}->validation )
+                {
+                    $meta->add_before_method_modifier(
+                        $attr_name => sub {
+                            my $obj = shift;
+                            unless ( $code->(@_) ) {
+                                confess "parameter $attr_name is not valid.";
+                            }
+                        }
+                    );
+                }
+
             }
+
         }
     }
 
@@ -254,13 +291,13 @@ sub mapping {
         $meta->add_method(
             new => sub {
                 my $class = shift;
-                my $param = @_ == 1 ? $_[0] : { $_[0] };
-                my $self = bless $param, $class;
+                my %param = @_ % 2 == 0 ? @_ : %{$_[0]};
+                my $obj = bless +{}, $class;
+                $obj->${_}($param{$_}) for keys %param;
+                return $obj;
             }
         );
     }
-
-    # XXX set __mepper_meta
 
     if( $meta ) {
         $meta->make_immutable(
@@ -268,25 +305,18 @@ sub mapping {
             debug => 1,
         ); # XXXX
     }
+    elsif( !Class::MOP::is_class_loaded($self->mapped_class) ) {
+        Class::MOP::load_class($self->mapped_class);
+    }
 
-    # attributes => {
-    #     isa
-    #     lazy
-    #     validation
-    #     getter
-    #     validation_method
-    # },
-    # accessors => {
-    #     auto
-    #     exclude
-    #     do_replace
-    # },
-    # constructor => {
-    #     auto
-    # }
+    {
+        no strict 'refs';
+        my $pkg = $self->mapped_class;
+        *{"$pkg\::__mapper__"} = sub { $self };
+    };
+
+    $self->_regist_mapped_class;
 }
-
-
 
 1;
 

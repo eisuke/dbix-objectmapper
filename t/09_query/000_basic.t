@@ -41,9 +41,11 @@ is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
 
 { # insert
     ok my $a1
-        = $query->insert->table('artist')->values( name => 'add1' )->execute;
+        = $query->insert->table('artist')->values( name => 'add1' )->execute();
     ok my $a2
-        = $query->insert->table('artist')->values( name => 'add2' )->execute;
+        = $query->insert->table('artist')->values( name => 'add2' )->execute(['id']);
+    ok $a2->{id};
+
     dies_ok {
         $query->insert->table('artist')->values( hoge => 'hoge' )->execute;
     };
@@ -68,9 +70,9 @@ is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
 };
 
 { # select with callback
-    my $it = $query->select->from('artist')->order_by('id')->execute(
+    my $it = $query->select(
         sub { { id => $_[0]->[0], name => $_[0]->[1] } }
-    );
+    )->from('artist')->order_by('id')->execute();
 
     while( my $ref = $it->next ) {
         ok $ref->{name};

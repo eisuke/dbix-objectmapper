@@ -12,7 +12,6 @@ sub new {
 
 sub execute {
     my $self = shift;
-    my $callback = shift || $self->callback;
     return $self->engine->select( $self->builder, sub { $_[0]->[0] } )->first;
 }
 

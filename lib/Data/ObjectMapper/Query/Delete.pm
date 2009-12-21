@@ -24,8 +24,7 @@ sub new {
 
 sub execute {
     my $self = shift;
-    my $callback = shift || $self->callback;
-    return $self->engine->delete( $self->builder, $callback );
+    return $self->engine->delete( $self->builder, $self->callback, @_ );
 }
 
 1;
