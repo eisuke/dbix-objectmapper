@@ -7,7 +7,6 @@ use overload
     fallback => 1
     ;
 
-
 use Params::Validate qw(:all);
 use Scalar::Util;
 use List::MoreUtils;

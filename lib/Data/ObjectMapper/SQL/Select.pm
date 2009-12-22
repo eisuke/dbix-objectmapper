@@ -7,7 +7,7 @@ __PACKAGE__->initdata({
     column   => [],
     from     => [],
     where    => [],
-    joins    => [],
+    join     => [],
     order_by => [],
     group_by => [],
     limit    => 0,
@@ -19,7 +19,7 @@ __PACKAGE__->initdata({
 __PACKAGE__->accessors({
     convert_columns_to_sql => [qw(column order_by group_by)],
     convert_tables_to_sql  => [qw(from)],
-    convert_joins_to_sql   => [qw(joins)],
+    convert_joins_to_sql   => [qw(join)],
     build_where            => [qw(where having)],
     num_check              => [qw(limit offset)],
 });
@@ -32,7 +32,7 @@ sub as_sql {
     my $stm = 'SELECT ' . ($self->column_as_sql || '*') . ' FROM ' . $from;
     push @bind, @from_bind if @from_bind;
 
-    my ($join_stm, @join_bind) = $self->joins_as_sql;
+    my ($join_stm, @join_bind) = $self->join_as_sql;
     $stm .= ' ' . $join_stm if $join_stm;
     push @bind, @join_bind if @join_bind;
 

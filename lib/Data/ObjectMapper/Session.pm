@@ -61,10 +61,10 @@ sub save {
     }
 
     if( $self->unit->persistent($obj) ) {
-        $mapper->table->update->set(%result)->execute();
+        $mapper->from->update->set(%result)->execute();
     }
     else {
-        $mapper->table->insert->valuse(%result)->execute();
+        $mapper->from->insert->valuse(%result)->execute();
     }
 
 }

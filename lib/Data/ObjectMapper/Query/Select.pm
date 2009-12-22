@@ -13,9 +13,9 @@ sub new {
 {
     no strict 'refs';
     my $pkg = __PACKAGE__;
-    for my $meth ( qw( column from where joins order_by
+    for my $meth ( qw( column from where join order_by
                        group_by limit offset having
-                       add_column add_where add_joins
+                       add_column add_where add_join
                        add_order_by add_group_by add_having ) ) {
         *{"$pkg\::$meth"} = sub {
             my $self = shift;
@@ -28,6 +28,11 @@ sub new {
 sub execute {
     my $self = shift;
     return $self->engine->select( $self->builder, $self->callback, @_ );
+}
+
+sub as_metadata {
+    my $self = shift;
+
 }
 
 1;

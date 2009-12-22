@@ -20,7 +20,7 @@ run_is;
     my $input = {
         column => [ 'customer_id', [ { count => 'order_id' }, 'cnt' ] ],
         from => [ [ 'order_mst' => 'orders' ] ],
-        joins => [
+        join => [
             [qw(order_goods_dtl order_id left)],
             [   'order_goods',
                 [ [ 'order_goods.order_id' => \'order_mst.order_id' ], ],
@@ -64,7 +64,7 @@ __END__
 Data::ObjectMapper::SQL->select(
    column => [ 'customer_id', [ { count => 'order_id' }, 'cnt' ] ],
    from   => [ ['order_mst' => 'orders'] ],
-   joins  => [
+   join  => [
        [qw(order_goods_dtl order_id left)],
        [
            'order_goods',
@@ -135,7 +135,7 @@ Data::ObjectMapper::SQL->insert(
     }
 );
 --- expected
-INSERT INTO hoge ( a, b, c, d ) VALUES(?,?,?,?) <= 1,2,3,4
+INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?) <= 1,2,3,4
 
 === INSERT SELECT
 --- input
@@ -152,6 +152,49 @@ Data::ObjectMapper::SQL->insert()
 --- expected
 INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <= 1,2
 
+=== INSERT SELECT add
+--- input
+my $sql = Data::ObjectMapper::SQL->insert();
+$sql->add_table('hoge');
+$sql->add_values(
+    [ qw(a b c d) ] => Data::ObjectMapper::SQL->select
+                    ->from('hoge2')
+                    ->where(
+                        [ a => 1 ],
+                        [ b => 2 ],
+                    )
+);
+return $sql;
+--- expected
+INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <= 1,2
+
+=== INSERT MULTI
+--- input
+Data::ObjectMapper::SQL->insert()
+->table('hoge')
+->values(
+    [ qw(a b c d) ],
+    [ qw(1 2 3 4) ],
+    [ qw(5 6 7 8) ],
+    [ qw(9 10 11 12) ],
+);
+--- expected
+INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,4,5,6,7,8,9,10,11,12
+
+=== INSERT MULTI ADD
+--- input
+my $sql = Data::ObjectMapper::SQL->insert();
+$sql->add_table('hoge');
+$sql->add_values(
+    [ qw(a b c d) ],
+    [ qw(1 2 3 4) ],
+    [ qw(5 6 7 8) ],
+    [ qw(9 10 11 12) ],
+);
+return $sql;
+--- expected
+INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,4,5,6,7,8,9,10,11,12
+
 === INSERT ADD
 --- input
 my $sql = Data::ObjectMapper::SQL->insert();
@@ -161,7 +204,7 @@ $sql->add_values( c => 3 );
 
 return $sql;
 --- expected
-INSERT INTO foo ( a, b, c ) VALUES(?,?,?) <= 1,2,3
+INSERT INTO foo ( a, b, c ) VALUES (?,?,?) <= 1,2,3
 
 === UPDATE
 --- input
@@ -224,7 +267,7 @@ DELETE FROM bar WHERE ( a = ? AND b = ? ) <= 1,2
 --- input
 Data::ObjectMapper::SQL->select(
     from => 'hoge',
-    joins  => [
+    join  => [
        [
            'order_goods',
            [
@@ -251,7 +294,7 @@ SELECT * FROM array_test WHERE ( a = ? ) <= {1,2}
 --- input
 Data::ObjectMapper::SQL->insert->table('array_test')->values( id => 1, array_field => [1,2]);
 --- expected
-INSERT INTO array_test ( array_field, id ) VALUES(?,?) <= {1,2},1
+INSERT INTO array_test ( array_field, id ) VALUES (?,?) <= {1,2},1
 
 === ARRAY UPDATE FOR PG
 --- input

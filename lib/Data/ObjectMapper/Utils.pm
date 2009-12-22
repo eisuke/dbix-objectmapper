@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use Class::Inspector;
 use Module::Pluggable::Object;
-use Module::Find;
 use Carp::Clan;
 use Scalar::Util;
 use Hash::Merge;

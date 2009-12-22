@@ -1,6 +1,7 @@
 package Data::ObjectMapper::SQL::Insert;
 use strict;
 use warnings;
+use Carp;
 use base qw(Data::ObjectMapper::SQL::Base);
 
 __PACKAGE__->initdata({
@@ -15,10 +16,7 @@ __PACKAGE__->accessors({
 sub values {
     my $self = shift;
     if( @_ ) {
-        if (    @_ == 2
-            and ref $_[0] eq 'ARRAY'
-            and ref $_[1] eq 'Data::ObjectMapper::SQL::Select' )
-        {
+        if ( ref $_[0] eq 'ARRAY' ) {
             $self->{values} = \@_;
         }
         elsif( @_ % 2 == 0 ) {
@@ -36,11 +34,8 @@ sub values {
 
 sub add_values {
     my $self = shift;
-    if (    @_ == 2
-        and ref $_[0] eq 'ARRAY'
-        and ref $_[1] eq 'Data::ObjectMapper::SQL::Select' )
-    {
-        $self->{values} = \@_;
+    if ( ref $_[0] eq 'ARRAY' ) {
+        $self->values(@_);
     }
     elsif ( @_ % 2 == 0 ) {
         my %values = @_;
@@ -48,29 +43,43 @@ sub add_values {
     }
 }
 
-sub values_as_sql {
+sub _values_as_sql {
     my $self = shift;
-    if ( ref $self->{values} eq 'HASH' ) {
+    my $values = shift;
+
+    if ( ref $values eq 'HASH' ) {
         my ( @col, @val );
 
-        for my $key ( sort keys %{ $self->{values} } ) {
+        for my $key ( sort keys %$values ) {
             push @col, $key;
-            push @val,
-                $self->convert_val_to_sql_format( $self->{values}{$key} );
+            push @val, $self->convert_val_to_sql_format( $values->{$key} );
         }
 
         return sprintf(
-            " ( %s ) VALUES(%s)",
+            " ( %s ) VALUES (%s)",
             join( ', ', @col ),
             join( ',', ('?') x @val )
         ), @val;
     }
-    elsif ( ref $self->{values} eq 'ARRAY' ) {
-        my ( $stm, @bind ) = $self->{values}[1]->as_sql;
-
-        return sprintf( " ( %s ) %s",
-            join( ', ', @{ $self->{values}[0] } ), $stm ),
-            @bind;
+    elsif ( ref $values eq 'ARRAY' ) {
+        if ( ref $values->[1] eq 'ARRAY' ) {
+            my $col = shift(@$values);
+            my $stm = sprintf(" ( %s ) VALUES ", join( ', ', @$col) );
+            my @multi_stm;
+            my @bind_val;
+            for my $v ( @$values ) {
+                push @multi_stm, sprintf("(%s)", join(',', ('?') x @$v));
+                push @bind_val, @$v;
+            }
+            $stm .= join(', ', @multi_stm );
+            return $stm, @bind_val;
+        }
+        elsif( ref $values->[1] eq 'Data::ObjectMapper::SQL::Select' ) {
+            my ( $stm, @bind ) = $values->[1]->as_sql;
+            return sprintf( " ( %s ) %s",
+                join( ', ', @{ $values->[0] } ), $stm ),
+                @bind;
+        }
     }
     else {
         return;
@@ -84,7 +93,7 @@ sub as_sql {
     my ( $table_name, @no_bind ) = $self->table_as_sql;
     $stm = 'INSERT INTO ' . $table_name;
 
-    my ($value_stm, @value_bind) = $self->values_as_sql;
+    my ($value_stm, @value_bind) = $self->_values_as_sql($self->{values});
     $stm .= $value_stm;
     push @bind, @value_bind if @value_bind;
 

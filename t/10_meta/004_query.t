@@ -93,7 +93,7 @@ my $address = $meta->table(
 
 
 { # join
-    my $it = $person->select->joins(
+    my $it = $person->select->join(
         [ $address => [ $address->c('person') == $person->c('id') ] ]
     )->add_column(
         @{$address->columns}, [ $address->c('person') => 'person_id']
@@ -110,7 +110,7 @@ my $address = $meta->table(
 }
 
 { # count, join
-    is $person->count->joins(
+    is $person->count->join(
         [ $address => [ $address->c('person') == $person->c('id') ] ]
     )->execute, 4;
 };
@@ -186,7 +186,6 @@ my $address = $meta->table(
     is $address->select->column({count=>'*'})->execute->first->{count}, 0;
     is $address->select->column()->execute->first, undef;
 };
-
 
 done_testing();
 

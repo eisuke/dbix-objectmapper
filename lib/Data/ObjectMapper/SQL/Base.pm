@@ -2,6 +2,8 @@ package Data::ObjectMapper::SQL::Base;
 use strict;
 use warnings;
 use Carp qw(croak);
+
+use Clone;
 use base qw(Class::Data::Inheritable);
 
 __PACKAGE__->mk_classdata( initdata => {} );
@@ -370,45 +372,8 @@ sub limit_xy {
 
 sub clone {
     my $self = shift;
-    my $clone_data = _clone({ %$self });
+    my $clone_data = Clone::clone($self);
     return bless $clone_data, ref($self);
-}
-
-sub _clone {
-    my $hashref = shift;
-
-    my %clone;
-    for my $key ( keys %$hashref ) {
-        if( $hashref->{$key} and ref $hashref->{$key} eq 'HASH' ) {
-            $clone{$key} = _clone($hashref->{$key});
-        }
-        elsif( $hashref->{$key} and ref $hashref->{$key} eq 'ARRAY' ) {
-            $clone{$key} = _clone_arrayref($hashref->{$key});
-        }
-        else {
-            $clone{$key} = $hashref->{$key};
-        }
-    }
-    return \%clone;
-}
-
-sub _clone_arrayref {
-    my $arrayref = shift;
-
-    my @clone;
-    for my $data ( @$arrayref ) {
-        if( ref $data eq 'HASH' ) {
-            push @clone, _clone($data);
-        }
-        elsif( ref $data eq 'ARRAY' ) {
-            push @clone, _clone_arrayref($data);
-        }
-        else {
-            push @clone, $data;
-        }
-    }
-
-    return \@clone;
 }
 
 1;

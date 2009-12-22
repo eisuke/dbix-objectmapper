@@ -179,71 +179,46 @@ sub is_same_addr($$) {
     };
 };
 
-{ # accessor only XXX
-1;
-};
-
-{ # constructor only XXXX
-1;
-};
-
-
-
-=pod
-
-    my $mapped_artist = Data::ObjectMapper::Mapper->new(
-        $meta->t('artist') => 'My::Artist',
-        attributes => {
-            include    => [],
-            exclude    => [],
-            prefix     => '',
-            properties => +{
-                isa               => undef,
-                lazy              => 0,
-                validation        => 0,
-                validation_method => undef,
-            }
-        },
-        accessors => +{
-            auto       => 0,
-            exclude    => [],
-            do_replace => 0,
-        },
-        constructor => +{
-            name     => 'new',
-            arg_type => 'HASHREF',
-            auto     => 0,
-        },
-        default_condition => [
-
-        ],
+{ # accessor only
+    my $mapped_class = 'MyTest::AO::Artist';
+    ok my $mapper = Data::ObjectMapper::Mapper->new(
+        $meta->t('artist') => $mapped_class,
+        constructor => +{ auto => 1 },
     );
 
-=cut
+    ok $mapped_class->can('new');
+    ok $mapped_class->can('firstname');
+    ok $mapped_class->can('lastname');
+    ok $mapped_class->can('fullname');
 
+    ok my $obj = $mapped_class->new(
+        { id => 1, firstname => 'f', lastname => 'l' } );
+    is $obj->id, 1;
+    is $obj->firstname, 'f';
+    is $obj->lastname, 'l';
+};
 
+{ # constructor only
+    my $mapped_class = 'MyTest::CO::Artist';
+    ok my $mapper = Data::ObjectMapper::Mapper->new(
+        $meta->t('artist') => $mapped_class,
+        accessors   => +{ auto => 1 },
+        constructor => { arg_type => 'ARRAY' },
+    );
 
+    ok $mapped_class->can('new');
+    ok $mapped_class->can('firstname');
+    ok $mapped_class->can('lastname');
+
+    ok my $obj = $mapped_class->new( 1, 'f', 'l' );
+    is $obj->id, 1;
+    is $obj->firstname, 'f';
+    is $obj->lastname, 'l';
+};
+
+# XXXXX join(relation)
+# XXXXX table is query
 
 done_testing;
 
 __END__
-
-    my $session = Data::ObjectMapper->init_session;
-    my $artist = $session->query('MyTest::Basic::Artist')->find(1);
-
-    is $artist->firstname, 'a1';
-    is $artist->lastname, 'b1';
-    is $artist->fullname, 'a1 b1';
-
-    $artist->firstname('a1-2');
-    $artist->lastname('b1-2');
-    is $artist->fullname, 'a1-2 b1-2';
-
-    $session->save($artist);
-
-    require Data::Dumper;
-    print Data::Dumper::Dumper($artist);
-
-__END__
-
-

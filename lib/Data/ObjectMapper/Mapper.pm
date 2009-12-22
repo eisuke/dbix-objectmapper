@@ -3,12 +3,10 @@ use strict;
 use warnings;
 use Carp::Clan;
 use Params::Validate qw(:all);
-use Scalar::Util;
 use Class::MOP;
 use Class::MOP::Class;
 use Data::ObjectMapper::Utils;
 
-## TODO generete argument structure from feched data
 my @CONSTRUCTOR_ARGUMENT_TYPES = qw( HASHREF HASH ARRAYREF ARRAY );
 
 my %OPTIONS_VALIDATE = (
@@ -51,6 +49,11 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
 
     sub _regist_mapped_class {
         my $self = shift;
+        {
+            no strict 'refs';
+            my $pkg = $self->mapped_class;
+            *{"$pkg\::__mapper__"} = sub { $self };
+        };
         $MAPPED_CLASSES{$self->mapped_class} = $self;
     }
 
@@ -70,7 +73,7 @@ sub new {
     }
 
     my $self = bless {
-        table              => undef,
+        from               => undef,
         mapped_class       => undef,
         attributes_config  => +{},
         accessors_config   => +{},
@@ -78,13 +81,14 @@ sub new {
         mapped             => 0,
     }, $class;
 
-    unshift @_, 'table';
+    unshift @_, 'from';
     splice @_, 2, 0, 'mapped_class';
 
     my %option = validate(
         @_,
-        {   table => {
+        {   from => {
                 type => OBJECT,
+                # XXXX not only table
                 isa  => 'Data::ObjectMapper::Metadata::Table'
             },
             mapped_class      => { type => SCALAR, },
@@ -95,33 +99,33 @@ sub new {
         }
     );
 
-    $self->{table} = $option{table};
+    $self->{from} = $option{from};
     $self->{mapped_class} = $option{mapped_class};
 
-    $self->init_attributes_config( %{ $option{attributes} } );
-    $self->init_acceesors_config( %{ $option{accessors} } );
-    $self->init_constructor_config( %{ $option{constructor} } );
+    $self->_init_attributes_config( %{ $option{attributes} } );
+    $self->_init_acceesors_config( %{ $option{accessors} } );
+    $self->_init_constructor_config( %{ $option{constructor} } );
 
-    $self->mapping;
+    $self->_mapping;
     return $self;
 }
 
 {
     no strict 'refs';
     my $package = __PACKAGE__;
-    for my $meth (qw(table mapped_class attributes_config
+    for my $meth (qw(from mapped_class attributes_config
                      accessors_config constructor_config)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
 
-sub init_constructor_config {
+sub _init_constructor_config {
     my $self = shift;
     my %option = validate( @_, $OPTIONS_VALIDATE{constructor} );
     $self->{constructor_config} = \%option;
 }
 
-sub init_acceesors_config {
+sub _init_acceesors_config {
     my $self = shift;
 
     my %option = validate( @_, $OPTIONS_VALIDATE{accessors} );
@@ -136,23 +140,23 @@ sub init_acceesors_config {
     $self->{accessors_config} = \%option;
 }
 
-sub init_attributes_config {
+sub _init_attributes_config {
     my $self = shift;
-    my $table = $self->table;
+    my $from  = $self->from;
     my $klass = $self->mapped_class;
 
     my %option = validate( @_, $OPTIONS_VALIDATE{attributes} );
 
     my @attributes;
     if( !@{$option{include}} ) { # all
-        @attributes = @{ $table->columns };
+        @attributes = @{ $from->columns };
     }
     else { # ARRAYREF
         for my $p ( @{$option{include}} ) {
-            if( $p and ref $p eq $table->column_metaclass ) {
+            if( $p and ref $p eq $from->column_metaclass ) {
                 push @attributes, $p;
             }
-            elsif( !ref($p) and my $meta_col = $table->c($p) ) {
+            elsif( !ref($p) and my $meta_col = $from->c($p) ) {
                 push @attributes, $meta_col;
             }
             else {
@@ -163,7 +167,7 @@ sub init_attributes_config {
 
     if( $option{exclude} ) {
         my %exclude = map {
-              ( ref($_) eq $table->column_metaclass )
+              ( ref($_) eq $from->column_metaclass )
             ? ( $_->name => 1 )
             : ( $_ => 1 );
         } grep { $_ } @{ $option{exclude} };
@@ -200,7 +204,7 @@ sub init_attributes_config {
         for my $name ( keys %{ $option{properties} } ) {
             my $isa
                 = $option{properties}->{isa}
-                || $table->c($name)
+                || $from->c($name)
                 || confess "$name : column not found. set property \"isa\". ";
 
             $option{properties}->{getter} ||= $name;
@@ -231,8 +235,14 @@ sub init_attributes_config {
     }
 }
 
-sub mapping {
+sub _mapping {
     my $self = shift;
+
+    unless ($self->accessors_config->{auto}
+        and $self->constructor_config->{auto} )
+    {
+        Class::MOP::load_class( $self->mapped_class );
+    }
 
     my $meta;
     if( $self->accessors_config->{auto} ) {
@@ -302,18 +312,9 @@ sub mapping {
     if( $meta ) {
         $meta->make_immutable(
             inline_constructor => 0,
-            debug => 1,
-        ); # XXXX
+            inline_accessors   => 0,
+        );
     }
-    elsif( !Class::MOP::is_class_loaded($self->mapped_class) ) {
-        Class::MOP::load_class($self->mapped_class);
-    }
-
-    {
-        no strict 'refs';
-        my $pkg = $self->mapped_class;
-        *{"$pkg\::__mapper__"} = sub { $self };
-    };
 
     $self->_regist_mapped_class;
 }
@@ -321,4 +322,131 @@ sub mapping {
 1;
 
 __END__
+
+=head1 NAME
+
+Data::ObjectMapper::Mapper
+
+=head1 DESCRIPTION
+
+=head1 SYNOPSIS
+
+  my $mapped_artist = Data::ObjectMapper::Mapper->new(
+     $meta->t('artist') => 'My::Artist',
+     attributes => {
+         include    => [],
+         exclude    => [],
+         prefix     => '',
+         properties => +{
+             isa               => undef,
+             lazy              => 0,
+             validation        => 0,
+             validation_method => undef,
+         }
+     },
+     accessors => +{
+         auto       => 0,
+         exclude    => [],
+         do_replace => 0,
+     },
+     constructor => +{
+         name     => 'new',
+         arg_type => 'HASHREF',
+         auto     => 0,
+     },
+     default_condition => [
+
+     ],
+ );
+
+=head1 METHODS
+
+=head2 new
+
+B<<Options>>
+
+=head3 attributes
+
+=head4  include
+
+    => { type => ARRAYREF, default => +[] },
+
+=head4  exclude
+
+    => { type => ARRAYREF, default => +[] },
+
+=head4 prefix
+
+     => { type => SCALAR,   default => q{} },
+
+=head4  properties
+
+ => { type => HASHREF|ARRAYREF,  default => +{} },
+
+=over 5
+
+=item isa
+
+               => undef,
+
+=item lazy
+
+              => 0,
+
+=item validation
+
+        => 0,
+
+=item validation_method
+
+ => undef,
+
+=item getter
+
+            => undef,
+
+=back
+
+=head3
+
+=head4 auto
+
+       => { type => BOOLEAN,  default => 0 },
+
+=head4 exclude
+
+    => { type => ARRAYREF, default => +[], depends => 'auto' },
+
+=head4 do_replace
+
+ => { type => BOOLEAN,  default => 0, depends => 'auto' },
+
+=head3 constructor
+
+=head4 name
+
+     => { type => SCALAR, default => 'new' },
+
+=head4 arg_type
+
+@CONSTRUCTOR_ARGUMENT_TYPES;
+
+=head4 auto
+
+ => { type => BOOLEAN, default => 0 },
+
+
+=head3 default_condition
+
+
+=head2 is_mapped
+
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT AND LICENSE
+
+
 

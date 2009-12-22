@@ -23,7 +23,7 @@ sub find {
     my $id = shift;
 
     my $mapper = $self->target_class->__mapper__;
-    my $result = $mapper->table->find($id) || return;
+    my $result = $mapper->from->find($id) || return;
 
     my $constructor = $mapper->constructor_config->{name};
     my $type = $mapper->constructor_config->{type};

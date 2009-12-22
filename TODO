@@ -1,1 +1,28 @@
+* Session
 * Column::Typeの実装
+* Column alias
+* queryで、SCALAR REFの場合はそのまま文字列をわたす
+* col + col で || の
+   connection(Data::ObjectMapper::Metadata::Column::Connect)
+* SQL - exists,any,in support
+* SQL - subquery check
+
+* find? get?
+* has_many の場合の collectionの実装
+
+===
+http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators
+http://www.sqlalchemy.org/docs/05/mappers.html#composite-column-types
+
+===
+http://www.sqlalchemy.org/docs/05/mappers.html#joined-table-inheritance
+
+===
+Queryからmappingする形
+http://www.sqlalchemy.org/docs/05/mappers.html#mapping-a-class-against-arbitrary-selects
+ => herefore the table is not affected by save or delete operations
+
+http://www.sqlalchemy.org/docs/05/mappers.html#multiple-mappers-for-one-class
+
+====
+http://www.sqlalchemy.org/docs/05/mappers.html#dictionary-based-collections

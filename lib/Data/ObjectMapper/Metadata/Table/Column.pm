@@ -15,6 +15,8 @@ use overload
     '>=' => sub { $_[0]->op( '>=', $_[1] ) },
     '>'  => sub { $_[0]->op( '>',  $_[1] ) },
     '<'  => sub { $_[0]->op( '<',  $_[1] ) },
+    ### XXXX to connect object
+    '+'  => sub { $_[0] . ' || ' . $_[1] },
     '""' => sub { $_[0]->table . $_[0]->sep . $_[0]->name },
     fallback => 1,
 ;
