@@ -5,7 +5,10 @@ use base qw(Data::ObjectMapper::Query);
 
 sub new {
     my $class = shift;
-    my $self = $class->SUPER::new(@_);
+    my $engine = shift;
+    my $callback = shift;
+    my $self = $class->SUPER::new($engine, $callback);
+    $self->{primary_keys} = shift || [];
     $self->builder( $self->engine->query->insert );
     return $self;
 }
@@ -24,7 +27,7 @@ sub new {
 
 sub execute {
     my $self = shift;
-    return $self->engine->insert( $self->builder, $self->callback, @_ );
+    return $self->engine->insert( $self->builder, $self->callback, $self->{primary_keys} );
 }
 
 1;

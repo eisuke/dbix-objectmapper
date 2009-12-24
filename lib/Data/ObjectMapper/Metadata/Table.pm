@@ -487,9 +487,14 @@ sub count {
 sub find {
     my $self = shift;
     my $cond = shift;
-    my @cond = $self->get_unique_condition($cond);
+    my ( $type, @cond ) = $self->get_unique_condition($cond);
     confess "condition is not unique." unless @cond;
-    return $self->select->where(@cond)->execute->first;
+    $self->_find(@cond);
+}
+
+sub _find {
+    my $self = shift;
+    return $self->select->where(@_)->execute->first;
 }
 
 sub get_unique_condition {
@@ -498,18 +503,22 @@ sub get_unique_condition {
     if ( ref $cond eq 'HASH' ) {
         my $ok = 0;
         if( List::MoreUtils::all { $cond->{$_} } @{ $self->primary_key } ) {
-            return map { $self->c($_) == $cond->{$_} } @{ $self->primary_key };
+            return undef,
+                map { $self->c($_) == $cond->{$_} } @{ $self->primary_key };
+
         }
         else {
             for my $uinfo ( @{ $self->unique_key } ) {
                 if( List::MoreUtils::all { $cond->{$_} } @{$uinfo->[1]} ) {
-                    return map { $self->c($_) == $cond->{$_} } @{$uinfo->[1]};
+                    return $uinfo->[0],
+                        map { $self->c($_) == $cond->{$_} } @{ $uinfo->[1] };
                 }
             }
         }
     }
     elsif ( ref $cond eq 'ARRAY' and !ref $cond->[0] ) {
-        return map { $self->c($_) == shift(@$cond) } @{ $self->primary_key }
+        return undef,
+            map { $self->c($_) == shift(@$cond) } @{ $self->primary_key }
             if @$cond == @{ $self->primary_key };
     }
     elsif ( ref $cond eq 'ARRAY'
@@ -519,19 +528,19 @@ sub get_unique_condition {
         my %col;
         for my $c (@$cond) {
             return unless $c->[1] eq '=';
-            $col{ $c->[0]->name } = 1;
+            $col{ $c->[0]->name } = $c->[2];
         }
         return $self->get_unique_condition( \%col );
     }
     elsif ( !ref $cond and defined $cond ) {
         if( @{ $self->primary_key } == 1 ) {
-            return map { $self->c($_) == $cond } @{ $self->primary_key };
+            return undef,
+                map { $self->c($_) == $cond } @{ $self->primary_key };
         }
     }
 
     return;
 }
-
 
 sub insert {
     my $self = shift;

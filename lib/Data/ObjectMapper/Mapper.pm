@@ -45,30 +45,30 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
 };
 
 {
-    my %MAPPED_CLASSES;
+    my %INITIALIZED_CLASSES;
 
-    sub _regist_mapped_class {
+    sub _set_initialized_class {
         my $self = shift;
         {
             no strict 'refs';
             my $pkg = $self->mapped_class;
             *{"$pkg\::__mapper__"} = sub { $self };
         };
-        $MAPPED_CLASSES{$self->mapped_class} = $self;
+        $INITIALIZED_CLASSES{$self->mapped_class} = $self;
     }
 
-    sub is_mapped {
+    sub is_initialized {
         my $self = shift;
         my $class = shift;
-        return $MAPPED_CLASSES{$class};
+        return $INITIALIZED_CLASSES{$class};
     }
 };
 
 sub new {
     my $class = shift;
 
-    if( my $mapped_class = $class->is_mapped( $_[1]) ) {
-        cluck "$_[1] is already mapped. this return the mapped object.";
+    if( my $mapped_class = $class->is_initialized( $_[1]) ) {
+        cluck "$_[1] is already initialized.";
         return $mapped_class;
     }
 
@@ -106,7 +106,7 @@ sub new {
     $self->_init_acceesors_config( %{ $option{accessors} } );
     $self->_init_constructor_config( %{ $option{constructor} } );
 
-    $self->_mapping;
+    $self->_initialize;
     return $self;
 }
 
@@ -197,7 +197,7 @@ sub _init_attributes_config {
 
         $self->{attributes_config} = \@properties;
     }
-    else { # HASH
+    else { # HASH or auto
         my %properties;
         my %settle_attribute;
 
@@ -222,6 +222,7 @@ sub _init_attributes_config {
             $properties{ $attr->name } = {
                 %$DEFAULT_ATTRIBUTE_PROPERTY,
                 isa    => $attr,
+                getter => $attr->name,
             };
             $settle_attribute{ $attr->name } = 1;
         }
@@ -235,7 +236,7 @@ sub _init_attributes_config {
     }
 }
 
-sub _mapping {
+sub _initialize {
     my $self = shift;
 
     unless ($self->accessors_config->{auto}
@@ -316,7 +317,47 @@ sub _mapping {
         );
     }
 
-    $self->_regist_mapped_class;
+    $self->_set_initialized_class;
+}
+
+sub mapping {
+    my ( $self, $hashref_data ) = @_;
+
+    my $constructor = $self->constructor_config->{name};
+    my $type = $self->constructor_config->{type};
+
+    ## XXX TODO
+    ## eager loding
+    ## lazy loading
+    ## ......
+
+    my %param;
+    for my $attr ( keys %{$self->attributes_config} ) {
+        my $isa = $self->attributes_config->{$attr}{isa};
+        $param{$attr} = $hashref_data->{$isa->name};
+    }
+
+    return $self->mapped_class->${constructor}(%param);
+}
+
+sub reducing {
+    my ( $self, $obj ) = @_;
+
+    my %result;
+    for my $attr ( keys %{$self->attributes_config} ) {
+        my $getter = $self->attributes_config->{$attr}{getter};
+        if( !ref $getter ) {
+            $result{$attr} = $obj->$getter;
+        }
+        elsif( ref $getter eq 'CODE' ) {
+            $result{$attr} = $getter->($obj);
+        }
+        else {
+            confess "invalid getter config.";
+        }
+    }
+
+    return \%result;
 }
 
 1;
@@ -439,7 +480,11 @@ B<<Options>>
 =head3 default_condition
 
 
-=head2 is_mapped
+=head2 is_initialized
+
+=head2 mapping
+
+=head2 reducing
 
 
 =head1 AUTHOR

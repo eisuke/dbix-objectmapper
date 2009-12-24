@@ -29,9 +29,20 @@ MyTest11->setup_default_data;
 
     ok $artist->name('レッドツェッペリン');
 
-    $session->save($artist);
+    ok $session->save($artist);
 };
 
+{
+    my $session = Data::ObjectMapper::Session->new();
+    my $obj = MyTest11::Artist->new( name => 'Jimi Hendrix' );
+    ok my $new_obj = $session->save($obj);
+    ok my $obj2 = $session->query('MyTest11::Artist')->find(2);
+    $new_obj->name('じみへん');
+    $session->save($new_obj);
+
+    $new_obj->name('jimihen');
+    $session->save($new_obj);
+};
 
 
 done_testing;

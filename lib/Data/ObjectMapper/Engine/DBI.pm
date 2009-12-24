@@ -251,9 +251,10 @@ sub insert {
     $self->dbh_do( sub {  $self->dbh->do( $sql, {}, @bind ) } );
 
     my $ret_id = ref($query->values) eq 'HASH' ? $query->values : +{};
+
     if( $primary_keys ) {
         for my $pk (@$primary_keys) {
-            unless( exists $query->{values}->{$pk} ) {
+            unless ( defined $query->{values}->{$pk} ) {
                 $ret_id->{$pk} = $self->driver->last_insert_id(
                     $self->dbh,
                     $query->table,
