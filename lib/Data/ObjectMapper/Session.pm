@@ -2,56 +2,74 @@ package Data::ObjectMapper::Session;
 use strict;
 use warnings;
 use Carp::Clan;
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr blessed);
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Session::Query;
+use Data::ObjectMapper::Session::IdentityMap;
+use Data::ObjectMapper::Session::UnitOfWork;
 my $DEFAULT_QUERY_CLASS = 'Data::ObjectMapper::Session::Query';
 
 sub new {
     my $class = shift;
     my %attr = @_;
 
+    my $cache = $attr{cache} || Data::ObjectMapper::Session::Cache->new();
     my $self = bless {
-        query_class  => $attr{query_class} || $DEFAULT_QUERY_CLASS,
-        queries      => +{},
+        query_class => $attr{query_class} || $DEFAULT_QUERY_CLASS,
+        queries     => +{},
+        autoflush   => $attr{autoflush}   || 1,
+        cache       => $cache,
+        id_map      => +{},
+        unit_of_work => Data::ObjectMapper::Session::UnitOfWork->new($cache),
     }, $class;
 
     return $self;
 }
 
+sub autoflush   { $_[0]->{autoflush}  }
+#sub autocommit  { $_[0]->{autocommit} }
 sub query_class { $_[0]->{query_class} }
+sub uow { $_[0]->{unit_of_work} }
 
 sub query {
     my $self = shift;
-    my $target_class = shift;
-    $self->{queries}{$target_class}
-        ||= $self->query_class->new( $target_class );
-    $self->{queries}{$target_class};
+    my $t_class = shift;
+    $t_class = ref($t_class) if blessed($t_class);
+    $self->{queries}{$t_class} ||= $self->query_class->new( $t_class );
+    $self->{queries}{$t_class};
+}
+
+sub id_map {
+    my $self = shift;
+    my $t_class = shift;
+    $t_class = ref($t_class) if blessed($t_class);
+    $self->{id_map}{$t_class} ||= Data::ObjectMapper::Session::IdentityMap->new(
+        $t_class, $self->{cache} );
+    $self->{id_map}{$t_class};
+}
+
+sub load {
+    my $self = shift;
+    $self->uow->get(@_);
 }
 
 sub add {
-
+    my $self = shift;
+    my $obj  = shift || return;
+    $self->uow->add($obj);
+    $self->flush($obj) if $self->autoflush;
 }
 
 sub add_all {
-
+    my $self = shift;
+    $self->add($_) for @_;
+    return scalar(@{$self->{objects}});
 }
 
-sub is_modified {
-    my ( $self, $obj ) = @_;
-
-    my $query = $self->query(ref($obj));
-    return unless $query->is_persistent($obj);
-
-    my $reduce_data   = $obj->__mapper__->reducing($obj);
-    my $original_data = $query->get_original_data($obj);
-    if (grep { $reduce_data->{$_} ne $original_data->{$_} } keys %$reduce_data)
-    {
-        return 1;
-    }
-    else {
-        return 0;
-    }
+sub flush {
+    my $self = shift;
+    my $obj  = shift;
+    $self->uow->flush($obj);
 }
 
 sub save_or_update {
@@ -70,69 +88,9 @@ sub save_or_update {
     }
 }
 
-sub save {
-    my $self = shift;
-    my $obj  = shift;
+sub delete {}
 
-    my $query  = $self->query(ref($obj));
-    confess "XXXX" if $query->is_persistent($obj);
-
-    my $mapper = $obj->__mapper__;
-    my $reduce_data = $mapper->reducing($obj);
-    my $comp_result
-        = $mapper->from->insert->values(%$reduce_data)->execute();
-    # XXXX
-    # mappingじゃなくて、setterへremappingのほうがいいね。
-    my $new_obj = $mapper->mapping($comp_result);
-    $query->attach( $new_obj, $comp_result );
-    return $new_obj;
-}
-
-sub update {
-    my $self = shift;
-    my $obj  = shift;
-
-    my $query  = $self->query(ref($obj));
-    confess "XXXX" unless $query->is_persistent($obj);
-
-    my $mapper = $obj->__mapper__;
-    my $reduce_data = $mapper->reducing($obj);
-
-    my $original_data = $query->get_original_data($obj);
-    my %modified_data = map { $_ => $reduce_data->{$_} }
-        grep { $reduce_data->{$_} ne $original_data->{$_} }
-            keys %$reduce_data;
-
-    confess "" unless %modified_data;
-
-    my $uniq_cond = $query->get_identity_condition($obj);
-    my $r = $mapper->from->update->set(%modified_data)->where(@$uniq_cond)
-        ->execute();
-    # ------
-    # updateされた場合に、db側で自動でtriggerとかいろいろあった場合に
-    # コンフリクトすることもあるだろうから
-    # update後はdetach扱いのほうがいいと思う
-    # ------
-    $query->detach( $obj, $original_data );
-
-    # XXXX
-    # setterへremappingのほうがいいね。
-    return $r;
-}
-
-sub delete {
-    my $self = shift;
-    my $obj  = shift;
-
-    my $query  = $self->query(ref($obj));
-    confess "XXXX" unless $query->is_persistent($obj);
-
-    my $mapper = $obj->__mapper__;
-    my $uniq_cond = $query->get_identity_condition($obj);
-    $mapper->from->delete->where(@$uniq_cond)->execute();
-    $query->detach( $obj );
-}
-
+# expunge ?
 sub detach {
     my $self = shift;
     my $obj  = shift;

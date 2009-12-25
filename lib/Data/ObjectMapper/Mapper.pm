@@ -1,11 +1,13 @@
 package Data::ObjectMapper::Mapper;
 use strict;
 use warnings;
+use Scalar::Util qw(blessed);
 use Carp::Clan;
 use Params::Validate qw(:all);
 use Class::MOP;
 use Class::MOP::Class;
 use Data::ObjectMapper::Utils;
+use Data::ObjectMapper::Mapper::WithInstance;
 
 my @CONSTRUCTOR_ARGUMENT_TYPES = qw( HASHREF HASH ARRAYREF ARRAY );
 
@@ -42,6 +44,7 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
     validation        => 0,
     validation_method => undef,
     getter            => undef,
+    setter            => undef,
 };
 
 {
@@ -52,7 +55,18 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
         {
             no strict 'refs';
             my $pkg = $self->mapped_class;
-            *{"$pkg\::__mapper__"} = sub { $self };
+            *{"$pkg\::__mapper__"} = sub {
+                my $instance = shift;
+                if( blessed($instance) ){
+                    Data::ObjectMapper::Mapper::WithInstance->new(
+                        $self,
+                        $instance,
+                    );
+                }
+                else {
+                    $self;
+                }
+            };
         };
         $INITIALIZED_CLASSES{$self->mapped_class} = $self;
     }
@@ -186,6 +200,7 @@ sub _init_attributes_config {
         for my $prop ( @{ $option{properties} } ) {
             my $isa = $prop->{isa} || confess "set property \"isa\". ";
             $prop->{getter} ||= $prop->{isa}->name;
+            $prop->{setter} ||= $prop->{isa}->name;
             push @properties,
                 Data::ObjectMapper::Utils::merge_hashref(
                     $DEFAULT_ATTRIBUTE_PROPERTY, $prop,
@@ -208,6 +223,7 @@ sub _init_attributes_config {
                 || confess "$name : column not found. set property \"isa\". ";
 
             $option{properties}->{getter} ||= $name;
+            $option{properties}->{setter} ||= $name;
             $settle_attribute{ $isa->name } = 1;
             $properties{$name} = Data::ObjectMapper::Utils::merge_hashref(
                 $DEFAULT_ATTRIBUTE_PROPERTY,
@@ -223,6 +239,7 @@ sub _init_attributes_config {
                 %$DEFAULT_ATTRIBUTE_PROPERTY,
                 isa    => $attr,
                 getter => $attr->name,
+                setter => $attr->name,
             };
             $settle_attribute{ $attr->name } = 1;
         }
@@ -340,24 +357,27 @@ sub mapping {
     return $self->mapped_class->${constructor}(%param);
 }
 
-sub reducing {
-    my ( $self, $obj ) = @_;
+sub find {
+    my $self = shift;
+    return $self->mapping( $self->from->_find(@_) );
+}
 
-    my %result;
-    for my $attr ( keys %{$self->attributes_config} ) {
-        my $getter = $self->attributes_config->{$attr}{getter};
-        if( !ref $getter ) {
-            $result{$attr} = $obj->$getter;
-        }
-        elsif( ref $getter eq 'CODE' ) {
-            $result{$attr} = $getter->($obj);
-        }
-        else {
-            confess "invalid getter config.";
-        }
-    }
+sub get_unique_condition {
+    my ( $self, $id ) = @_;
+    my ( $type, @cond ) = $self->from->get_unique_condition($id);
+    confess "condition is not unique." unless @cond;
+    return $self->create_cache_key($type, @cond), @cond;
+}
 
-    return \%result;
+sub create_cache_key {
+    my ( $self, $cond_type, @cond ) = @_;
+    my $key
+        = $cond_type
+        ? $cond_type . '#'
+            . join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond )
+        : join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond );
+
+    return md5_hex( $self->mapped_class . '@' . $key );
 }
 
 1;
@@ -446,6 +466,10 @@ B<<Options>>
 
             => undef,
 
+=item setter
+
+            => undef,
+
 =back
 
 =head3
@@ -483,9 +507,6 @@ B<<Options>>
 =head2 is_initialized
 
 =head2 mapping
-
-=head2 reducing
-
 
 =head1 AUTHOR
 

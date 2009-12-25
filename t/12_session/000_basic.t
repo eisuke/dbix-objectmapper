@@ -16,9 +16,10 @@ MyTest11->setup_default_data;
     my $session = Data::ObjectMapper::Session->new();
 
     my @artists;
-    ok my $artist = $session->query('MyTest11::Artist')->find(1);
+    ok my $artist = $session->load( 'MyTest11::Artist' => 1 );
     push @artists, $artist;
-    ok my $artist2 = $session->query('MyTest11::Artist')->find({ id => 1 });
+
+    ok my $artist2 = $session->load( 'MyTest11::Artist' => { id => 1 } );
     push @artists, $artist2;
 
     for my $a ( @artists ) {
@@ -28,20 +29,22 @@ MyTest11->setup_default_data;
     }
 
     ok $artist->name('レッドツェッペリン');
-
-    ok $session->save($artist);
+    ok $session->flush($artist);
+    # flush_all;
 };
 
 {
     my $session = Data::ObjectMapper::Session->new();
     my $obj = MyTest11::Artist->new( name => 'Jimi Hendrix' );
-    ok my $new_obj = $session->save($obj);
-    ok my $obj2 = $session->query('MyTest11::Artist')->find(2);
+    ok my $new_obj = $session->add($obj);
+
+    # flashhing?
+    ok my $obj2 = $session->load('MyTest11::Artist' => 2);
     $new_obj->name('じみへん');
-    $session->save($new_obj);
+    $session->flush($new_obj);
 
     $new_obj->name('jimihen');
-    $session->save($new_obj);
+    $session->flush($new_obj);
 };
 
 

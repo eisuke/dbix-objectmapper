@@ -65,25 +65,6 @@ sub all {
 
 }
 
-sub find {
-    my $self = shift;
-    my $id = shift;
-
-    my $mapper = $self->target_class->__mapper__;
-    my ( $cond_type, @cond ) = $mapper->from->get_unique_condition($id);
-    confess "condition is not unique." unless @cond;
-
-    my $result = $self->_get_cache( $cond_type, @cond ) || do {
-        my $search_result = $mapper->from->_find(@cond) || return;
-        $self->_set_cache($search_result);
-        $search_result;
-    };
-
-    my $obj = $mapper->mapping($result);
-    $self->attach( $obj, $result );
-    return $obj;
-}
-
 sub _get_cache {
     my ( $self, $cond_type, @cond ) = @_;
     my $key
