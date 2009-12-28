@@ -4,7 +4,7 @@ use warnings;
 
 sub new { bless +{}, $_[0] }
 
-sub add { $_[0]->{$_[1]} = $_[2] }
+sub set { $_[0]->{$_[1]} = $_[2] }
 
 sub get { $_[0]->{$_[1]} }
 

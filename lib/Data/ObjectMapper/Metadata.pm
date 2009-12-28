@@ -17,7 +17,16 @@ sub new {
     }, $class;
 }
 
-sub engine { $_[0]->{engine} }
+sub engine {
+    my $self = shift;
+    if( @_ ) {
+        my $engine = shift;
+        $self->{engine} = $engine;
+        $_->engine($engine) for values %{$self->tables};
+    }
+
+    return $self->{engine};
+}
 
 sub table {
     my $self = shift;

@@ -36,7 +36,9 @@ sub is_same_addr($$) {
         $artist_table => $mapped_class
     );
 
-    my $mapped_object = $mapper->is_mapped($mapped_class);
+    my $mapped_object
+        = Data::ObjectMapper::Mapper->is_initialized($mapped_class);
+
     is_same_addr $mapper,$mapped_object;
 
     ok $mapped_class->can('__mapper__');
@@ -55,7 +57,8 @@ sub is_same_addr($$) {
         constructor => +{ auto => 1 },
     );
 
-    is_same_addr $mapper, Data::ObjectMapper::Mapper->is_mapped($mapped_class);
+    is_same_addr $mapper,
+        Data::ObjectMapper::Mapper->is_initialized($mapped_class);
     ok $mapped_class->can('firstname');
     ok $mapped_class->can('lastname');
     ok $mapped_class->can('id');
@@ -76,7 +79,8 @@ sub is_same_addr($$) {
         attributes  => +{ prefix => '_' },
     );
 
-    is_same_addr $mapper, Data::ObjectMapper::Mapper->is_mapped($mapped_class);
+    is_same_addr $mapper,
+        Data::ObjectMapper::Mapper->is_initialized($mapped_class);
     ok $mapped_class->can('_firstname');
     ok $mapped_class->can('_lastname');
     ok $mapped_class->can('_id');

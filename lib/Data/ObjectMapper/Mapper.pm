@@ -2,12 +2,13 @@ package Data::ObjectMapper::Mapper;
 use strict;
 use warnings;
 use Scalar::Util qw(blessed);
+use Digest::MD5 qw(md5_hex);
 use Carp::Clan;
 use Params::Validate qw(:all);
 use Class::MOP;
 use Class::MOP::Class;
 use Data::ObjectMapper::Utils;
-use Data::ObjectMapper::Mapper::WithInstance;
+use Data::ObjectMapper::Mapper::Instance;
 
 my @CONSTRUCTOR_ARGUMENT_TYPES = qw( HASHREF HASH ARRAYREF ARRAY );
 
@@ -52,22 +53,6 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
 
     sub _set_initialized_class {
         my $self = shift;
-        {
-            no strict 'refs';
-            my $pkg = $self->mapped_class;
-            *{"$pkg\::__mapper__"} = sub {
-                my $instance = shift;
-                if( blessed($instance) ){
-                    Data::ObjectMapper::Mapper::WithInstance->new(
-                        $self,
-                        $instance,
-                    );
-                }
-                else {
-                    $self;
-                }
-            };
-        };
         $INITIALIZED_CLASSES{$self->mapped_class} = $self;
     }
 
@@ -87,7 +72,7 @@ sub new {
     }
 
     my $self = bless {
-        from               => undef,
+        table              => undef,
         mapped_class       => undef,
         attributes_config  => +{},
         accessors_config   => +{},
@@ -95,12 +80,12 @@ sub new {
         mapped             => 0,
     }, $class;
 
-    unshift @_, 'from';
+    unshift @_, 'table';
     splice @_, 2, 0, 'mapped_class';
 
     my %option = validate(
         @_,
-        {   from => {
+        {   table => {
                 type => OBJECT,
                 # XXXX not only table
                 isa  => 'Data::ObjectMapper::Metadata::Table'
@@ -113,7 +98,7 @@ sub new {
         }
     );
 
-    $self->{from} = $option{from};
+    $self->{table} = $option{table};
     $self->{mapped_class} = $option{mapped_class};
 
     $self->_init_attributes_config( %{ $option{attributes} } );
@@ -127,7 +112,7 @@ sub new {
 {
     no strict 'refs';
     my $package = __PACKAGE__;
-    for my $meth (qw(from mapped_class attributes_config
+    for my $meth (qw(table mapped_class attributes_config
                      accessors_config constructor_config)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
@@ -156,21 +141,21 @@ sub _init_acceesors_config {
 
 sub _init_attributes_config {
     my $self = shift;
-    my $from  = $self->from;
+    my $table  = $self->table;
     my $klass = $self->mapped_class;
 
     my %option = validate( @_, $OPTIONS_VALIDATE{attributes} );
 
     my @attributes;
     if( !@{$option{include}} ) { # all
-        @attributes = @{ $from->columns };
+        @attributes = @{ $table->columns };
     }
     else { # ARRAYREF
         for my $p ( @{$option{include}} ) {
-            if( $p and ref $p eq $from->column_metaclass ) {
+            if( $p and ref $p eq $table->column_metaclass ) {
                 push @attributes, $p;
             }
-            elsif( !ref($p) and my $meta_col = $from->c($p) ) {
+            elsif( !ref($p) and my $meta_col = $table->c($p) ) {
                 push @attributes, $meta_col;
             }
             else {
@@ -181,7 +166,7 @@ sub _init_attributes_config {
 
     if( $option{exclude} ) {
         my %exclude = map {
-              ( ref($_) eq $from->column_metaclass )
+              ( ref($_) eq $table->column_metaclass )
             ? ( $_->name => 1 )
             : ( $_ => 1 );
         } grep { $_ } @{ $option{exclude} };
@@ -199,8 +184,8 @@ sub _init_attributes_config {
         my @properties;
         for my $prop ( @{ $option{properties} } ) {
             my $isa = $prop->{isa} || confess "set property \"isa\". ";
-            $prop->{getter} ||= $prop->{isa}->name;
-            $prop->{setter} ||= $prop->{isa}->name;
+            $prop->{getter} ||= $option{prefix} . $prop->{isa}->name;
+            $prop->{setter} ||= $option{prefix} . $prop->{isa}->name;
             push @properties,
                 Data::ObjectMapper::Utils::merge_hashref(
                     $DEFAULT_ATTRIBUTE_PROPERTY, $prop,
@@ -219,11 +204,11 @@ sub _init_attributes_config {
         for my $name ( keys %{ $option{properties} } ) {
             my $isa
                 = $option{properties}->{isa}
-                || $from->c($name)
+                || $table->c($name)
                 || confess "$name : column not found. set property \"isa\". ";
 
-            $option{properties}->{getter} ||= $name;
-            $option{properties}->{setter} ||= $name;
+            $option{properties}->{getter} ||= $option{prefix} . $name;
+            $option{properties}->{setter} ||= $option{prefix} . $name;
             $settle_attribute{ $isa->name } = 1;
             $properties{$name} = Data::ObjectMapper::Utils::merge_hashref(
                 $DEFAULT_ATTRIBUTE_PROPERTY,
@@ -238,8 +223,8 @@ sub _init_attributes_config {
             $properties{ $attr->name } = {
                 %$DEFAULT_ATTRIBUTE_PROPERTY,
                 isa    => $attr,
-                getter => $attr->name,
-                setter => $attr->name,
+                getter => $option{prefix} . $attr->name,
+                setter => $option{prefix} . $attr->name,
             };
             $settle_attribute{ $attr->name } = 1;
         }
@@ -253,6 +238,25 @@ sub _init_attributes_config {
     }
 }
 
+sub get_attributes_name {
+    my $self = shift;
+    return
+        ref( $self->attributes_config ) eq 'HASH'
+        ? keys %{ $self->attributes_config }
+        : @{ $self->attributes_config };
+}
+
+sub get_attribute {
+    my ($self, $name) = @_;
+
+    if( ref( $self->attributes_config ) eq 'HASH' ) {
+        $self->attributes_config->{$name};
+    }
+    else {
+        return grep{ $_->{isa}->name eq $name } @{$self->attributes_config};
+    }
+}
+
 sub _initialize {
     my $self = shift;
 
@@ -262,12 +266,28 @@ sub _initialize {
         Class::MOP::load_class( $self->mapped_class );
     }
 
-    my $meta;
-    if( $self->accessors_config->{auto} ) {
-        for my $attr_name ( keys %{$self->attributes_config} ) {
-            next if $self->accessors_config->{exclude}->{$attr_name};
-            $meta = Class::MOP::Class->create($self->mapped_class);
+    my $meta = Class::MOP::Class->create($self->mapped_class);
+    $meta->make_mutable if $meta->is_immutable;
 
+    $meta->add_method(
+        '__mapper__' => sub {
+            my $instance = shift;
+            if( blessed($instance) ){
+                Data::ObjectMapper::Mapper::Instance->new(
+                    $self,
+                    $instance,
+                );
+            }
+            else {
+                $self;
+            }
+        }
+    );
+
+    for my $attr_name ( $self->get_attributes_name ) {
+        next if $self->accessors_config->{exclude}->{$attr_name};
+        my $attr_config = $self->get_attribute($attr_name);
+        if( $self->accessors_config->{auto} ) {
             if ( $meta->find_all_methods_by_name($attr_name)
                 and !$self->accessors_config->{do_replace} )
             {
@@ -276,7 +296,6 @@ sub _initialize {
                     . "use do_replace option or exclude option.";
             }
             else {
-                my $attr_config = $self->attributes_config->{$attr_name};
                 $meta->add_method (
                     $attr_name => sub {
                         my $obj = shift;
@@ -284,31 +303,42 @@ sub _initialize {
                             my $val = shift;
                             $obj->{$attr_name} = $val;
                         }
-
                         return $obj->{$attr_name};
                     }
                 );
-
-                if ( my $meth = $attr_config->{validation_method} ) {
-                    $meta->add_before_method_modifier(
-                        $attr_name => sub { shift->${meth}(@_) }
-                    );
-                }
-                elsif ( $attr_config->{validation}
-                    and my $code = $attr_config->{isa}->validation )
-                {
-                    $meta->add_before_method_modifier(
-                        $attr_name => sub {
-                            my $obj = shift;
-                            unless ( $code->(@_) ) {
-                                confess "parameter $attr_name is not valid.";
-                            }
-                        }
-                    );
-                }
-
             }
+        }
 
+        my $getter = $attr_config->{getter} || $attr_name;
+        my $setter = $attr_config->{setter} || $attr_name;
+        if( $getter eq $setter ) {
+            $meta->add_before_method_modifier(
+                $getter => sub {
+                    my $instance = shift;
+                    my $mapper = $instance->__mapper__;
+                    if( @_ ) {
+                        $mapper->set_val_trigger( $attr_name, @_ );
+                    }
+                    else {
+                        $mapper->get_val_trigger( $attr_name );
+                    }
+                }
+            );
+        }
+        else {
+            $meta->add_before_method_modifier(
+                $getter => sub {
+                    my $instance = shift;
+                    $instance->__mapper__->get_val_trigger( $attr_name );
+                }
+            );
+
+            $meta->add_before_method_modifier(
+                $setter => sub {
+                    my $instance = shift;
+                    $instance->__mapper__->set_val_trigger( $attr_name, @_ );
+                }
+            );
         }
     }
 
@@ -320,19 +350,33 @@ sub _initialize {
             new => sub {
                 my $class = shift;
                 my %param = @_ % 2 == 0 ? @_ : %{$_[0]};
-                my $obj = bless +{}, $class;
-                $obj->${_}($param{$_}) for keys %param;
+                my $obj = bless \%param, $class;
                 return $obj;
             }
         );
     }
 
-    if( $meta ) {
-        $meta->make_immutable(
-            inline_constructor => 0,
-            inline_accessors   => 0,
-        );
+    my $destroy = sub {
+        my $instance = shift;
+        warn "$instance DESTROY" if $ENV{DOM_CHECK_DESTROY};
+        if ( my $mapper
+            = Data::ObjectMapper::Mapper::Instance->get($instance) )
+        {
+            $mapper->demolish;
+        }
+    };
+
+    if ( $meta->find_all_methods_by_name('DESTROY') ) {
+        $meta->add_after_method_modifier('DESTROY' => $destroy );
     }
+    else {
+        $meta->add_method( 'DESTROY' => $destroy );
+    }
+
+    $meta->make_immutable(
+        inline_constructor => 0,
+        inline_accessors   => 0,
+    ); # XXXX Moose?
 
     $self->_set_initialized_class;
 }
@@ -341,30 +385,41 @@ sub mapping {
     my ( $self, $hashref_data ) = @_;
 
     my $constructor = $self->constructor_config->{name};
-    my $type = $self->constructor_config->{type};
-
+    my $type = $self->constructor_config->{arg_type};
     ## XXX TODO
     ## eager loding
     ## lazy loading
     ## ......
 
-    my %param;
-    for my $attr ( keys %{$self->attributes_config} ) {
-        my $isa = $self->attributes_config->{$attr}{isa};
-        $param{$attr} = $hashref_data->{$isa->name};
+    my $param;
+    for my $attr ( $self->get_attributes_name ) {
+        my $isa = $self->get_attribute($attr)->{isa};
+        if( $type eq 'HASH' or $type eq 'HASHREF' ) {
+            $param ||= +{};
+            $param->{$attr} = $hashref_data->{$isa->name};
+        }
+        elsif( $type eq 'ARRAY' or $type eq 'ARRAYREF' ) {
+            $param ||= +[];
+            push @$param, $hashref_data->{$isa->name};
+        }
     }
 
-    return $self->mapped_class->${constructor}(%param);
+    return $self->mapped_class ->${constructor}(
+          $type eq 'HASH' ? %$param
+        : ( $type eq 'HASHREF' || $type eq 'ARRAYREF' ) ? $param
+        : ( $type eq 'ARRAY' ) ? @$param
+        :                        undef
+    );
 }
 
 sub find {
     my $self = shift;
-    return $self->mapping( $self->from->_find(@_) );
+    return $self->mapping( $self->table->_find(@_) );
 }
 
 sub get_unique_condition {
     my ( $self, $id ) = @_;
-    my ( $type, @cond ) = $self->from->get_unique_condition($id);
+    my ( $type, @cond ) = $self->table->get_unique_condition($id);
     confess "condition is not unique." unless @cond;
     return $self->create_cache_key($type, @cond), @cond;
 }
@@ -379,6 +434,41 @@ sub create_cache_key {
 
     return md5_hex( $self->mapped_class . '@' . $key );
 }
+
+sub primary_cache_key {
+    my ( $self, $result ) = @_;
+
+    my @ids;
+    for my $key ( @{ $self->table->primary_key } ) {
+        push @ids,
+            $key . '='
+            . ( defined $result->{$key} ? $result->{$key} : 'NULL' );
+    }
+
+    return md5_hex( $self->mapped_class . '@' . join( '&', @ids ) );
+}
+
+sub unique_cache_keys {
+    my ( $self, $result ) = @_;
+    my @keys;
+    for my $uniq ( @{ $self->table->unique_key } ) {
+        my $name = $uniq->[0];
+        my $keys = $uniq->[1];
+        my @uniq_ids;
+        for my $key (@$keys) {
+            push @uniq_ids,
+                $key . '='
+                . ( defined $result->{$key} ? $result->{$key} : 'NULL' );
+        }
+        push @keys,
+            md5_hex( $self->mapped_class . '@'
+                . $name . '#'
+                . join( '&', @uniq_ids ) );
+    }
+
+    return @keys;
+}
+
 
 1;
 

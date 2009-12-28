@@ -1,4 +1,12 @@
-* Session
+* findをカラムを指定して実行する
+* mapperでprimaryじゃないkeyが含まれていない場合は、含ませる。
+* relation
+* lazyloading
+* Transaction(Sesssion=autocommit=false)
+* autoflash=trueの場合のテスト
+
+======
+
 * Column::Typeの実装
 * Column alias
 * queryで、SCALAR REFの場合はそのまま文字列をわたす
@@ -6,9 +14,8 @@
    connection(Data::ObjectMapper::Metadata::Column::Connect)
 * SQL - exists,any,in support
 * SQL - subquery check
-
-* find? get?
 * has_many の場合の collectionの実装
+* Data::ObjectMapper -> DBIx::ObjectMapper ? DBIx::DataMapper?
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators

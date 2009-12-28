@@ -16,11 +16,13 @@ MyTest11->setup_default_data;
     my $session = Data::ObjectMapper::Session->new();
 
     my @artists;
-    ok my $artist = $session->load( 'MyTest11::Artist' => 1 );
+    ok my $artist = $session->get( 'MyTest11::Artist' => 1 );
     push @artists, $artist;
+    is $artist->__mapper__->status, 'persistent';
 
-    ok my $artist2 = $session->load( 'MyTest11::Artist' => { id => 1 } );
+    ok my $artist2 = $session->get( 'MyTest11::Artist' => { id => 1 } );
     push @artists, $artist2;
+    is $artist2->__mapper__->status, 'persistent';
 
     for my $a ( @artists ) {
         is ref $a, 'MyTest11::Artist';
@@ -29,59 +31,55 @@ MyTest11->setup_default_data;
     }
 
     ok $artist->name('レッドツェッペリン');
-    ok $session->flush($artist);
-    # flush_all;
+    ok $artist->__mapper__->is_modified;
+    is $artist->name, 'レッドツェッペリン';
+};
+
+{
+    my $session = Data::ObjectMapper::Session->new();
+    ok my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    is $artist->name, 'レッドツェッペリン';
+    is $artist->__mapper__->status, 'persistent';
 };
 
 {
     my $session = Data::ObjectMapper::Session->new();
     my $obj = MyTest11::Artist->new( name => 'Jimi Hendrix' );
-    ok my $new_obj = $session->add($obj);
-
-    # flashhing?
-    ok my $obj2 = $session->load('MyTest11::Artist' => 2);
-    $new_obj->name('じみへん');
-    $session->flush($new_obj);
-
-    $new_obj->name('jimihen');
-    $session->flush($new_obj);
+    ok $session->add($obj);
+    is $obj->__mapper__->status, 'pending';
+    $session->flush;
+    is $obj->__mapper__->status, 'expired';
+    is $obj->name, 'Jimi Hendrix';
+    is $obj->__mapper__->status, 'persistent';
+    $obj->name('じみへん');
+    $session->flush();
+    is $obj->__mapper__->status, 'expired';
+    my $name = $obj->name;
+    $obj->name('jimihen');
+    is $obj->__mapper__->status, 'persistent';
 };
 
+{
+    my $session = Data::ObjectMapper::Session->new();
+    ok my $artist = $session->get( 'MyTest11::Artist' => 2 );
+    is $artist->id, 2;
+    is $artist->name, 'jimihen';
+    is $artist->__mapper__->status, 'persistent';
+    $session->detach($artist);
+    is $artist->__mapper__->status, 'detached';
+};
+
+{
+    my $session = Data::ObjectMapper::Session->new();
+    ok my $artist = $session->get( 'MyTest11::Artist' => 2 );
+    $artist->id(3);
+    $session->flush;
+
+    ok my $artist3 = $session->get( 'MyTest11::Artist' => 3 );
+    is $artist3->name, 'jimihen';
+    ok $session->delete($artist3);
+    is $artist3->__mapper__->status, 'detached';
+};
 
 done_testing;
 __END__
-
-{
-    my $session = Data::ObjectMapper::Session->new({ engine => $engine });
-
-    my $call_obj = $session->query('My::TestTable')->find(1);
-    my $new_obj = My::TestTable->new({ name => 'hoge' });
-    $session->save($new_obj);
-
-
-    my $meta1 = $db->metadata([]);
-    $meta1->map_to('My::Obj', { });
-
-    $db->meta->users;
-
-    my $meta2 = $db->metadata([]);
-    $meta2->map_to('My::Obj2');
-
-    $db->map_all('My::');
-
-    my $find_ojb = $db->session->query('My::Obj2')->find(1);
-
-    my $new_obj = My::Obj->new({ name => 'hoge' });
-    $db->save($new_obj);
-
-    my $it = $db->session->query('My::Obj')->join('My::Obj2')->filter(
-        $db->meta->users->name == 1,
-        $db->meta->users->active == 1,
-    )->yaml;
-
-    while( $it->next ) {
-
-    }
-
-};
-
