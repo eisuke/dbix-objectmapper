@@ -6,7 +6,6 @@ use Scalar::Util qw(refaddr blessed);
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Session::Cache;
 use Data::ObjectMapper::Session::Query;
-use Data::ObjectMapper::Session::IdentityMap;
 use Data::ObjectMapper::Session::UnitOfWork;
 my $DEFAULT_QUERY_CLASS = 'Data::ObjectMapper::Session::Query';
 
