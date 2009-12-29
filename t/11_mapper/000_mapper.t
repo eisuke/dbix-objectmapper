@@ -11,9 +11,6 @@ use Scalar::Util;
 use FindBin;
 use File::Spec;
 use lib File::Spec->catfile( $FindBin::Bin, 'lib' );
-use Devel::Cycle;
-use Devel::Refcount qw(refcount);
-use Devel::Peek qw( SvREFCNT );
 
 my $engine = Data::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
