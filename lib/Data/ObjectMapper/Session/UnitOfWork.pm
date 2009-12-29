@@ -9,8 +9,9 @@ sub new {
 
     bless {
         cache       => $cache,
-        objects_map => +{},
         objects     => +[],
+        map_objects => +{},
+        del_objects => +{},
     }, $class;
 }
 
@@ -18,8 +19,7 @@ sub cache { $_[0]->{cache} }
 
 sub get {
     my ( $self, $t_class, $id ) = @_;
-    $t_class = ref($t_class) if blessed($t_class);
-    my $class_mapper = $t_class->__mapper__;
+    my $class_mapper = $t_class->__class_mapper__;
 
     $self->flush;
     my ( $key, @cond ) = $class_mapper->get_unique_condition($id);
@@ -42,10 +42,17 @@ sub add {
     my ( $self, $obj ) = @_;
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'pending', $self ) unless $mapper->is_persistent;
-    unless( exists $self->{objects_map}->{refaddr($obj)} ) {
+    unless( exists $self->{map_objects}->{refaddr($obj)} ) {
         push @{$self->{objects}}, $obj;
-        $self->{objects_map}->{refaddr($obj)} = $#{$self->{objects}};
+        $self->{map_objects}->{refaddr($obj)} = $#{$self->{objects}};
     }
+    return $obj;
+}
+
+sub delete {
+    my ( $self, $obj ) = @_;
+    my $elm = $self->{map_objects}->{refaddr($obj)};
+    $self->{del_objects}->{refaddr($obj)} = $elm;
     return $obj;
 }
 
@@ -58,14 +65,20 @@ sub detach {
 
 sub flush {
     my ( $self ) = @_;
-    for my $obj ( @{$self->{objects}} ) {
+    for my $obj (@{$self->{objects}}) {
         my $mapper = $obj->__mapper__;
+        my $id = refaddr($obj);
         if( $mapper->is_pending ) {
             $mapper->save();
             $self->_clear_cache($mapper);
         }
-        elsif( $mapper->is_persistent and $mapper->is_modified ) {
-            $mapper->update();
+        elsif( $mapper->is_persistent ) {
+            if( delete $self->{del_objects}->{$id} ) {
+                $mapper->delete();
+            }
+            elsif( $mapper->is_modified ) {
+                $mapper->update();
+            }
             $self->_clear_cache($mapper);
         }
     }
@@ -87,14 +100,19 @@ sub _clear_cache {
     $self->cache->remove( $_ ) for $mapper->cache_keys;
 }
 
-sub DESTROY {
+sub demolish {
     my $self = shift;
-    warn "$self DESTROY" if $ENV{DOM_CHECK_DESTROY};
     $self->flush;
     for my $obj ( @{ $self->{objects} } ) {
         $obj->__mapper__->demolish;
     }
     $self->{objects} = +[];
+}
+
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
+    $self->demolish;
 }
 
 1;

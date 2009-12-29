@@ -152,7 +152,9 @@ my $log = Data::ObjectMapper::Log->new();
     });
 
     # txn_do
-    dies_ok { $dr->transaction };
+    ok my $transaction = $dr->transaction;
+    is ref($transaction), 'Data::ObjectMapper::Engine::DBI::Transaction';
+    $transaction = undef;
 
     $dr->transaction(
         sub{

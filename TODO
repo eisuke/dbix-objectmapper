@@ -1,9 +1,7 @@
-* findをカラムを指定して実行する
 * mapperでprimaryじゃないkeyが含まれていない場合は、含ませる。
+* findをカラムを指定して実行する
 * relation
 * lazyloading
-* Transaction(Sesssion=autocommit=false)
-* autoflash=trueの場合のテスト
 
 ======
 

@@ -2,6 +2,7 @@ package Data::ObjectMapper::Engine::DBI::Connector;
 use strict;
 use warnings;
 use base qw(DBIx::Connector);
+use Carp::Clan;
 
 sub new {
     my $class = shift;

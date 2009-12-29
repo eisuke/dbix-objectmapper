@@ -1,9 +1,11 @@
 package Data::ObjectMapper::Mapper;
 use strict;
 use warnings;
-use Scalar::Util qw(blessed);
-use Digest::MD5 qw(md5_hex);
 use Carp::Clan;
+
+use List::MoreUtils;
+use Scalar::Util qw(blessed weaken);
+use Digest::MD5 qw(md5_hex);
 use Params::Validate qw(:all);
 use Class::MOP;
 use Class::MOP::Class;
@@ -53,7 +55,7 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
 
     sub _set_initialized_class {
         my $self = shift;
-        $INITIALIZED_CLASSES{$self->mapped_class} = $self;
+        $INITIALIZED_CLASSES{$self->mapped_class} = 1;
     }
 
     sub is_initialized {
@@ -61,14 +63,20 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
         my $class = shift;
         return $INITIALIZED_CLASSES{$class};
     }
+
+    sub DESTROY {
+        my $self = shift;
+        warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
+        delete $INITIALIZED_CLASSES{$self->mapped_class};
+    }
 };
 
 sub new {
     my $class = shift;
 
-    if( my $mapped_class = $class->is_initialized( $_[1]) ) {
+    if( $class->is_initialized($_[1]) ) {
         cluck "$_[1] is already initialized.";
-        return $mapped_class;
+        return $_[1]->__class_mapper__;
     }
 
     my $self = bless {
@@ -101,9 +109,9 @@ sub new {
     $self->{table} = $option{table};
     $self->{mapped_class} = $option{mapped_class};
 
+    $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
     $self->_init_acceesors_config( %{ $option{accessors} } );
-    $self->_init_constructor_config( %{ $option{constructor} } );
 
     $self->_initialize;
     return $self;
@@ -145,36 +153,11 @@ sub _init_attributes_config {
     my $klass = $self->mapped_class;
 
     my %option = validate( @_, $OPTIONS_VALIDATE{attributes} );
-
-    my @attributes;
-    if( !@{$option{include}} ) { # all
-        @attributes = @{ $table->columns };
-    }
-    else { # ARRAYREF
-        for my $p ( @{$option{include}} ) {
-            if( $p and ref $p eq $table->column_metaclass ) {
-                push @attributes, $p;
-            }
-            elsif( !ref($p) and my $meta_col = $table->c($p) ) {
-                push @attributes, $meta_col;
-            }
-            else {
-                confess "$p is not include metadata at include_property";
-            }
-        }
-    }
-
-    if( $option{exclude} ) {
-        my %exclude = map {
-              ( ref($_) eq $table->column_metaclass )
-            ? ( $_->name => 1 )
-            : ( $_ => 1 );
-        } grep { $_ } @{ $option{exclude} };
-        @attributes = grep { !$exclude{ $_->name } } @attributes;
-    }
+    my %primary_key_map
+        = map { $_ => $table->c($_) } @{ $table->primary_key };
 
     if( ref $option{properties} eq 'ARRAY' ) {
-        if (   $self->constructor_config->{arg_type} eq 'ARRAY'
+        unless (   $self->constructor_config->{arg_type} eq 'ARRAY'
             || $self->constructor_config->{arg_type} eq 'ARRAYREF' )
         {
             confess "not match constructor{arg_type}.(properties is HASHREF)";
@@ -195,9 +178,58 @@ sub _init_attributes_config {
             # XXXX TODO RELATION, SELECT, ETC...
         }
 
+        if ( List::MoreUtils::notall { $settle_attribute{$_} }
+            keys %primary_key_map )
+        {
+            confess "primary key must be included in property";
+        }
         $self->{attributes_config} = \@properties;
     }
     else { # HASH or auto
+        my @attributes;
+        if ( @{ $option{include} } ) {
+            my $ex_primary_key = 0;
+            for my $p ( @{ $option{include} } ) {
+                if ( $p and ref $p eq $table->column_metaclass ) {
+                    $ex_primary_key = 1 if $primary_key_map{ $p->name };
+                    push @attributes, $p;
+                }
+                elsif ( !ref($p) and my $meta_col = $table->c($p) ) {
+                    $ex_primary_key = 1
+                        if $primary_key_map{ $meta_col->name };
+                    push @attributes, $meta_col;
+                }
+                else {
+                    confess "$p is not include metadata at include_property";
+                }
+            }
+
+            unless ($ex_primary_key) {
+                push( @attributes, $_ ) for values %primary_key_map;
+            }
+        }
+        else {    # default all
+            @attributes = @{ $table->columns };
+        }
+
+        if ( $option{exclude} ) {
+            my %exclude = map {
+                      ( ref($_) eq $table->column_metaclass )
+                    ? ( $_->name => 1 )
+                    : ( $_ => 1 );
+                } grep {
+                    if ($_) {
+                        if ( ref($_) eq $table->column_metaclass ) {
+                            !$primary_key_map{ $_->name };
+                        }
+                        else {
+                            !$primary_key_map{$_};
+                        }
+                    }
+                } @{ $option{exclude} };
+            @attributes = grep { !$exclude{ $_->name } } @attributes;
+        }
+
         my %properties;
         my %settle_attribute;
 
@@ -243,18 +275,24 @@ sub get_attributes_name {
     return
         ref( $self->attributes_config ) eq 'HASH'
         ? keys %{ $self->attributes_config }
-        : @{ $self->attributes_config };
+        : map { $_->{isa}->name } @{ $self->attributes_config };
 }
 
 sub get_attribute {
     my ($self, $name) = @_;
 
     if( ref( $self->attributes_config ) eq 'HASH' ) {
-        $self->attributes_config->{$name};
+        return $self->attributes_config->{$name};
     }
     else {
-        return grep{ $_->{isa}->name eq $name } @{$self->attributes_config};
+        for my $attr ( @{ $self->attributes_config } ) {
+            if( $attr->{isa}->name eq $name ) {
+                return $attr;
+            }
+        }
     }
+
+    return;
 }
 
 sub _initialize {
@@ -267,19 +305,14 @@ sub _initialize {
     }
 
     my $meta = Class::MOP::Class->create($self->mapped_class);
-    $meta->make_mutable if $meta->is_immutable;
+    $meta->make_mutable if $meta->is_immutable; ## may be Moose Class
 
+    $meta->add_method( '__class_mapper__' => sub { $self } );
     $meta->add_method(
         '__mapper__' => sub {
             my $instance = shift;
             if( blessed($instance) ){
-                Data::ObjectMapper::Mapper::Instance->new(
-                    $self,
-                    $instance,
-                );
-            }
-            else {
-                $self;
+                Data::ObjectMapper::Mapper::Instance->new( $instance );
             }
         }
     );
@@ -315,12 +348,13 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
-                    my $mapper = $instance->__mapper__;
-                    if( @_ ) {
-                        $mapper->set_val_trigger( $attr_name, @_ );
-                    }
-                    else {
-                        $mapper->get_val_trigger( $attr_name );
+                    if( my $mapper = $instance->__mapper__ ) {
+                        if( @_ ) {
+                            $mapper->set_val_trigger( $attr_name, @_ );
+                        }
+                        else {
+                            $mapper->get_val_trigger( $attr_name );
+                        }
                     }
                 }
             );
@@ -329,14 +363,18 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
-                    $instance->__mapper__->get_val_trigger( $attr_name );
+                    if( my $mapper = $instance->__mapper__ ) {
+                        $mapper->get_val_trigger( $attr_name );
+                    }
                 }
             );
 
             $meta->add_before_method_modifier(
                 $setter => sub {
                     my $instance = shift;
-                    $instance->__mapper__->set_val_trigger( $attr_name, @_ );
+                    if( my $mapper = $instance->__mapper__ ) {
+                        $mapper->set_val_trigger( $attr_name, @_ );
+                    }
                 }
             );
         }
@@ -358,10 +396,12 @@ sub _initialize {
 
     my $destroy = sub {
         my $instance = shift;
-        warn "$instance DESTROY" if $ENV{DOM_CHECK_DESTROY};
-        if ( my $mapper
-            = Data::ObjectMapper::Mapper::Instance->get($instance) )
-        {
+        warn "DESTROY $instance" if $ENV{DOM_CHECK_DESTROY};
+        if ( blessed($instance)
+            and my $mapper = Data::ObjectMapper::Mapper::Instance->get(
+                $instance
+            )
+        ) {
             $mapper->demolish;
         }
     };
@@ -384,12 +424,16 @@ sub _initialize {
 sub mapping {
     my ( $self, $hashref_data ) = @_;
 
+    return unless $hashref_data;
+
     my $constructor = $self->constructor_config->{name};
     my $type = $self->constructor_config->{arg_type};
     ## XXX TODO
     ## eager loding
     ## lazy loading
     ## ......
+
+
 
     my $param;
     for my $attr ( $self->get_attributes_name ) {
@@ -468,7 +512,6 @@ sub unique_cache_keys {
 
     return @keys;
 }
-
 
 1;
 

@@ -27,7 +27,10 @@ sub new {
 
 sub execute {
     my $self = shift;
-    return $self->engine->insert( $self->builder, $self->callback, $self->{primary_keys} );
+    my $primary_key
+        = @{ $self->{primary_keys} } ? $self->{primary_keys} : shift || undef;
+    return $self->engine->insert( $self->builder, $self->callback,
+        $primary_key );
 }
 
 1;

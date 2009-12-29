@@ -2,7 +2,7 @@ package Data::ObjectMapper::Mapper::Instance;
 use strict;
 use warnings;
 use Carp::Clan;
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr weaken);
 use Data::ObjectMapper::Utils;
 
 my %INSTANCES;
@@ -16,14 +16,14 @@ my %STATUS = (
 );
 
 sub new {
-    my ( $class, $mapper, $instance ) = @_;
-    return $class->get($instance) || $class->create($mapper, $instance);
+    my ( $class, $instance ) = @_;
+    return $class->get($instance) || $class->create($instance);
 }
 
 sub create {
-    my ( $class, $mapper, $instance ) = @_;
+    my ( $class, $instance ) = @_;
+
     my $self = bless {
-        mapper             => $mapper,
         instance           => $instance,
         status             => 'transient',
         is_modified        => 0,
@@ -36,20 +36,23 @@ sub create {
     return $self;
 }
 
+sub instances { %INSTANCES }
+
 sub init_identity_condition {
     my $self = shift;
     my $record = shift || $self->reducing;
+    my $class_mapper = $self->instance->__class_mapper__;
     my $identity_condition
-        = +[ map { $self->mapper->table->c($_) == $record->{$_} }
-            @{ $self->mapper->table->primary_key } ];
+        = +[ map { $class_mapper->table->c($_) == $record->{$_} }
+            @{ $class_mapper->table->primary_key } ];
 
     if( @$identity_condition ) {
         return $self->{identity_condition} = $identity_condition;
     }
-    elsif( my $unique_key = @{ $self->mapper->table->unique_key } ) {
+    elsif( my $unique_key = @{ $class_mapper->table->unique_key } ) {
         for my $uniq ( @$unique_key ) {
             return $self->{identity_condition} = map {
-                $self->mapper->table->c($_) == $record->{$_} } @{$uniq->[1]};
+                $class_mapper->table->c($_) == $record->{$_} } @{$uniq->[1]};
         }
     }
 
@@ -94,15 +97,20 @@ sub is_persistent { $_[0]->status eq 'persistent' }
 sub is_detached   { $_[0]->status eq 'detached' }
 sub is_pending    { $_[0]->status eq 'pending' }
 
-sub mapper   { $_[0]->{mapper} }
 sub instance { $_[0]->{instance} }
 
 sub reducing {
     my ( $self ) = @_;
     my %result;
-    for my $attr ( $self->mapper->get_attributes_name ) {
-        my $col_name = $self->mapper->get_attribute($attr)->{isa}->name;
-        $result{$col_name} = $self->instance->{$attr};
+    my $class_mapper = $self->instance->__class_mapper__;
+    my %primary_key = map { $_ => 1 } @{$class_mapper->table->primary_key};
+    for my $attr ( $class_mapper->get_attributes_name ) {
+        my $col_name = $class_mapper->get_attribute($attr)->{isa}->name;
+        unless ( $primary_key{$col_name}
+            and !defined $self->instance->{$attr} )
+        {
+            $result{$col_name} = $self->instance->{$attr};
+        }
     }
     return \%result;
 }
@@ -110,15 +118,20 @@ sub reducing {
 sub cache_keys {
     my $self = shift;
     my $result = shift || $self->reducing;
+    my $class_mapper = $self->instance->__class_mapper__;
     return (
-        $self->mapper->primary_cache_key($result),
-        $self->mapper->unique_cache_keys($result),
+        $class_mapper->primary_cache_key($result),
+        $class_mapper->unique_cache_keys($result),
     );
 }
 
 sub reflesh {
     my $self = shift;
-    my $new_val = $self->mapper->table->_find(@{$self->identity_condition});
+    my $class_mapper = $self->instance->__class_mapper__;
+    my ( $key, @cond )
+        = $class_mapper->get_unique_condition( $self->identity_condition );
+    my $new_val = $self->unit_of_work->_get_cache($key)
+        || $class_mapper->table->_find(@cond);
     if( $new_val ) {
         $self->change_status('persistent');
         $self->unit_of_work->_set_cache($self);
@@ -129,9 +142,9 @@ sub reflesh {
 sub modify {
     my $self = shift;
     my $rdata = shift;
-    my $mapper = $self->mapper;
-    for my $attr ( $mapper->get_attributes_name ) {
-        my $col    = $mapper->get_attribute($attr)->{isa}->name;
+    my $class_mapper = $self->instance->__class_mapper__;
+    for my $attr ( $class_mapper->get_attributes_name ) {
+        my $col    = $class_mapper->get_attribute($attr)->{isa}->name;
         $self->instance->{$attr} = $rdata->{$col} || undef;
     }
 
@@ -143,6 +156,8 @@ sub get_val_trigger {
     if( $self->status eq 'expired' ) {
         $self->reflesh;
     }
+
+    $self->demolish if $self->is_transient;
 }
 
 sub set_val_trigger {
@@ -152,7 +167,8 @@ sub set_val_trigger {
         $self->reflesh;
     }
 
-    my $attr_config = $self->mapper->get_attribute($name);
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $attr_config = $class_mapper->get_attribute($name);
     if ( my $meth = $attr_config->{validation_method} ) {
         $self->instance->${meth}($val);
     }
@@ -173,6 +189,7 @@ sub set_val_trigger {
         $self->{modified_data}->{ $attr_config->{isa}->name } = $val;
     }
 
+    $self->demolish if $self->is_transient;
     return;
 }
 
@@ -181,12 +198,12 @@ sub modified_data { $_[0]->{modified_data} }
 
 sub update {
     my ( $self ) = @_;
-    confess "XXXX" unless $self->is_persistent;
+    confess 'it need to be "persistent" status.' unless $self->is_persistent;
     my $reduce_data = $self->reducing;
     my $modified_data = $self->modified_data;
     my $uniq_cond = $self->identity_condition;
-
-    my $result = $self->mapper->table->update->set(%$modified_data)
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $result = $class_mapper->table->update->set(%$modified_data)
         ->where(@$uniq_cond)->execute();
     my $new_val = Data::ObjectMapper::Utils::merge_hashref(
         $reduce_data,
@@ -201,10 +218,11 @@ sub update {
 
 sub save {
     my ( $self ) = @_;
-    confess "XXXX" unless $self->is_pending;
+    confess 'it need to be "pending" status.' unless $self->is_pending;
     my $reduce_data = $self->reducing;
+    my $class_mapper = $self->instance->__class_mapper__;
     my $comp_result
-        = $self->mapper->table->insert->values(%$reduce_data)->execute();
+        = $class_mapper->table->insert->values(%$reduce_data)->execute();
     $self->modify($comp_result);
     $self->init_identity_condition;
     $self->change_status('expired');
@@ -213,9 +231,10 @@ sub save {
 
 sub delete {
     my $self = shift;
-    confess "XXXX" unless $self->is_persistent;
+    confess 'it need to be "persistent" status.' unless $self->is_persistent;
     my $uniq_cond = $self->identity_condition;
-    my $result = $self->mapper->table->delete->where(@$uniq_cond)->execute();
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
     $self->change_status('detached');
     return $result;
 }
@@ -228,7 +247,7 @@ sub demolish {
 
 sub DESTROY {
     my $self = shift;
-    warn "$self DESTROY" if $ENV{DOM_CHECK_DESTROY};
+    warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
     $self->demolish;
 }
 

@@ -22,7 +22,7 @@ sub engine {
     if( @_ ) {
         my $engine = shift;
         $self->{engine} = $engine;
-        $_->engine($engine) for values %{$self->tables};
+        $_->engine($engine) for values %{$self->table};
     }
 
     return $self->{engine};

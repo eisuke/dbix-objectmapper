@@ -11,6 +11,7 @@ use Data::ObjectMapper::SQL;
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Engine::DBI::Iterator;
 use Data::ObjectMapper::Engine::DBI::Driver;
+use Data::ObjectMapper::Engine::DBI::Transaction;
 
 use Data::ObjectMapper::Engine::DBI::Connector; # subclass of DBIx::Connector
 
@@ -131,9 +132,17 @@ sub _prepare {
 
 sub transaction {
     my $self = shift;
-    my $code = shift;
-    confess "it must be CODE reference" unless $code and ref $code eq 'CODE';
-    return $self->{connector}->txn( $self->{connection_mode} => $code );
+    if (@_) {
+        my $code = shift;
+        confess "it must be CODE reference"
+            unless $code and ref $code eq 'CODE';
+        return $self->{connector}->txn( $self->{connection_mode} => $code );
+    }
+    else {
+        return Data::ObjectMapper::Engine::DBI::Transaction->new(
+            $self->dbh, $self->{connector}->driver,
+        );
+    }
 }
 
 sub savepoint {

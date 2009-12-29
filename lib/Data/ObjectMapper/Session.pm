@@ -16,12 +16,16 @@ sub new {
 
     my $cache = $attr{cache} || Data::ObjectMapper::Session::Cache->new();
     my $self = bless {
+        engine      => $attr{engine}      || undef,
         query_class => $attr{query_class} || $DEFAULT_QUERY_CLASS,
         queries     => +{},
-        autoflush   => $attr{autoflush}   || 0,
+        autoflush   => exists $attr{autoflush}  ? $attr{autoflush}  : 0,
+        autocommit  => exists $attr{autocommit} ? $attr{autocommit} : 1,
         cache       => $cache,
         unit_of_work => Data::ObjectMapper::Session::UnitOfWork->new($cache),
+        transaction => undef,
     }, $class;
+    $self->{transaction} = $attr{engine}->transaction unless $self->autocommit;
 
     return $self;
 }
@@ -55,8 +59,7 @@ sub add {
 sub add_all {
     my $self = shift;
     $self->add($_) for @_;
-    $self->flush() if $self->autoflush;
-    return scalar(@{$self->{objects}});
+    return @_;
 }
 
 sub flush {
@@ -67,14 +70,32 @@ sub flush {
 sub delete {
     my $self = shift;
     my $obj  = shift;
-    $obj->__mapper__->delete;
+    $self->uow->delete($obj);
+    $self->flush() if $self->autoflush;
+    return $obj;
 }
 
 sub commit {
-    # XXXX TODO
+    my $self = shift;
+    $self->flush;
+    $self->{transaction}->commit unless $self->autocommit;
 }
 
-# expunge ?
+sub rollback {
+    my $self = shift;
+
+    cluck "Can't rollback. autocommit is true this session."
+        if $self->autocommit;
+    $self->{transaction}->rollback;
+}
+
+sub txn {
+    my $self = shift;
+    my $code = shift;
+    confess "it must be CODE reference" unless $code and ref $code eq 'CODE';
+    return $self->{engine}->transaction( $code, @_ );
+}
+
 sub detach {
     my $self = shift;
     my $obj  = shift;
@@ -83,8 +104,9 @@ sub detach {
 
 sub DESTROY {
     my $self = shift;
-    $self->uow->DESTROY; ## cycle..
     # COMMIT?
+    $self->commit;
+    $self->uow->demolish; ## dissolve cycle reference
 }
 
 1;
