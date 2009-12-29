@@ -64,6 +64,19 @@ my $DEFAULT_ATTRIBUTE_PROPERTY = {
         return $INITIALIZED_CLASSES{$class};
     }
 
+    sub dissolve {
+        my $self = shift;
+        delete $INITIALIZED_CLASSES{$self->mapped_class};
+        my $meta = $self->mapped_class->meta;
+        $meta->make_mutable if $meta->is_immutable;
+        $meta->remove_method('__class_mapper__');
+        $meta->remove_method('__mapper__');
+        $meta->make_immutable(
+            inline_constructor => 0,
+            inline_accessors   => 0,
+        );
+    }
+
     sub DESTROY {
         my $self = shift;
         warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
@@ -200,7 +213,7 @@ sub _init_attributes_config {
                     push @attributes, $meta_col;
                 }
                 else {
-                    confess "$p is not include metadata at include_property";
+                    confess "$p is not exists metadata at include_property";
                 }
             }
 
@@ -286,9 +299,7 @@ sub get_attribute {
     }
     else {
         for my $attr ( @{ $self->attributes_config } ) {
-            if( $attr->{isa}->name eq $name ) {
-                return $attr;
-            }
+            return $attr if $attr->{isa}->name eq $name;
         }
     }
 

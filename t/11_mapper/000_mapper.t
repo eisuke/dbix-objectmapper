@@ -242,7 +242,31 @@ sub is_same_addr($$) {
     is $obj->firstname, 'firstname';
     is $obj->lastname, 'lastname';
     is $obj->id, 10;
+
+    $mapper->dissolve;
 };
+
+{ # not include primary key
+    my $mapped_class = 'MyTest::Basic::ArtistArray';
+
+    dies_ok {
+        ok my $mapper = Data::ObjectMapper::Mapper->new(
+            $meta->t('artist') => $mapped_class,
+            constructor => { arg_type => 'ARRAY' },
+            attributes  => {
+                properties  => [
+                    {
+                        isa => $meta->t('artist')->c('lastname'),
+                    },
+                    {
+                        isa => $meta->t('artist')->c('firstname'),
+                    },
+                ],
+            }
+        );
+    };
+};
+
 
 # XXXXX join(relation)
 # XXXXX table is query

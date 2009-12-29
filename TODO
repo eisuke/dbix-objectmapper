@@ -1,7 +1,13 @@
-* mapperでprimaryじゃないkeyが含まれていない場合は、含ませる。
-* findをカラムを指定して実行する
 * relation
+   foreign_key
+   properties => {
+       cds => {
+           isa => $mapper->relation('Cds')
+       }
+   }
+
 * lazyloading
+* findをカラムを指定して実行する
 
 ======
 
