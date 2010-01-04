@@ -104,12 +104,13 @@ sub reducing {
     my %result;
     my $class_mapper = $self->instance->__class_mapper__;
     my %primary_key = map { $_ => 1 } @{$class_mapper->table->primary_key};
-    for my $attr ( $class_mapper->get_attributes_name ) {
-        my $col_name = $class_mapper->get_attribute($attr)->{isa}->name;
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $col_name
+            = $class_mapper->attributes->property($prop_name)->isa->name;
         unless ( $primary_key{$col_name}
-            and !defined $self->instance->{$attr} )
+            and !defined $self->instance->{$prop_name} )
         {
-            $result{$col_name} = $self->instance->{$attr};
+            $result{$col_name} = $self->instance->{$prop_name};
         }
     }
     return \%result;
@@ -143,9 +144,9 @@ sub modify {
     my $self = shift;
     my $rdata = shift;
     my $class_mapper = $self->instance->__class_mapper__;
-    for my $attr ( $class_mapper->get_attributes_name ) {
-        my $col    = $class_mapper->get_attribute($attr)->{isa}->name;
-        $self->instance->{$attr} = $rdata->{$col} || undef;
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $col = $class_mapper->attributes->property($prop_name)->isa->name;
+        $self->instance->{$prop_name} = $rdata->{$col} || undef;
     }
 
     return $self->instance;
@@ -168,13 +169,11 @@ sub set_val_trigger {
     }
 
     my $class_mapper = $self->instance->__class_mapper__;
-    my $attr_config = $class_mapper->get_attribute($name);
-    if ( my $meth = $attr_config->{validation_method} ) {
+    my $prop = $class_mapper->attributes->property($name);
+    if ( my $meth = $prop->validation_method ) {
         $self->instance->${meth}($val);
     }
-    elsif ( $attr_config->{validation}
-        and my $code = $attr_config->{isa}->validation )
-    {
+    elsif ( $prop->validation and my $code = $prop->isa->validation ) {
         unless ( $code->(@_) ) {
             confess "parameter $name is invalid.";
         }
@@ -186,7 +185,7 @@ sub set_val_trigger {
         )
     ) {
         $self->{is_modified} = 1;
-        $self->{modified_data}->{ $attr_config->{isa}->name } = $val;
+        $self->{modified_data}->{ $prop->isa->name } = $val;
     }
 
     $self->demolish if $self->is_transient;

@@ -11,44 +11,9 @@ use Class::MOP;
 use Class::MOP::Class;
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Mapper::Instance;
-
-my @CONSTRUCTOR_ARGUMENT_TYPES = qw( HASHREF HASH ARRAYREF ARRAY );
-
-my %OPTIONS_VALIDATE = (
-    attributes => {
-        include    => { type => ARRAYREF, default => +[] },
-        exclude    => { type => ARRAYREF, default => +[] },
-        prefix     => { type => SCALAR,   default => q{} },
-        properties => { type => HASHREF|ARRAYREF,  default => +{} },
-    },
-    accessors => {
-        auto       => { type => BOOLEAN,  default => 0 },
-        exclude    => { type => ARRAYREF, default => +[], depends => 'auto' },
-        do_replace => { type => BOOLEAN,  default => 0, depends => 'auto' },
-    },
-    constructor => {
-        name     => { type => SCALAR, default => 'new' },
-        arg_type => {
-            type      => SCALAR,
-            default   => 'HASHREF',
-            callbacks => {
-                valid_arg => sub {
-                    grep { $_[0] eq $_ } @CONSTRUCTOR_ARGUMENT_TYPES;
-                }
-            }
-        },
-        auto => { type => BOOLEAN, default => 0 },
-    },
-);
-
-my $DEFAULT_ATTRIBUTE_PROPERTY = {
-    isa               => undef,
-    lazy              => 0,
-    validation        => 0,
-    validation_method => undef,
-    getter            => undef,
-    setter            => undef,
-};
+use Data::ObjectMapper::Mapper::Constructor;
+use Data::ObjectMapper::Mapper::Accessor;
+use Data::ObjectMapper::Mapper::Attribute;
 
 {
     my %INITIALIZED_CLASSES;
@@ -93,12 +58,12 @@ sub new {
     }
 
     my $self = bless {
-        table              => undef,
-        mapped_class       => undef,
-        attributes_config  => +{},
-        accessors_config   => +{},
-        constructor_config => +{},
-        mapped             => 0,
+        table         => undef,
+        mapped_class  => undef,
+        attributes    => +{},
+        accessors     => +{},
+        constructor   => +{},
+        mapped        => 0,
     }, $class;
 
     unshift @_, 'table';
@@ -116,6 +81,8 @@ sub new {
             accessors         => { type => HASHREF, default => +{} },
             constructor       => { type => HASHREF, default => +{} },
             default_condition => { type => ARRAYREF, default => +[] },
+            # XXX TODO
+            # inherit          => { type => OBJECT, isa => 'Data::ObjectMapper::Mapper' }
         }
     );
 
@@ -130,188 +97,30 @@ sub new {
     return $self;
 }
 
+sub _init_constructor_config {
+    $_[0]->{constructor} = Data::ObjectMapper::Mapper::Constructor->new(@_);
+}
+
+sub _init_acceesors_config {
+    $_[0]->{accessors} = Data::ObjectMapper::Mapper::Accessor->new(@_);
+}
+
+sub _init_attributes_config {
+    $_[0]->{attributes} = Data::ObjectMapper::Mapper::Attribute->new(@_);
+}
+
 {
     no strict 'refs';
     my $package = __PACKAGE__;
-    for my $meth (qw(table mapped_class attributes_config
-                     accessors_config constructor_config)) {
+    for my $meth (qw(table mapped_class attributes accessors constructor)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
 
-sub _init_constructor_config {
-    my $self = shift;
-    my %option = validate( @_, $OPTIONS_VALIDATE{constructor} );
-    $self->{constructor_config} = \%option;
-}
-
-sub _init_acceesors_config {
-    my $self = shift;
-
-    my %option = validate( @_, $OPTIONS_VALIDATE{accessors} );
-    if( $option{exclude} ) {
-        for my $ex ( @{$option{exclude}}) {
-            # XXX fixed English
-            confess "Can't exlude $ex. not included attributes."
-                unless $self->attributes_config->{$ex};
-        }
-    }
-    $option{exclude} = +{ map { $_ => 1 } @{ $option{exclude} } };
-    $self->{accessors_config} = \%option;
-}
-
-sub _init_attributes_config {
-    my $self = shift;
-    my $table  = $self->table;
-    my $klass = $self->mapped_class;
-
-    my %option = validate( @_, $OPTIONS_VALIDATE{attributes} );
-    my %primary_key_map
-        = map { $_ => $table->c($_) } @{ $table->primary_key };
-
-    if( ref $option{properties} eq 'ARRAY' ) {
-        unless (   $self->constructor_config->{arg_type} eq 'ARRAY'
-            || $self->constructor_config->{arg_type} eq 'ARRAYREF' )
-        {
-            confess "not match constructor{arg_type}.(properties is HASHREF)";
-        }
-
-        my %settle_attribute;
-        my @properties;
-        for my $prop ( @{ $option{properties} } ) {
-            my $isa = $prop->{isa} || confess "set property \"isa\". ";
-            $prop->{getter} ||= $option{prefix} . $prop->{isa}->name;
-            $prop->{setter} ||= $option{prefix} . $prop->{isa}->name;
-            push @properties,
-                Data::ObjectMapper::Utils::merge_hashref(
-                    $DEFAULT_ATTRIBUTE_PROPERTY, $prop,
-                );
-
-            $settle_attribute{ $isa->name } = 1;
-            # XXXX TODO RELATION, SELECT, ETC...
-        }
-
-        if ( List::MoreUtils::notall { $settle_attribute{$_} }
-            keys %primary_key_map )
-        {
-            confess "primary key must be included in property";
-        }
-        $self->{attributes_config} = \@properties;
-    }
-    else { # HASH or auto
-        my @attributes;
-        if ( @{ $option{include} } ) {
-            my $ex_primary_key = 0;
-            for my $p ( @{ $option{include} } ) {
-                if ( $p and ref $p eq $table->column_metaclass ) {
-                    $ex_primary_key = 1 if $primary_key_map{ $p->name };
-                    push @attributes, $p;
-                }
-                elsif ( !ref($p) and my $meta_col = $table->c($p) ) {
-                    $ex_primary_key = 1
-                        if $primary_key_map{ $meta_col->name };
-                    push @attributes, $meta_col;
-                }
-                else {
-                    confess "$p is not exists metadata at include_property";
-                }
-            }
-
-            unless ($ex_primary_key) {
-                push( @attributes, $_ ) for values %primary_key_map;
-            }
-        }
-        else {    # default all
-            @attributes = @{ $table->columns };
-        }
-
-        if ( $option{exclude} ) {
-            my %exclude = map {
-                      ( ref($_) eq $table->column_metaclass )
-                    ? ( $_->name => 1 )
-                    : ( $_ => 1 );
-                } grep {
-                    if ($_) {
-                        if ( ref($_) eq $table->column_metaclass ) {
-                            !$primary_key_map{ $_->name };
-                        }
-                        else {
-                            !$primary_key_map{$_};
-                        }
-                    }
-                } @{ $option{exclude} };
-            @attributes = grep { !$exclude{ $_->name } } @attributes;
-        }
-
-        my %properties;
-        my %settle_attribute;
-
-        for my $name ( keys %{ $option{properties} } ) {
-            my $isa
-                = $option{properties}->{isa}
-                || $table->c($name)
-                || confess "$name : column not found. set property \"isa\". ";
-
-            $option{properties}->{getter} ||= $option{prefix} . $name;
-            $option{properties}->{setter} ||= $option{prefix} . $name;
-            $settle_attribute{ $isa->name } = 1;
-            $properties{$name} = Data::ObjectMapper::Utils::merge_hashref(
-                $DEFAULT_ATTRIBUTE_PROPERTY,
-                $option{properties}->{$name},
-            );
-
-            # XXXX TODO RELATION, SELECT, ETC...
-        }
-
-        for my $attr (@attributes) {
-            next if $settle_attribute{ $attr->name };
-            $properties{ $attr->name } = {
-                %$DEFAULT_ATTRIBUTE_PROPERTY,
-                isa    => $attr,
-                getter => $option{prefix} . $attr->name,
-                setter => $option{prefix} . $attr->name,
-            };
-            $settle_attribute{ $attr->name } = 1;
-        }
-
-        if ( $option{prefix} ) {
-            %properties = map { $option{prefix} . $_ => $properties{$_} }
-                keys %properties;
-        }
-
-        $self->{attributes_config} = \%properties;
-    }
-}
-
-sub get_attributes_name {
-    my $self = shift;
-    return
-        ref( $self->attributes_config ) eq 'HASH'
-        ? keys %{ $self->attributes_config }
-        : map { $_->{isa}->name } @{ $self->attributes_config };
-}
-
-sub get_attribute {
-    my ($self, $name) = @_;
-
-    if( ref( $self->attributes_config ) eq 'HASH' ) {
-        return $self->attributes_config->{$name};
-    }
-    else {
-        for my $attr ( @{ $self->attributes_config } ) {
-            return $attr if $attr->{isa}->name eq $name;
-        }
-    }
-
-    return;
-}
-
 sub _initialize {
     my $self = shift;
 
-    unless ($self->accessors_config->{auto}
-        and $self->constructor_config->{auto} )
-    {
+    unless ($self->accessors->auto and $self->constructor->auto ) {
         Class::MOP::load_class( $self->mapped_class );
     }
 
@@ -328,43 +137,43 @@ sub _initialize {
         }
     );
 
-    for my $attr_name ( $self->get_attributes_name ) {
-        next if $self->accessors_config->{exclude}->{$attr_name};
-        my $attr_config = $self->get_attribute($attr_name);
-        if( $self->accessors_config->{auto} ) {
-            if ( $meta->find_all_methods_by_name($attr_name)
-                and !$self->accessors_config->{do_replace} )
+    for my $prop_name ( $self->attributes->property_names ) {
+        next if $self->accessors->exclude->{$prop_name};
+        my $property = $self->attributes->property($prop_name);
+        if( $self->accessors->auto ) {
+            if ( $meta->find_all_methods_by_name($prop_name)
+                and !$self->accessors->do_replace )
             {
                 # TODO fix english ....
-                confess "the $attr_name method already exists."
+                confess "the $prop_name method already exists."
                     . "use do_replace option or exclude option.";
             }
             else {
                 $meta->add_method (
-                    $attr_name => sub {
+                    $prop_name => sub {
                         my $obj = shift;
                         if ( @_ ) {
                             my $val = shift;
-                            $obj->{$attr_name} = $val;
+                            $obj->{$prop_name} = $val;
                         }
-                        return $obj->{$attr_name};
+                        return $obj->{$prop_name};
                     }
                 );
             }
         }
 
-        my $getter = $attr_config->{getter} || $attr_name;
-        my $setter = $attr_config->{setter} || $attr_name;
+        my $getter = $property->getter || $prop_name;
+        my $setter = $property->setter || $prop_name;
         if( $getter eq $setter ) {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
                     if( my $mapper = $instance->__mapper__ ) {
                         if( @_ ) {
-                            $mapper->set_val_trigger( $attr_name, @_ );
+                            $mapper->set_val_trigger( $prop_name, @_ );
                         }
                         else {
-                            $mapper->get_val_trigger( $attr_name );
+                            $mapper->get_val_trigger( $prop_name );
                         }
                     }
                 }
@@ -375,7 +184,7 @@ sub _initialize {
                 $getter => sub {
                     my $instance = shift;
                     if( my $mapper = $instance->__mapper__ ) {
-                        $mapper->get_val_trigger( $attr_name );
+                        $mapper->get_val_trigger( $prop_name );
                     }
                 }
             );
@@ -384,23 +193,21 @@ sub _initialize {
                 $setter => sub {
                     my $instance = shift;
                     if( my $mapper = $instance->__mapper__ ) {
-                        $mapper->set_val_trigger( $attr_name, @_ );
+                        $mapper->set_val_trigger( $prop_name, @_ );
                     }
                 }
             );
         }
     }
 
-    if( $self->constructor_config->{auto} ) {
-        $self->constructor_config->{arg_type} = 'HASHREF';
-        $self->constructor_config->{name} = 'new';
-        $meta ||= Class::MOP::Class->create($self->mapped_class);
+    if( $self->constructor->auto ) {
+        $self->constructor->set_arg_type('HASHREF');
+        $self->constructor->set_name('new');
         $meta->add_method(
             new => sub {
                 my $class = shift;
                 my %param = @_ % 2 == 0 ? @_ : %{$_[0]};
-                my $obj = bless \%param, $class;
-                return $obj;
+                return bless \%param, $class;
             }
         );
     }
@@ -437,8 +244,8 @@ sub mapping {
 
     return unless $hashref_data;
 
-    my $constructor = $self->constructor_config->{name};
-    my $type = $self->constructor_config->{arg_type};
+    my $constructor = $self->constructor->name;
+    my $type = $self->constructor->arg_type;
     ## XXX TODO
     ## eager loding
     ## lazy loading
@@ -447,11 +254,11 @@ sub mapping {
 
 
     my $param;
-    for my $attr ( $self->get_attributes_name ) {
-        my $isa = $self->get_attribute($attr)->{isa};
+    for my $prop_name ( $self->attributes->property_names ) {
+        my $isa = $self->attributes->property($prop_name)->isa;
         if( $type eq 'HASH' or $type eq 'HASHREF' ) {
             $param ||= +{};
-            $param->{$attr} = $hashref_data->{$isa->name};
+            $param->{$prop_name} = $hashref_data->{$isa->name};
         }
         elsif( $type eq 'ARRAY' or $type eq 'ARRAYREF' ) {
             $param ||= +[];
