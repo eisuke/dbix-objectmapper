@@ -2,7 +2,7 @@ package Data::ObjectMapper::Metadata::Table::Column;
 use strict;
 use warnings;
 use Carp::Clan;
-use base qw(Class::Accessor::Fast);
+use base qw(Class::Accessor::Fast Clone);
 
 use Encode;
 use Scalar::Util();
@@ -121,7 +121,7 @@ sub to_storage {
                 $val = $default->();
             }
             else {
-                $val = $default;
+                #$val = $default; XXXX
             }
         }
     }

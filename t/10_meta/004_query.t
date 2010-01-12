@@ -91,7 +91,6 @@ my $address = $meta->table(
     is $address->count->execute, 4;
 };
 
-
 { # join
     my $it = $person->select->join(
         [ $address => [ $address->c('person') == $person->c('id') ] ]

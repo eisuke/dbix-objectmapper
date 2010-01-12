@@ -10,6 +10,7 @@ sub new {
 
     my $self = $class->SUPER::new(@_);
     $self->{_connect_do} = $connect_do;
+
     $self;
 }
 
@@ -19,7 +20,14 @@ sub _connect {
     if( $self->{_connect_do} ) {
         $dbh->do($_) for @{$self->{_connect_do}};
     }
+
     return $dbh;
+}
+
+sub DESTROY {
+# FIX ME : fixed warnings Can't call FETCH method on handle DBI::db=HASH(0x??????) after take_imp_data()
+#    my $self = shift;
+#    $self->SUPER::DESTROY;
 }
 
 1;

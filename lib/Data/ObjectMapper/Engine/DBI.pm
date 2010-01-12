@@ -17,7 +17,7 @@ use Data::ObjectMapper::Engine::DBI::Connector; # subclass of DBIx::Connector
 
 sub _init {
     my $self = shift;
-    my $param = shift || $self->log->exception('invalid parameter.');
+    my $param = shift || confess 'invalid parameter.';
 
     my @connect_info;
     my $connect_do;
@@ -35,14 +35,12 @@ sub _init {
         $option = $param->{option};
     }
     else {
-        $self->log->exception('invalid parameter.');
+        confess 'invalid parameter.';
     }
 
     $self->{connect_do}
         = ref $connect_do eq 'ARRAY' ? $connect_do : [$connect_do]
         if $connect_do;
-
-    $self->init_option($option);
 
     push @connect_info,
       {
@@ -67,11 +65,16 @@ sub _init {
 
     $self->{driver} = Data::ObjectMapper::Engine::DBI::Driver->new(
         $type,
+        $connector->dbh,
         db_schema       => $self->{db_schema}       || undef,
+        namesep         => $self->{namesep}         || undef,
+        quote           => $self->{quote}           || undef,
         sql             => $self->query,
         log             => $self->log,
         datetime_parser => $self->{datetime_parser} || undef,
     );
+
+    $self->init_option($option);
 
     return $self;
 }
@@ -83,18 +86,14 @@ sub init_option {
         $self->{disable_prepare_caching} = 1;
     }
 
-    if( my $db_schema = delete $option->{db_schema} ) {
-        $self->{db_schema} = $db_schema;
-    }
-
-    if( my $datetime_parser = delete $option->{datetime_parser} ) {
-        $self->{datetime_parser} = $datetime_parser;
+    for my $name ( qw(db_schema namesep quote datetime_parser) ) {
+        $self->{$name} = $option->{$name} if exists $option->{$name};
     }
 
     $self->{connection_mode}
         = $option->{connection_mode}
         ? delete $option->{connection_mode}
-        : 'fixup';
+        : $self->driver->default_connection_mode;
 
     $self->{iterator} ||= 'Data::ObjectMapper::Engine::DBI::Iterator';
 
@@ -107,6 +106,7 @@ sub driver          { $_[0]->{driver} }
 sub iterator        { $_[0]->{iterator} }
 sub query           { $_[0]->{query} }
 sub namesep         { $_[0]->driver->namesep }
+sub quote           { $_[0]->driver->quote }
 sub datetime_parser { $_[0]->driver->datetime_parser }
 sub set_time_zone   { $_[0]->driver->set_time_zone( $_[0]->dbh, $_[1] ) }
 
@@ -116,18 +116,6 @@ sub dbh { $_[0]->{connector}->dbh }
 sub dbh_do {
     my $self = shift;
     return $self->{connector}->run( $self->{connection_mode} => @_ );
-}
-
-sub _prepare {
-    my ( $self, $sql ) = @_;
-    return $self->dbh_do(
-        sub {
-            my $dbh = $self->dbh; # for on_connect_do
-            $self->{disable_prepare_caching}
-                ? $dbh->prepare($sql)
-                : $dbh->prepare_cached( $sql, undef, 3 );
-        }
-    );
 }
 
 sub transaction {
@@ -140,7 +128,7 @@ sub transaction {
     }
     else {
         return Data::ObjectMapper::Engine::DBI::Transaction->new(
-            $self->dbh, $self->{connector}->driver,
+            $self->dbh, $self->{connector}->driver, $self->log,
         );
     }
 }
@@ -168,6 +156,16 @@ sub get_unique_key {
     return $self->driver->get_table_uniq_info($self->dbh, $table);
 }
 
+sub get_foreign_key {
+    my ( $self, $table ) = @_;
+    return $self->driver->get_table_fk_info($self->dbh, $table);
+}
+
+sub get_tables {
+    my ( $self ) = @_;
+    return $self->driver->get_tables($self->dbh);
+}
+
 ### Query
 
 sub select {
@@ -180,8 +178,37 @@ sub select {
 
 sub select_single {
     my $self = shift;
-    return $self->_select('fetchrow_arrayref', @_);
+    #return $self->_select('fetchrow_arrayref', @_);
+
+    my ( $query, $callback ) = @_;
+
+    unless ( ref $query eq ref $self->query ) {
+        $query = $self->_as_query_object('select', $query);
+    }
+
+    my ($key, $cache) = $self->get_cache_id($query);
+
+    my $result;
+    if( $key and $cache ) {
+        $result = $cache;
+    }
+    else {
+        my ( $sql, @bind ) = $query->as_sql;
+        $self->stm_debug($sql, @bind);
+        $result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
+    }
+
+    if( $key and !$cache and $result ) {
+        $self->log->info('[QueryCache]Cache Set:' . $key);
+        $self->cache->set( $key => $result );
+    }
+
+    return $callback && ref($callback) eq 'CODE'
+        ? $callback->( $result, $query )
+        : $result;
 }
+
+=pod
 
 sub _select {
     my ( $self, $meth, $query, $callback ) = @_;
@@ -200,13 +227,13 @@ sub _select {
         my ( $sql, @bind ) = $query->as_sql;
         $self->stm_debug($sql, @bind);
         my $sth = $self->_prepare($sql);
-        $sth->execute(@bind) or $self->log->exception($sth->errstr);
+        $sth->execute(@bind) || confess $sth->errstr;
         $result = $sth->$meth;
         $sth->finish;
     }
 
     if( $key and !$cache and $result ) {
-        $self->log->driver_trace('[QueryCache]Cache Set:' . $key);
+        $self->log->info('[QueryCache]Cache Set:' . $key);
         $self->cache->set( $key => $result );
     }
 
@@ -214,6 +241,8 @@ sub _select {
         ? $callback->( $result, $query )
         : $result;
 }
+
+=cut
 
 sub _as_query_object {
     my ($self, $action, $query ) = @_;
@@ -231,8 +260,8 @@ sub update {
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];
-        $self->log->driver_trace(
-            '[QueryCache]Cache Remove : ' . join( ', ', @$keys ) );
+        $self->log->info(
+            '{QueryCache} Cache Remove : ' . join( ', ', @$keys ) );
         $self->cache->remove( $_ ) for @$keys;
     }
 
@@ -287,8 +316,8 @@ sub delete {
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];
-        $self->log->driver_trace(
-            '[QueryCache]Cache Remove : ' . join( ', ', @$keys ) );
+        $self->log->info(
+            '{QueryCache} Cache Remove : ' . join( ', ', @$keys ) );
         $self->cache->remove( $_ ) for @$keys;
     }
 
@@ -303,11 +332,12 @@ sub create {  }
 sub stm_debug {
     my ( $self, $sql, @bind ) = @_;
 
-    if( $self->log->is_driver_trace ) {
-        my $string = $sql . ': ';
+    if( $self->log->is_info ) {
+        my $string = $sql . ': (';
         $string .= join( ', ', map { defined $_ ? $_ : 'undef' } @bind )
           if @bind;
-        $self->log->driver_trace($string);
+        $string .= ')';
+        $self->log->info( '{SQL} ' . $string);
     }
 }
 
@@ -326,7 +356,7 @@ sub get_cache_id {
     local $Data::Dumper::Sortkeys = 1;
     my $key = Digest::MD5::md5_hex(ref($self) . Data::Dumper::Dumper($query));
     if( my $cache = $self->cache->get($key) ) {
-        $self->log->driver_trace( '[QueryCache]Cache Hit : ' . $key );
+        $self->log->info( '{QueryCache} Cache Hit : ' . $key );
         return ($key, $cache);
     }
 

@@ -14,32 +14,31 @@ sub new {
     my %attr = @_;
 
     my $cache = $attr{cache} || Data::ObjectMapper::Session::Cache->new();
+    my $query_class = $attr{query_class} || $DEFAULT_QUERY_CLASS;
+
     my $self = bless {
-        engine      => $attr{engine}      || undef,
-        query_class => $attr{query_class} || $DEFAULT_QUERY_CLASS,
-        queries     => +{},
-        autoflush   => exists $attr{autoflush}  ? $attr{autoflush}  : 0,
-        autocommit  => exists $attr{autocommit} ? $attr{autocommit} : 1,
-        cache       => $cache,
-        unit_of_work => Data::ObjectMapper::Session::UnitOfWork->new($cache),
+        engine => $attr{engine} || undef,
+        autoflush  => exists $attr{autoflush}  ? $attr{autoflush}  : 0,
+        autocommit => exists $attr{autocommit} ? $attr{autocommit} : 1,
+        cache      => $cache,
+        unit_of_work => Data::ObjectMapper::Session::UnitOfWork->new(
+            $cache, $query_class
+        ),
         transaction => undef,
     }, $class;
-    $self->{transaction} = $attr{engine}->transaction unless $self->autocommit;
+    $self->{transaction} = $attr{engine}->transaction
+        unless $self->autocommit;
 
     return $self;
 }
 
 sub autoflush   { $_[0]->{autoflush} }
 sub autocommit  { $_[0]->{autocommit} }
-sub query_class { $_[0]->{query_class} }
 sub uow         { $_[0]->{unit_of_work} }
 
 sub query {
     my $self = shift;
-    my $t_class = shift;
-    $t_class = ref($t_class) if blessed($t_class);
-    $self->{queries}{$t_class} ||= $self->query_class->new( $t_class );
-    $self->{queries}{$t_class};
+    return $self->uow->query(@_);
 }
 
 sub get {

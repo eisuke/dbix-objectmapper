@@ -41,6 +41,13 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
                 },
             ],
             unique_key      => [ 'name_uniq' => ['name'] ],
+            foreign_key     => [
+                {
+                    keys  => ['name'],
+                    table => 'test',
+                    refs  => ['id']
+                }
+            ],
             temp_column     => ['memo'],
             readonly_column => ['id'],
             utf8_column     => ['name'],
@@ -77,7 +84,21 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
         created => $validation,
     };
 
+    is_deeply $meta->foreign_key, [
+        {
+            keys  => ['name'],
+            table => 'test',
+            refs  => ['id']
+        }
+    ];
 
+    is_deeply $meta->get_foreign_key_by_col('name'), [
+        {
+            keys  => ['name'],
+            table => 'test',
+            refs  => ['id']
+        }
+    ];
 };
 
 {
@@ -86,7 +107,8 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
         username => '',
         password => '',
         on_connect_do => [
-            q{ CREATE TABLE testmetadata (id integer primary key, name text, created timestamp, updated timestamp)}
+            q{ CREATE TABLE testmetadata (id integer primary key, name text, created timestamp, updated timestamp)},
+            q{ CREATE TABLE testfk (id interger primary key, pid integer references testmetadata(id))},
         ],
     });
 
@@ -120,5 +142,19 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
     is $meta->c('created')->default, $now;
     ok $meta->c('updated');
     is $meta->c('updated')->on_update, $now;
+
+    ok my $meta2 = Data::ObjectMapper::Metadata::Table->new(
+        testfk => {
+            engine => $engine,
+            autoload_column => 1,
+        }
+    );
+
+    is_deeply $meta2->foreign_key, [
+        {   refs  => ['id'],
+            table => 'testmetadata',
+            keys  => ['pid']
+        }
+    ];
 
 };

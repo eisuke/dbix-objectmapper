@@ -4,23 +4,22 @@ use warnings;
 use Carp::Clan;
 use base qw(Data::ObjectMapper::Iterator::Base);
 
-sub driver   { $_[0]->{driver} }
+sub engine   { $_[0]->{engine} }
 sub query    { $_[0]->{query} }
+sub _dbh     { $_[0]->{_dbh} }
 sub _sth     { $_[0]->{_sth} }
 sub _size    { $_[0]->{_size} }
 
 sub new {
-    my ( $class, $query, $driver, $callback ) = @_;
-    my $self = $class->SUPER::new();
+    my ( $class, $query, $engine, $callback ) = @_;
+    my $self = $class->SUPER::new( $query, $callback );
     $self->{_size} = undef;
-    $self->{driver} = $driver;
-    $self->{query} = $query;
-    $self->{callback}
-        = $callback && ref($callback) eq 'CODE' ? $callback : undef;
+    $self->{engine} = $engine;
+    $self->{_dbh}   = $engine->dbh;
 
-    my ($key, $cache) = $self->driver->get_cache_id($query);
+    my ($key, $cache) = $self->engine->get_cache_id($query);
     if( $key and $cache ) {
-        return Data::ObjectMapper::Iterator->new( $cache, $callback );
+        return Data::ObjectMapper::Iterator->new( $cache, $query, $callback );
     }
     elsif($key) {
         $self->{cache_key} = $key;
@@ -30,14 +29,12 @@ sub new {
     return $self;
 }
 
-sub callback {
-    my $self = shift;
-    if( $self->{callback} ) {
-        return $self->{callback}->($_[0], $self->query);
-    }
-    else {
-        return $_[0];
-    }
+sub _prepare {
+    my ( $self, $sql ) = @_;
+    my $dbh = $self->_dbh; # for on_connect_do
+    return $self->engine->{disable_prepare_caching}
+        ? $dbh->prepare($sql)
+        : $dbh->prepare_cached( $sql, undef, 3 );
 }
 
 sub sth {
@@ -45,24 +42,25 @@ sub sth {
 
     unless( $self->_sth ) {
         my ( $sql, @bind ) = $self->query->as_sql;
-        $self->driver->stm_debug($sql, @bind);
-        my $sth = $self->driver->_prepare($sql);
+        my $sth = $self->_prepare($sql);
         $sth->execute(@bind) or confess $sth->errstr;
+        $self->engine->stm_debug($sql, @bind);
         my $size = $sth->rows;
 
         unless( $size ) {
             # FIX ME
-            #if( $self->query->limit ) {
-            #    $size = $self->query->limit->[0];
-            #}
-            #else {
-            #    my $count_query = $self->query->clone;
-            #    $count_query->column({ count => '*' });
-            #    $count_query->order_by(undef);
-            #    my $cnt = $self->driver->select_single($count_query);
-            #    if( $cnt ) {
-            #        $size = $cnt->[0];
-            #    }
+            my $count_query = $self->query->clone;
+            $count_query->column({ count => '*' });
+            $count_query->order_by(undef);
+
+            my ( $count_sql, @count_bind ) = $count_query->as_sql;
+            $self->engine->stm_debug($count_sql, @bind);
+            my $cnt = $self->_dbh->selectrow_arrayref( $count_sql, +{},
+                @count_bind );
+            #my $cnt = $self->engine->select_single($count_query);
+            if( $cnt ) {
+                $size = $cnt->[0];
+            }
             #    else {
             #        $size = 2**48; # fuck.
             #        if( $self->{cache_key} ) {
@@ -70,7 +68,6 @@ sub sth {
             #            delete $self->{cache_stack};
             #        }
             #    }
-            #}
         }
         $self->{_size} = $size;
         $self->{_sth} = $sth;
@@ -103,7 +100,7 @@ sub reset {
     my $self = shift;
     $self->_reset;
     my $class = ref($self);
-    return $class->new( $self->query, $self->driver, $self->{callback} );
+    return $class->new( $self->query, $self->engine, $self->{callback} );
 }
 
 sub _reset {
@@ -148,14 +145,14 @@ sub _set_cache {
     my ( $self, $cache ) = @_;
 
     my $dr_cache_table =
-      $self->driver->{cache_target_table}{ $self->query->from };
+      $self->engine->{cache_target_table}{ $self->query->from };
 
     if ( $self->{cache_key}
         and grep { $self->{cache_key} eq $_ } @$dr_cache_table )
     {
-        $self->driver->log->driver_trace(
-            '[QueryCache]Cache Set:' . $self->{cache_key} );
-        $self->driver->cache->set( $self->{cache_key} => $cache )
+        $self->engine->log->info(
+            '{QueryCache} Cache Set:' . $self->{cache_key} );
+        $self->engine->cache->set( $self->{cache_key} => $cache )
     }
 }
 

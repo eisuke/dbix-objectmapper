@@ -56,7 +56,9 @@ sub as_sql {
         my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
         $method = $self->limit_syntax->{default}
             unless $method and $self->can($method);
-        $stm .= $self->${method}();
+        if( my $add_stm = $self->${method}() ) {
+            $stm .= $add_stm;
+        }
     }
 
     return wantarray ? ($stm, @bind) : $stm;

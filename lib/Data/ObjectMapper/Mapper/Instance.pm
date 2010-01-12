@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan;
 use Scalar::Util qw(refaddr weaken);
+use Log::Any qw($log);
 use Data::ObjectMapper::Utils;
 
 my %INSTANCES;
@@ -106,7 +107,7 @@ sub reducing {
     my %primary_key = map { $_ => 1 } @{$class_mapper->table->primary_key};
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $col_name
-            = $class_mapper->attributes->property($prop_name)->isa->name;
+            = $class_mapper->attributes->property($prop_name)->name;
         unless ( $primary_key{$col_name}
             and !defined $self->instance->{$prop_name} )
         {
@@ -145,7 +146,7 @@ sub modify {
     my $rdata = shift;
     my $class_mapper = $self->instance->__class_mapper__;
     for my $prop_name ( $class_mapper->attributes->property_names ) {
-        my $col = $class_mapper->attributes->property($prop_name)->isa->name;
+        my $col = $class_mapper->attributes->property($prop_name)->name;
         $self->instance->{$prop_name} = $rdata->{$col} || undef;
     }
 
@@ -154,11 +155,24 @@ sub modify {
 
 sub get_val_trigger {
     my ( $self, $name ) = @_;
+
+    my $class_mapper = $self->instance->__class_mapper__;
     if( $self->status eq 'expired' ) {
         $self->reflesh;
     }
 
+    if( $class_mapper->attributes->property($name)->type eq 'relation' ) {
+        $self->load_rel_val($name) unless defined $self->instance->{$name};
+    }
+
     $self->demolish if $self->is_transient;
+}
+
+sub load_rel_val {
+    my $self = shift;
+    my $name = shift;
+    my $class_mapper = $self->instance->__class_mapper__;
+    $class_mapper->attributes->property($name)->get( $name, $self );
 }
 
 sub set_val_trigger {
@@ -173,7 +187,7 @@ sub set_val_trigger {
     if ( my $meth = $prop->validation_method ) {
         $self->instance->${meth}($val);
     }
-    elsif ( $prop->validation and my $code = $prop->isa->validation ) {
+    elsif ( my $code = $prop->validation ) {
         unless ( $code->(@_) ) {
             confess "parameter $name is invalid.";
         }
@@ -185,7 +199,7 @@ sub set_val_trigger {
         )
     ) {
         $self->{is_modified} = 1;
-        $self->{modified_data}->{ $prop->isa->name } = $val;
+        $self->{modified_data}->{ $prop->name } = $val;
     }
 
     $self->demolish if $self->is_transient;
@@ -240,13 +254,13 @@ sub delete {
 
 sub demolish {
     my $self = shift;
-    my $id = refaddr($self->instance);
+    my $id = refaddr($self->instance) || return;
     delete $INSTANCES{$id} if exists $INSTANCES{$id};
 }
 
 sub DESTROY {
     my $self = shift;
-    warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
+    $log->debug("DESTROY $self");
     $self->demolish;
 }
 

@@ -50,7 +50,10 @@ sub _accessor {
     my $self = shift;
     my $field = shift;
 
-    if(@_) {
+    if( @_ == 1 and !defined $_[0] ) {
+        $self->{$field} = [];
+    }
+    elsif( @_ ) {
         $self->{$field} = \@_;
         return $self;
     }
@@ -122,7 +125,7 @@ sub convert_columns_to_sql {
     return join ', ', map {
         $class->convert_column_alias_to_sql(
             $class->convert_func_to_sql($_) );
-    } grep {$_} @_;
+    } grep { defined $_ } @_;
 }
 
 sub convert_func_to_sql {
@@ -174,6 +177,7 @@ sub convert_table_to_sql {
     if( ref $table eq 'ARRAY' ) {
         my ($t_stm, @t_bind) = $class->convert_table_to_sql( $table->[0] );
         $stm = $t_stm . ' AS ' . $table->[1];
+
         push @bind, @t_bind if @t_bind;
     }
     elsif( ref $table eq 'Data::ObjectMapper::SQL::Select' ) {

@@ -49,6 +49,15 @@ sub table {
 
 *t = \&table;
 
+sub autoload_all_tables {
+    my $self   = shift;
+    my $engine = $self->engine;
+    my @tables = $engine->get_tables;
+    $self->table( $_ => { engine => $engine, autoload_column => 1 } )
+        for @tables;
+    return @tables;
+}
+
 sub query_object {
     my $self = shift;
     return $self->{query_object} ||= $self->{query_class}->new($self->engine);

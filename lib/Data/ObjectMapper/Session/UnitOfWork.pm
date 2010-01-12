@@ -3,11 +3,14 @@ use strict;
 use warnings;
 use Carp::Clan;
 use Scalar::Util qw(refaddr blessed);
+use Log::Any qw($log);
 
 sub new {
-    my ( $class, $cache ) = @_;
+    my ( $class, $cache, $query ) = @_;
 
     bless {
+        query_cnt   => 0,
+        query       => $query,
         cache       => $cache,
         objects     => +[],
         map_objects => +{},
@@ -15,22 +18,70 @@ sub new {
     }, $class;
 }
 
+sub query_cnt { $_[0]->{query_cnt} }
+
+sub query { $_[0]->{query}->new( @_ ) }
+
 sub cache { $_[0]->{cache} }
 
 sub get {
-    my ( $self, $t_class, $id ) = @_;
+    my ( $self, $t_class, $id, $option ) = @_;
     my $class_mapper = $t_class->__class_mapper__;
 
     $self->flush;
     my ( $key, @cond ) = $class_mapper->get_unique_condition($id);
     my $obj;
     if( my $cache = $self->_get_cache($key) ) {
+        $log->info("{UnitOfWork} Cache Hit: $key");
         $obj = $class_mapper->mapping($cache);
+    }
+    elsif( my $eagerload = $option->{eagerload} ) {
+        $eagerload = [ $eagerload ] unless ref($eagerload) eq 'ARRAY';
+        my $query = $self->query($t_class);
+        for my $attr ( @$eagerload ) {
+            my $rel = $class_mapper->attributes->property($attr)->{isa};
+            my $table = $rel->table->clone($attr);
+            my @rel_cond = $rel->relation_condition($class_mapper, $table);
+            $query->add_join([ $table => [ @rel_cond ] ]);
+            $query->add_column(@{$table->columns});
+        }
+
+        $query->where(@cond);
+
+        require Data::Dump;
+        my %result;
+        my $it = $query->execute;
+        while( my $r = $it->next ) {
+            for my $col ( keys %$r ) {
+                if( $class_mapper->table->c($col) ) {
+                    $result{$col} = $r->{$col};
+                }
+                else {
+                    if( $result{$col} ) {
+                        push @{$result{$col}}, $r->{$col};
+                    }
+                    else {
+                        $result{$col} = [ $r->{$col} ];
+                    }
+                }
+            }
+        }
+
+        warn Data::Dump::dump(\%result);
+        $obj = $class_mapper->mapping(\%result);
+        warn Data::Dump::dump($obj);
+        $self->{query_cnt}++;
     }
     else {
         $obj = $class_mapper->find(@cond) || return;
+        $self->{query_cnt}++;
     }
 
+    return $self->add_storage_object($obj);
+}
+
+sub add_storage_object {
+    my ( $self, $obj ) = @_;
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'persistent', $self );
     $self->_set_cache($mapper);
@@ -75,11 +126,12 @@ sub flush {
         elsif( $mapper->is_persistent ) {
             if( delete $self->{del_objects}->{$id} ) {
                 $mapper->delete();
+                $self->_clear_cache($mapper);
             }
             elsif( $mapper->is_modified ) {
                 $mapper->update();
+                $self->_clear_cache($mapper);
             }
-            $self->_clear_cache($mapper);
         }
     }
 }
@@ -92,12 +144,18 @@ sub _get_cache {
 sub _set_cache {
     my ( $self, $mapper ) = @_;
     my $result = $mapper->reducing;
-    $self->cache->set( $_ => $result ) for $mapper->cache_keys;
+    for my $key ( $mapper->cache_keys ) {
+        $log->info("{UnitOfWork} Cache Set: $key");
+        $self->cache->set( $key => $result );
+    }
 }
 
 sub _clear_cache {
     my ( $self, $mapper ) = @_;
-    $self->cache->remove( $_ ) for $mapper->cache_keys;
+    for my $key ( $mapper->cache_keys ) {
+        $log->info("{UnitOfWork} Cache Remove: $key");
+        $self->cache->remove( $key );
+    }
 }
 
 sub demolish {
@@ -111,7 +169,7 @@ sub demolish {
 
 sub DESTROY {
     my $self = shift;
-    warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
+    $log->debug("DESTROY $self");
     $self->demolish;
 }
 

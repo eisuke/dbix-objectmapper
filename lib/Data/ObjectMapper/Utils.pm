@@ -144,4 +144,9 @@ sub merge_hashref {
     return Hash::Merge::merge($old,$new);
 }
 
+sub camelize {
+    my ($str) = @_;
+    join('', map{ ucfirst $_ } split(/(?<=[A-Za-z])_(?=[A-Za-z])|\b/, $str));
+}
+
 1;

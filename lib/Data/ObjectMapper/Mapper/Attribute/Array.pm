@@ -26,12 +26,12 @@ sub init {
     $self->{properties} = \@properties;
 }
 
-sub property_names { map { $_->isa->name } @{ $_[0]->properties } }
+sub property_names { map { $_->name } @{ $_[0]->properties } }
 
 sub property {
     my ($self, $name) = @_;
     for( @{ $self->properties } ) {
-        return $_ if $_->isa->name eq $name;
+        return $_ if $_->name eq $name;
     }
     return;
 }

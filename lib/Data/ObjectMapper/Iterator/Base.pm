@@ -8,7 +8,14 @@ use overload
     fallback => 1,
     ;
 
-sub new { bless { cursor => 0 }, $_[0] }
+sub new {
+    my ( $class, $query, $callback ) = @_;
+    return bless {
+        cursor => 0,
+        query => $query,
+        callback => $callback && ref($callback) eq 'CODE' ? $callback : undef,
+    }, $class;
+}
 
 sub cursor {
     my $self = shift;
@@ -18,11 +25,13 @@ sub cursor {
 
 sub size {}
 
-sub count { shift->size }
-
 sub next {}
 
-sub reset {}
+sub reset {
+    my $self = shift;
+    $self->{cursor} = 0;
+    return $self;
+}
 
 sub all {}
 
@@ -34,6 +43,16 @@ sub first {
     my $d = $self->next;
     $self->reset;
     return $d;
+}
+
+sub callback {
+    my $self = shift;
+    if( $self->{callback} ) {
+        return $self->{callback}->($_[0], $self->{query});
+    }
+    else {
+        return $_[0];
+    }
 }
 
 1;

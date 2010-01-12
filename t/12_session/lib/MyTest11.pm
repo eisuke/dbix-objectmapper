@@ -2,9 +2,8 @@ package MyTest11;
 use strict;
 use warnings;
 
+use Data::ObjectMapper;
 use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper::Metadata;
-use Data::ObjectMapper::Mapper;
 
 my $engine = Data::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
@@ -12,38 +11,84 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     password => '',
     on_connect_do => [
         q{CREATE TABLE artist( id integer primary key, name text )},
-        q{CREATE TABLE cd( id integer primary key, title text, artist integer)},
-        q{CREATE TABLE track( id integer primary key, cd integer not null, track_no int, title text)},
+        q{CREATE TABLE cd( id integer primary key, title text, artist_id integer)},
+        q{CREATE TABLE track( id integer primary key, cd_id integer not null, track_no int, title text)},
     ],
 });
 
-my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
+my $mapper = Data::ObjectMapper->new( engine => $engine );
 
-my $artist = $meta->table( artist => { autoload_column => 1 } );
-my $cd = $meta->table( cd => { autoload_column => 1 } );
-my $track = $meta->table( track => { autoload_column => 1 } );
+my $artist = $mapper->metadata->table(
+    artist => {
+        autoload_column => 1,
+    }
+);
+my $cd = $mapper->metadata->table(
+    cd => {
+        autoload_column => 1,
+        foreign_key => {
+            table => 'artist',
+            keys => ['artist_id'],
+            refs => ['id'],
+        }
+    }
+);
+my $track = $mapper->metadata->table(
+    track => {
+        autoload_column => 1,
+        foreign_key => {
+            table => 'cd',
+            keys => ['cd_id'],
+            refs => ['id'],
+        }
+    }
+);
 
-my $artist_mapper = Data::ObjectMapper::Mapper->new(
+my $artist_mapper = $mapper->maps(
     $artist => 'MyTest11::Artist',
     constructor => { auto => 1 },
     accessors => { auto => 1 },
+    attributes => {
+        properties => {
+            cds => +{
+                isa => $mapper->relation( has_many => 'MyTest11::Cd' ),
+            }
+        }
+    }
 );
 
-my $cd_mapper = Data::ObjectMapper::Mapper->new(
+my $cd_mapper = $mapper->maps(
     $cd => 'MyTest11::Cd',
     constructor => { auto => 1 },
-    accessors => { auto => 1 },
+    accessors   => { auto => 1 },
+    attributes  => {
+        properties => {
+            artist => +{
+                isa => $mapper->relation( belongs_to => 'MyTest11::Artist' )
+            },
+            tracks => +{
+                isa => $mapper->relation( has_many => 'MyTest11:Track'),
+            }
+        }
+    }
 );
 
-my $track_mapper = Data::ObjectMapper::Mapper->new(
+my $track_mapper = $mapper->maps(
     $artist => 'MyTest11::Track',
     constructor => { auto => 1 },
     accessors => { auto => 1 },
+    attributes => {
+        properties => {
+            cd => {
+                isa => $mapper->relation( belongs_to => 'MyTest11::Cd' ),
+            }
+        }
+    }
 );
 
-sub meta { $meta }
-
 sub engine { $engine }
+
+sub mapper { $mapper }
 
 sub setup_default_data {
     my $self = shift;
@@ -188,8 +233,8 @@ sub setup_default_data {
         my ($title, $tracks) = each %$_;
 
         my $cd_ins = $cd->insert->values(
-            title => $title,
-            artist => $artist_id
+            title     => $title,
+            artist_id => $artist_id
         )->execute(['id']);
 
         my $cd_id = $cd_ins->{id};
@@ -197,7 +242,7 @@ sub setup_default_data {
         my $no = 1;
         for (@$tracks) {
             $track->insert->values(
-                cd       => $cd_id,
+                cd_id    => $cd_id,
                 track_no => $no++,
                 title    => $_,
             )->execute;

@@ -37,18 +37,16 @@ use Data::ObjectMapper::Engine::DBI;
         username => '',
         password => '',
         on_connect_do => [
-            q{ CREATE TABLE testmetadata (id integer primary key, name text, created timestamp, updated timestamp)}
+            q{ CREATE TABLE testmetadata (id integer primary key, name text, created timestamp, updated timestamp)},
+            q{ CREATE TABLE testmetadata2 (id integer primary key)},
+            q{ CREATE TABLE testmetadata3 (id integer primary key)},
         ],
     });
 
     my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
-
-    ok my $test = $meta->table(
-        testmetadata => {
-            autoload_column => 1,
-        }
-    );
-
+    my @tables = $meta->autoload_all_tables;
+    is_deeply \@tables, [qw(testmetadata testmetadata2 testmetadata3)];
+    ok my $test = $meta->t('testmetadata');
     ok $test->c('id');
     ok $test->c('name');
     ok $test->c('created');

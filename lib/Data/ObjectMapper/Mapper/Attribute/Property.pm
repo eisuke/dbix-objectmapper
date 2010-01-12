@@ -4,6 +4,8 @@ use warnings;
 use Carp::Clan;
 use Params::Validate qw(:all);
 
+my @TYPES = qw(column relation);
+
 sub new {
     my $class = shift;
 
@@ -32,11 +34,48 @@ sub new {
     bless \%prop, $class;
 }
 
-sub isa               { $_[0]->{isa} }
 sub lazy              { $_[0]->{lazy} }
-sub validation        { $_[0]->{validation} }
 sub validation_method { $_[0]->{validation_method} }
 sub getter            { $_[0]->{getter} }
 sub setter            { $_[0]->{setter} }
+
+## proxy
+
+sub type {
+    my $self = shift;
+
+    if( $self->{isa}->isa('Data::ObjectMapper::Metadata::Table::Column') ) {
+        return 'column';
+    }
+    elsif( $self->{isa}->isa('Data::ObjectMapper::Relation') ) {
+        return 'relation';
+    }
+
+    return 0;
+}
+
+sub validation {
+    my $self = shift;
+    return $self->{isa}->validation if $self->{validation};
+    return;
+}
+
+sub name {
+    my $self = shift;
+
+    if( $self->type eq 'column' ) {
+        return $self->{isa}->name;
+    }
+
+}
+
+sub get {
+    my $self = shift;
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->get(@_);
+    }
+
+    return;
+}
 
 1;

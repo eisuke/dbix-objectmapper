@@ -4,6 +4,8 @@ use warnings;
 use Carp::Clan;
 use Params::Validate qw(:all);
 
+use Data::ObjectMapper::Log;
+use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Metadata;
 use Data::ObjectMapper::Mapper;
 use Data::ObjectMapper::Session;
@@ -63,6 +65,18 @@ sub begin_session {
     return $self->session_class->new(%attr);
 }
 
-1;
+sub relation {
+    my $self = shift;
+    my $class = ref($self) || $self;
+    my ( $rel_type, $map_class, $option ) = @_;
+    my $rel_class
+        = $class
+        . '::Relation::'
+        . Data::ObjectMapper::Utils::camelize($rel_type);
+    Class::MOP::load_class($rel_class)
+        unless Class::MOP::is_class_loaded($rel_class);
+    return $rel_class->new( $map_class, $option );
+}
 
+1;
 __END__

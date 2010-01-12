@@ -1,17 +1,24 @@
 package Data::ObjectMapper::Engine::DBI::Driver::SQLite;
 use strict;
 use warnings;
-use Data::ObjectMapper::Utils;
+use Carp::Clan;
+use Try::Tiny;
 use Text::Balanced qw( extract_bracketed );
 use base qw(Data::ObjectMapper::Engine::DBI::Driver);
 
 sub init {
     my $self = shift;
     $self->{_sqlite_parse_data} = {};
-    eval "use DateTime::Format::SQLite";
-    $self->log->exception("Couldn't load DateTime::Format::SQLite: $@") if $@;
-    $self->{datetime_parser} ||= 'DateTime::Format::SQLite';
+    try {
+        require DateTime::Format::SQLite;
+        DateTime::Format::SQLite->import;
+        $self->{datetime_parser} ||= 'DateTime::Format::SQLite';
+    } catch {
+        confess "Couldn't load DateTime::Format::SQLite: $_";
+    };
 }
+
+sub default_connection_mode { 'no_ping' }
 
 sub get_table_uniq_info {
     my ($self, $dbh, $table) = @_;
@@ -20,6 +27,28 @@ sub get_table_uniq_info {
         $self->_sqlite_parse_table($dbh, $table);
 
     return $self->{_sqlite_parse_data}->{$table}->{uniqs};
+}
+
+sub get_table_fk_info {
+    my ($self, $dbh, $table) = @_;
+    $self->{_sqlite_parse_data}->{$table} ||=
+        $self->_sqlite_parse_table($dbh, $table);
+
+    return $self->{_sqlite_parse_data}->{$table}->{rels};
+}
+
+sub get_tables {
+    my ($self, $dbh) = @_;
+    my $sth = $dbh->prepare("SELECT * FROM sqlite_master");
+    $sth->execute;
+    my @tables;
+    while ( my $row = $sth->fetchrow_hashref ) {
+        next unless lc( $row->{type} ) eq 'table';
+        next if $row->{tbl_name} =~ /^sqlite_/;
+        push @tables, $row->{tbl_name};
+    }
+    $sth->finish;
+    return @tables;
 }
 
 sub last_insert_id {
@@ -114,16 +143,15 @@ sub _sqlite_parse_table {
         my $rcols;
         if($f_cols) {
             my @f_cols = map { s/\s*//g; lc $_ } split(/\s*,\s*/,$f_cols); ## no critic
-            Data::ObjectMapper::Utils::exception(
-                "Mismatched column count in rel for $table => $f_table")
-              if @cols != @f_cols;
+            confess "Mismatched column count in rel for $table => $f_table"
+                if @cols != @f_cols;
 
             $rcols = \@f_cols;
         }
         push(@rels, {
-            local_columns => \@cols,
-            remote_columns => $rcols,
-            remote_table => $f_table,
+            keys  => \@cols,
+            refs  => $rcols,
+            table => $f_table,
         });
     }
 

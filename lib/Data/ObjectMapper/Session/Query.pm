@@ -2,125 +2,186 @@ package Data::ObjectMapper::Session::Query;
 use strict;
 use warnings;
 use Carp::Clan;
-use Scalar::Util qw(refaddr);
-use Clone qw(clone);
-use Digest::MD5 qw(md5_hex);
+use Data::ObjectMapper::Iterator;
 
 sub new {
-    my ( $class, $target_class ) = @_;
-    bless {
-        target_class => $target_class,
-        cache        => +{},
-        persistent   => +{},
-        detached     => +{},
-        identity_map => +{},
+    my $class        = shift;
+    my $uow          = shift;
+    my $mapped_class = shift;
+    my $option       = shift;
+
+    my $mapper = $mapped_class->__class_mapper__;
+    my $query  = $mapper->table->select;
+    return bless {
+        mapper        => $mapper,
+        unit_of_work  => $uow,
+        query         => $query,
+        is_multi      => 0,
+        option        => $option,
+        alias_table   => +{},
     }, $class;
 }
 
-sub target_class { $_[0]->{target_class} }
+sub _query       { $_[0]->{query} }
+sub mapper       { $_[0]->{mapper} }
+sub unit_of_work { $_[0]->{unit_of_work} }
 
-sub is_persistent {
-    my ( $self, $obj ) = @_;
-    $self->{persistent}{refaddr($obj)};
+sub is_multi {
+    my $self = shift;
+    $self->{is_multi} = shift if @_;
+    return $self->{is_multi};
 }
 
-sub get_identity_condition {
-    my ( $self, $obj ) = @_;
-    $self->{identity_map}{refaddr($obj)};
-}
-
-sub get_original_data {
-    my ( $self, $obj ) = @_;
-    my $uniq_cond = $self->get_identity_condition($obj) || return;
-    return $self->_get_cache(undef, @$uniq_cond);
-}
-
-sub detach {
-    my ( $self, $obj, $reduced_data ) = @_;
-    my $id = refaddr($obj);
-    delete $self->{persistent}{$id};
-    $self->{detached}{$id} = 1;
-    $reduced_data ||= $obj->__mapper__->reducing($obj);
-    $self->_clear_cache($reduced_data);
-}
-
-sub is_detached {
-    my ( $self, $obj ) = @_;
-    $self->{detached}{refaddr($obj)};
-}
-
-sub attach {
-    my ( $self, $obj, $record ) = @_;
-    my $mapper = $obj->__mapper__;
-    $record ||= $obj->__mapper__->reducing($obj);
-    my $addr = refaddr($obj);
-    $self->{persistent}{$addr} = 1;
-    $self->{identity_map}{$addr} = +[
-        map { $mapper->from->c($_) == $record->{$_} }
-            @{ $mapper->from->primary_key }
-    ];
-}
-
-sub all {
-
-}
-
-sub _get_cache {
-    my ( $self, $cond_type, @cond ) = @_;
-    my $key
-        = $cond_type
-        ? $cond_type . '#'
-            . join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond )
-        : join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond );
-
-    return $self->{cache}{md5_hex($key)};
-}
-
-sub _get_primary_cache_key {
-    my ( $self, $result ) = @_;
-
-    my $mapper = $self->target_class->__mapper__;
-    my @ids;
-    for my $key ( @{ $mapper->from->primary_key } ) {
-        push @ids,
-            $key . '=' . ( defined $result->{$key} ? $result->{$key} : 'NULL' );
+{
+    no strict 'refs';
+    my $pkg = __PACKAGE__;
+    for my $meth ( qw( where order_by group_by limit offset
+                       add_where add_order_by add_group_by ) ) {
+        *{"$pkg\::$meth"} = sub {
+            my $self = shift;
+            $self->_query->$meth(@_);
+            return $self;
+        };
     }
 
-    return md5_hex( join( '&', @ids ) );
-}
+    for my $meth ( qw( pager count first ) ) {
+        *{"$pkg\::$meth"} = sub {
+            my $self = shift;
+            $self->_query->$meth(@_);
+        };
+    }
+};
 
-sub _get_unique_cache_keys {
-    my ( $self, $result ) = @_;
-    my $mapper = $self->target_class->__mapper__;
+sub _to_alias {
+    my $self = shift;
 
-    my @keys;
-    for my $uniq ( @{ $mapper->from->unique_key } ) {
-        my $name = $uniq->[0];
-        my $keys = $uniq->[1];
-        my @uniq_ids;
-        for my $key (@$keys) {
-            push @uniq_ids,
-                $key . '='
-                . ( defined $result->{$key} ? $result->{$key} : 'NULL' );
+    for my $i ( 0 .. $#_ ) {
+        my $cond = $_[$i];
+        if( ref $cond eq 'ARRAY' ) {
+            for my $ci ( 0 .. $#$cond ) {
+                my $c = $cond->[$ci];
+                if ( ref($c) eq 'Data::ObjectMapper::Metadata::Table::Column'
+                    and my $alias = $self->{alias_table}{ $c->table } )
+                {
+                    my $clone = $c->clone;
+                    $clone->{table} = $alias;
+                    $_[$i]->[$ci] = $clone;
+                }
+            }
         }
-        push @keys,  md5_hex( $name . '#' . join( '&', @uniq_ids ) );
+        else {
+            if ( ref($cond) eq 'Data::ObjectMapper::Metadata::Table::Column'
+                and my $alias = $self->{alias_table}{ $cond->table } )
+            {
+                my $clone = $cond->clone;
+                $clone->{table} = $alias;
+                $_[$i] = $clone;
+            }
+        }
     }
 
-    return @keys;
+    return @_;
 }
 
-sub _set_cache {
-    my ( $self, $result ) = @_;
-    my $cached_result = clone($result);
-    $self->{cache}{ $self->_get_primary_cache_key($result) } = $cached_result;
-    $self->{cache}{$_} = $cached_result
-        for $self->_get_unique_cache_keys($result);
+sub join {
+    my $self = shift;
+    my $join_attr = shift;
+    $join_attr = [ $join_attr ] unless ref $join_attr eq 'ARRAY';
+    my $class_mapper = $self->mapper;
+
+    my @join;
+    for my $attr ( @$join_attr ) {
+        my $rel = $class_mapper->attributes->property($attr)->{isa};
+        $self->{alias_table}->{$rel->table->table_name} = $attr;
+        my $table = $rel->table->clone($attr);
+        my @rel_cond = $rel->relation_condition($class_mapper, $table);
+        push @join, [ $table => [ @rel_cond ] ];
+
+        if( $self->{option}{eagerload} ) {
+            $self->_query->add_column( @{$table->columns} );
+            $self->is_multi(1) if $rel->is_multi
+        }
+    }
+
+    $self->_query->join(@join);
+    $self->_query->group_by( @{ $class_mapper->table->columns } )
+        unless $self->{option}{eagerload};
+    return $self;
 }
 
-sub _clear_cache {
-    my ( $self, $result ) = @_;
-    delete $self->{cache}{ $self->_get_primary_cache_key($result) };
-    delete $self->{cache}{ $_ } for $self->_get_unique_cache_keys($result);
+sub add_join {
+
+}
+
+sub execute {
+    my $self = shift;
+
+    my $join = $self->_query->builder->join || [];
+    if( @$join ) {
+        for my $meth ( qw(where column order_by group_by) ) {
+            my $orig = $self->_query->builder->$meth;
+            next unless $orig and ref $orig eq 'ARRAY';
+            $self->_query->$meth($self->_to_alias(@$orig));
+        }
+    }
+
+    $self->unit_of_work->{query_cnt}++;
+    my $uow = $self->unit_of_work;
+    my $mapper = $self->mapper;
+
+    if( $self->is_multi ) {
+        my @result;
+        my %settle;
+        for my $r ( $self->_query->execute->all ) {
+            my $id = $mapper->primary_cache_key($r);
+            my @rels;
+            for my $key ( keys %$r ) {
+                next if $mapper->table->c($key);
+                my $rel = $mapper->attributes->property($key)->{isa};
+                my $obj = $rel->mapper->mapping($r->{$key});
+                $self->unit_of_work->add_storage_object($obj);
+                push @rels, $key;
+                $r->{$key} = $obj;
+            }
+
+            if( my $i = $settle{$id} ) {
+                $i -= 1;
+                for my $key ( @rels ) {
+                    if( $result[$i]->{$key} ) {
+                        if( ref $result[$i]->{$key} eq 'ARRAY') {
+                            push @{$result[$i]->{$key}}, $r->{$key};
+                        }
+                        else {
+                            $result[$i]->{$key} = [ $result[$i]->{$key}, $r->{$key} ];
+                        }
+                    }
+                    else {
+                        $result[$i]->{$key} = $r->{$key};
+                    }
+                }
+            }
+            else {
+                push @result, $r;
+                $settle{$id} = scalar(@result);
+            }
+        }
+
+        return Data::ObjectMapper::Iterator->new(
+            \@result,
+            $self->_query,
+            sub { $uow->add_storage_object( $mapper->mapping(@_) ) }
+        );
+    }
+    else {
+        my $orig_callback = $self->_query->callback;
+        local $self->_query->{callback} = sub {
+            return $uow->add_storage_object(
+                $mapper->mapping( $orig_callback->(@_) )
+            );
+        };
+        return $self->_query->execute;
+    }
+
 }
 
 1;

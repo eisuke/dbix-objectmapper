@@ -9,6 +9,8 @@ use Digest::MD5 qw(md5_hex);
 use Params::Validate qw(:all);
 use Class::MOP;
 use Class::MOP::Class;
+use Log::Any qw($log);
+
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Mapper::Instance;
 use Data::ObjectMapper::Mapper::Constructor;
@@ -44,7 +46,7 @@ use Data::ObjectMapper::Mapper::Attribute;
 
     sub DESTROY {
         my $self = shift;
-        warn "DESTROY $self" if $ENV{DOM_CHECK_DESTROY};
+        warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
         delete $INITIALIZED_CLASSES{$self->mapped_class};
     }
 };
@@ -214,7 +216,7 @@ sub _initialize {
 
     my $destroy = sub {
         my $instance = shift;
-        warn "DESTROY $instance" if $ENV{DOM_CHECK_DESTROY};
+        $log->debug("DESTROY $instance");
         if ( blessed($instance)
             and my $mapper = Data::ObjectMapper::Mapper::Instance->get(
                 $instance
@@ -246,23 +248,18 @@ sub mapping {
 
     my $constructor = $self->constructor->name;
     my $type = $self->constructor->arg_type;
-    ## XXX TODO
-    ## eager loding
-    ## lazy loading
-    ## ......
-
-
 
     my $param;
     for my $prop_name ( $self->attributes->property_names ) {
-        my $isa = $self->attributes->property($prop_name)->isa;
+        my $prop = $self->attributes->property($prop_name);
+        my $name = $prop->name || $prop_name;
         if( $type eq 'HASH' or $type eq 'HASHREF' ) {
             $param ||= +{};
-            $param->{$prop_name} = $hashref_data->{$isa->name};
+            $param->{$prop_name} = $hashref_data->{$name};
         }
         elsif( $type eq 'ARRAY' or $type eq 'ARRAYREF' ) {
             $param ||= +[];
-            push @$param, $hashref_data->{$isa->name};
+            push @$param, $hashref_data->{$name};
         }
     }
 

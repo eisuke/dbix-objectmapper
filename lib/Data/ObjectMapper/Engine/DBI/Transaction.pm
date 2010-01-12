@@ -4,11 +4,12 @@ use warnings;
 use Carp::Clan;
 
 sub new {
-    my ( $class, $dbh, $driver ) = @_;
+    my ( $class, $dbh, $driver, $log ) = @_;
 
     my $self = bless {
         dbh      => $dbh,
         driver   => $driver,
+        log      => $log,
         complete => 0,
     }, $class;
 
@@ -16,6 +17,7 @@ sub new {
     return $self;
 }
 
+sub log    { $_[0]->{log} }
 sub dbh    { $_[0]->{dbh} }
 sub driver { $_[0]->{driver} }
 
@@ -27,7 +29,7 @@ sub begin {
         confess "begin_work failed:" . $@;
     }
     else {
-        warn 'BEGIN;';    # XXXX
+        $self->log->info('BEGIN;');
     }
     return $self;
 }
@@ -54,7 +56,7 @@ sub _txn_end {
             confess "$meth failed for driver $self: $@";
         }
         else {
-            warn uc($meth) . ';';
+            $self->log->info( uc($meth) . ';' );
             return $self->{complete} = 1;
         }
     }

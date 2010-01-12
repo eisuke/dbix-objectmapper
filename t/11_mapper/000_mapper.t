@@ -40,7 +40,7 @@ sub is_same_addr($$) {
     is_same_addr $mapper, $mapped_class->__class_mapper__;
 
     for my $c ( @{$artist_table->columns} ) {
-        is_deeply $mapper->attributes->property($c->name)->isa, $c;
+        is_deeply $mapper->attributes->property($c->name)->{isa}, $c;
     }
 };
 

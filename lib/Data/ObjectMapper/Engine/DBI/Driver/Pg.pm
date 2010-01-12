@@ -1,15 +1,20 @@
 package Data::ObjectMapper::Engine::DBI::Driver::Pg;
 use strict;
 use warnings;
+use Carp::Clan;
+use Try::Tiny;
 use base qw(Data::ObjectMapper::Engine::DBI::Driver);
 
 sub init {
     my $self = shift;
-
     $self->{db_schema} ||= 'public';
-    eval "use DateTime::Format::Pg";
-    $self->log->exception("Couldn't load DateTime::Format::Pg: $@") if $@;
-    $self->{datetime_parser} ||= 'DateTime::Format::Pg';
+    try {
+        require DateTime::Format::Pg;
+        DateTime::Format::Pg->import;
+        $self->{datetime_parser} ||= 'DateTime::Format::Pg';
+    } catch {
+        confess("Couldn't load DateTime::Format::Pg: $_");
+    };
 }
 
 # Copied from DBIx::Class::Schema::Loader::DBI::Pg

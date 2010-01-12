@@ -1,14 +1,19 @@
 package Data::ObjectMapper::Engine::DBI::Driver::mysql;
 use strict;
 use warnings;
+use Try::Tiny;
+use Carp::Clan;
 use base qw(Data::ObjectMapper::Engine::DBI::Driver);
 
 sub init {
     my $self = shift;
-
-    eval "use DateTime::Format::MySQL";
-    $self->log->exception("Couldn't load DateTime::Format::MySQL: $@") if $@;
-    $self->{datetime_parser} ||= 'DateTime::Format::MySQL';
+    try {
+        require DateTime::Format::MySQL;
+        DateTime::Format::MySQL->import;
+        $self->{datetime_parser} ||= 'DateTime::Format::MySQL';
+    } catch {
+        confess "Couldn't load DateTime::Format::MySQL: $_";
+    };
 }
 
 sub last_insert_id {
@@ -56,6 +61,45 @@ sub _mysql_table_get_keys {
     }
 
     return $self->{_cache}->{_mysql_keys}->{$table};
+}
+
+sub get_table_fk_info {
+    my ($self, $dbh, $table) = @_;
+
+    my $table_def_ref = $dbh->selectrow_arrayref("SHOW CREATE TABLE `$table`")
+        or croak ("Cannot get table definition for $table");
+    my $table_def = $table_def_ref->[1] || '';
+
+    my (@reldata) = ($table_def =~ /CONSTRAINT `.*` FOREIGN KEY \(`(.*)`\) REFERENCES `(.*)` \(`(.*)`\)/ig);
+
+    my @rels;
+    while (scalar @reldata > 0) {
+        my $cols = shift @reldata;
+        my $f_table = shift @reldata;
+        my $f_cols = shift @reldata;
+
+        my @cols   = map { s/\Q$self->{quote}\E//; lc $_ }
+            split(/\s*,\s*/, $cols);
+
+        my @f_cols = map { s/\Q$self->{quote}\E//; lc $_ }
+            split(/\s*,\s*/, $f_cols);
+
+        push(@rels, {
+            keys  => \@cols,
+            refs  => \@f_cols,
+            table => $f_table
+        });
+    }
+
+    return \@rels;
+}
+
+sub get_tables {
+    my ( $self, $dbh ) = @_;
+    my @tables = $dbh->tables(undef, $self->db_schema, undef, undef);
+    s/\Q$self->{quote}\E//g for @tables;
+    s/^.*\Q$self->{namesep}\E// for @tables;
+    return @tables;
 }
 
 1;

@@ -1,3 +1,4 @@
+* query
 * relation
    foreign_key
    properties => {

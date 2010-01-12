@@ -10,8 +10,6 @@ use List::MoreUtils;
 use Data::ObjectMapper::Log;
 use Try::Tiny;
 
-my $log = Data::ObjectMapper::Log->new();
-
 { # basic
     check_interface('Data::ObjectMapper::Engine');
     check_interface('Data::ObjectMapper::Engine::DBI');
@@ -27,11 +25,13 @@ my $log = Data::ObjectMapper::Log->new();
             undef,
             {},
             [
-                q{CREATE TABLE test1 (id integer primary key, t text, key1 interger, key2 integer, UNIQUE(key1, key2) )}
+                q{CREATE TABLE test1 (id integer primary key, t text, key1 interger, key2 integer, UNIQUE(key1, key2) )},
+                q{CREATE TABLE test2 (id integer primary key )},
+                q{CREATE TABLE test3 (id integer primary key, test2_id integer REFERENCES test2(id) ) },
+                q{CREATE TABLE test4 (id integer primary key, test3_id integer, test3_test2_id integer, FOREIGN KEY(test3_id,test3_test2_id) REFERENCES test3(id,test2_id) )},
             ]
         ]
     );
-    $dr->log( $log );
     ok $dr->dbh;
 
     ok my $dr2 = Data::ObjectMapper::Engine::DBI->new({
@@ -42,11 +42,10 @@ my $log = Data::ObjectMapper::Log->new();
             q{CREATE TABLE test1 (id integer primary key, t text)}
         ],
     });
-    $dr2->log( $log );
     ok $dr2->dbh;
 
     # get_primary_key
-    is_deeply [ $dr->get_primary_key() ], [ 'id' ];
+    is_deeply [ $dr->get_primary_key('test1') ], [ 'id' ];
 
     # get_column_info
     my @columns = map{ $_->{name} } @{$dr->get_column_info('test1')};
@@ -62,6 +61,28 @@ my $log = Data::ObjectMapper::Log->new();
     my @keys = @{$dr->get_unique_key('test1')->[0][1]};
     my %uniq_keys = ( key1 => 1, key2 => 1);
     ok List::MoreUtils::all{ $uniq_keys{$_} } @keys;
+
+    # get_tables
+    my @tables = $dr->get_tables;
+    is_deeply(\@tables, [qw(test1 test2 test3 test4)]);
+
+    # get_foreign_key
+    is_deeply $dr->get_foreign_key('test1'), [];
+    is_deeply $dr->get_foreign_key('test2'), [];
+    is_deeply $dr->get_foreign_key('test3'), [
+        {
+            keys => ['test2_id'],
+            refs => ['id'],
+            table => 'test2',
+        }
+    ];
+    is_deeply $dr->get_foreign_key('test4'), [
+        {
+            keys => ['test3_id', 'test3_test2_id'],
+            refs => ['id', 'test2_id'],
+            table => 'test3',
+        }
+    ];
 
     # insert
     is_deeply { id => 1, t => 'texttext', key1 => 1, key2 => 1 },
@@ -220,10 +241,14 @@ sub check_interface {
         '_init',
         'transaction',
         'namesep',
+        'driver',
+        'quote',
+        'iterator',
         'datetime_parser',
         'get_primary_key',
         'get_column_info',
         'get_unique_key',
+        'get_tables',
         'select',
         'select_single',
         'update',

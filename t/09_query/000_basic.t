@@ -51,6 +51,39 @@ is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
     };
 };
 
+{ # select with callback
+    my $it = $query->select(
+        sub { { id => $_[0]->[0], name => $_[0]->[1] } }
+    )->from('artist')->order_by('id')->execute();
+
+    while( my $ref = $it->next ) {
+        ok $ref->{name};
+        ok $ref->{id};
+    }
+
+};
+
+{ # pager
+    my $query = $query->select->from('artist')->limit(1)->order_by('id');
+    my $pager = $query->pager;
+    is ref($pager), 'Data::Page';
+    is $pager->total_entries, 7;
+    is $pager->entries_per_page, 1;
+    is $pager->current_page, 1;
+    is $pager->first_page, 1;
+    is $pager->last_page, 7;
+    my $it = $query->execute;
+    while( my $a = $it->next ) {
+        is $a->[0], 1;
+    }
+
+    my $pager2 = $query->pager(2);
+    my $it2 = $query->execute;
+    is $pager2->current_page, 2;
+    is $it2->next->[0], 2;
+
+};
+
 { # update
     ok $query->update->table('artist')->where( [ id => 1 ] )
         ->set( name => 'artist1-1' )->execute;
@@ -68,18 +101,5 @@ is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
     is $it->size, 0;
     ok !$it->next;
 };
-
-{ # select with callback
-    my $it = $query->select(
-        sub { { id => $_[0]->[0], name => $_[0]->[1] } }
-    )->from('artist')->order_by('id')->execute();
-
-    while( my $ref = $it->next ) {
-        ok $ref->{name};
-        ok $ref->{id};
-    }
-
-};
-
 
 done_testing();

@@ -16,13 +16,20 @@ sub init {
 
     for my $name ( keys %{ $self->properties } ) {
         my $isa
-            = $self->properties->{isa}
+            = $self->properties->{$name}{isa}
                 || $table->c($name)
                 || confess "$name : column not found. set property \"isa\". ";
 
-        $self->properties->{getter} ||= $self->prefix . $name;
-        $self->properties->{setter} ||= $self->prefix . $name;
-        $settle_property{ $isa->name } = 1;
+        $self->properties->{$name}{getter} ||= $self->prefix . $name;
+        $self->properties->{$name}{setter} ||= $self->prefix . $name;
+
+        if( ref($isa) eq 'Data::ObjectMapper::Metadata::Table::Column' ) {
+            $settle_property{ $isa->name } = 1;
+        }
+        else {
+            $isa->name($name);
+        }
+
         $properties{$name}
             = Data::ObjectMapper::Mapper::Attribute::Property->new(
             %{ $self->properties->{$name} }
