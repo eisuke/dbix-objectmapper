@@ -8,6 +8,7 @@ build_requires:
   Test::Base: 0
   Test::Builder: 0.33
   Test::Exception: 0
+  Test::More: 0.88
   Test::Warn: 0.11
 configure_requires:
   ExtUtils::MakeMaker: 6.42
@@ -37,6 +38,7 @@ requires:
   Data::Page: 2
   DateTime: 0
   Digest::MD5: 0
+  Filter::Util::Call: 0
   Hash::Merge: 0
   List::MoreUtils: 0
   Log::Any: 0
