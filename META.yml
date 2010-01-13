@@ -1,0 +1,50 @@
+---
+abstract: ~
+author: ~
+build_requires:
+  DBD::SQLite: 1.14
+  DateTime::Format::SQLite: 0
+  ExtUtils::MakeMaker: 6.42
+  Test::Base: 0
+  Test::Builder: 0.33
+  Test::Exception: 0
+  Test::Warn: 0.11
+configure_requires:
+  ExtUtils::MakeMaker: 6.42
+distribution_type: module
+generated_by: 'Module::Install version 0.91'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Data-ObjectMapper
+no_index:
+  directory:
+    - inc
+    - t
+    - xt
+recommends:
+  DateTime::Format::MySQL: 0
+  DateTime::Format::Pg: 0
+requires:
+  Carp::Clan: 0
+  Class::Accessor::Fast: 0
+  Class::Data::Inheritable: 0
+  Class::MOP: 0
+  Clone: 0
+  DBI: 1.4
+  DBIx::Connector: 0
+  Data::Page: 2
+  DateTime: 0
+  Digest::MD5: 0
+  Hash::Merge: 0
+  List::MoreUtils: 0
+  Log::Any: 0
+  Params::Validate: 0
+  Scalar::Util: 0
+  Text::Balanced: 0
+  Try::Tiny: 0
+  perl: 5.8.1
+resources:
+  license: http://dev.perl.org/licenses/
+version: undef

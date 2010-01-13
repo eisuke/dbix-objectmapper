@@ -8,15 +8,12 @@
    }
 
 * lazyloading
-* findをカラムを指定して実行する
 
 ======
 
 * Column::Typeの実装
 * Column alias
 * queryで、SCALAR REFの場合はそのまま文字列をわたす
-* col + col で || の
-   connection(Data::ObjectMapper::Metadata::Column::Connect)
 * SQL - exists,any,in support
 * SQL - subquery check
 * has_many の場合の collectionの実装
