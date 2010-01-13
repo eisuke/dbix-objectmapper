@@ -2,9 +2,8 @@ package Data::ObjectMapper::Query::Select;
 use strict;
 use warnings;
 use Carp::Clan;
-
-use base qw(Data::ObjectMapper::Query);
 use Data::Page;
+use base qw(Data::ObjectMapper::Query::Base);
 
 sub new {
     my $class = shift;

@@ -1,7 +1,7 @@
 package Data::ObjectMapper::Query::Delete;
 use strict;
 use warnings;
-use base qw(Data::ObjectMapper::Query);
+use base qw(Data::ObjectMapper::Query::Base);
 
 sub new {
     my $class = shift;
