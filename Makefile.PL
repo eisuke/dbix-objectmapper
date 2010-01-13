@@ -24,6 +24,7 @@ requires 'Text::Balanced';
 requires 'List::MoreUtils';
 requires 'DateTime';
 
+build_requires 'Test::More', 0.88;
 test_requires 'DBD::SQLite'         => 1.14;
 test_requires 'DateTime::Format::SQLite';
 test_requires 'Test::Builder'       => 0.33;
@@ -33,8 +34,11 @@ test_requires 'Test::Warn'          => 0.11;
 
 recommends 'DateTime::Format::Pg';
 recommends 'DateTime::Format::MySQL';
+
 tests "t/*.t t/*/*.t";
+author_tests 'xt';
 
-
+use_test_base;
+auto_include;
 auto_install;
 WriteAll;
