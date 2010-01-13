@@ -67,14 +67,14 @@ my $cd_mapper = $mapper->maps(
                 isa => $mapper->relation( belongs_to => 'MyTest11::Artist' )
             },
             tracks => +{
-                isa => $mapper->relation( has_many => 'MyTest11:Track'),
+                isa => $mapper->relation( has_many => 'MyTest11::Track'),
             }
         }
     }
 );
 
 my $track_mapper = $mapper->maps(
-    $artist => 'MyTest11::Track',
+    $track => 'MyTest11::Track',
     constructor => { auto => 1 },
     accessors => { auto => 1 },
     attributes => {

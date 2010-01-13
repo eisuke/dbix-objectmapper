@@ -1,7 +1,7 @@
 package Data::ObjectMapper::SQL::Base;
 use strict;
 use warnings;
-use Carp qw(croak);
+use Carp::Clan;
 
 use Clone;
 use base qw(Class::Data::Inheritable);
@@ -291,7 +291,8 @@ sub convert_condition_to_sql {
                   map { $class->convert_val_to_sql_format($_) } @{ $w->[2] };
             }
             else {
-                croak 'Invalid Parameters in WHERE clause.('.join(',',@$w).')';
+                confess 'Invalid Parameters in WHERE clause.('
+                    . join( ',', @$w ) . ')';
             }
         }
         elsif( not defined $w->[2] ) {
@@ -318,7 +319,7 @@ sub convert_condition_to_sql {
         }
     }
     else {
-        croak 'Short of parameters in WHERE clause';
+        confess 'Short of parameters in WHERE clause';
     }
 
     return ( $stm, @bind );
@@ -340,7 +341,7 @@ sub convert_val_to_sql_format {
 
 sub num_check {
     my ($self, $num) = @_;
-    croak "Non-numerics in limit/offset clause ($num)" if $num =~ /\D/;
+    confess "Non-numerics in limit/offset clause ($num)" if $num =~ /\D/;
     return $num;
 }
 

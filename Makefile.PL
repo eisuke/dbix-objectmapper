@@ -5,28 +5,24 @@ perl_version '5.008001';
 all_from 'lib/Data/ObjectMapper.pm';
 license 'perl';
 
-
 requires 'Scalar::Util';
 requires 'Carp::Clan'       => 0;
 requires 'DBI'              => 1.40;
-requires 'Class::Inspector' => 0;
-requires 'Text::Balanced';
-requires 'Encode' => 0;
+
 requires 'DBIx::Connector';
 requires 'Try::Tiny';
 requires 'Class::MOP';
-
-#requires 'Data::Page' => 2.00;
-
-#requires 'Storable'         => 0;
-#requires 'Class::Accessor::Fast';
-#requires 'Module::Pluggable::Object';
-#requires 'List::MoreUtils';
-#requires 'DateTime';
-#requires 'FormValidator::Simple';
-#requires 'Log::Log4perl';
-#requires 'Cache::Cache';
-#requires 'UNIVERSAL::isa';
+requires 'Clone';
+requires 'Class::Data::Inheritable';
+requires 'Data::Page' => 2.00;
+requires 'Class::Accessor::Fast';
+requires 'Hash::Merge';
+requires 'Params::Validate';
+requires 'Log::Any';
+requires 'Digest::MD5';
+requires 'Text::Balanced';
+requires 'List::MoreUtils';
+requires 'DateTime';
 
 test_requires 'DBD::SQLite'         => 1.14;
 test_requires 'DateTime::Format::SQLite';

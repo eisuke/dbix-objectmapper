@@ -50,26 +50,103 @@ my $mapper = MyTest11->mapper;
     my $session = $mapper->begin_session;
     my $artist = $mapper->metadata->t('artist');
     my $cd     = $mapper->metadata->t('cd');
+
     my $it = $session->query(
         'MyTest11::Artist',
-        { eagerload => 1 }
-    )->join('cds')
-     ->where( $cd->c('title')
-     ->like('Led Zeppelin%') )
-     ->order_by( )
+     )
+     ->eager_join('cds')
+     ->where( $cd->c('title')->like('Led Zeppelin%') )
+     ->order_by( $cd->c('id')->desc )
      ->execute;
     ok $it;
+    my $loop_cnt = 0;
+    my $cd_id = 4;
+    while( my $a = $it->next ) {
+        $loop_cnt++;
+        is $a->id, 1;
+        is $a->name, 'Led Zeppelin';
+        for my $cd ( @{$a->cds} ) {
+            is $cd->id, $cd_id--;
+        }
+    }
+    is $loop_cnt, 1;
+};
+
+{ # nest join
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+    my $track  = $mapper->metadata->t('track');
+    my $it = $session->query('MyTest11::Artist')->join(
+        { 'cds' => 'tracks' },
+    )->where(
+        $cd->c('title')->like('Led Zeppelin%'),
+        $track->c('track_no') > 8,
+    )->execute;
 
     my $loop_cnt = 0;
     while( my $a = $it->next ) {
         $loop_cnt++;
-        require Data::Dump;
-        warn Data::Dump::dump($a);
+        is $a->id, 1;
+        is $a->name, 'Led Zeppelin';
     }
-    is $loop_cnt, 1;
 
+    is $loop_cnt, 1;
 };
 
+{ # nest join eagerload
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+    my $track  = $mapper->metadata->t('track');
+    my $it
+        = $session->query( 'MyTest11::Artist' )
+        ->eager_join( { 'cds' => 'tracks' } )->where(
+        $cd->c('title')->like('Led Zeppelin%'),
+        $track->c('track_no') > 8,
+        )->execute;
+    my $loop_cnt = 0;
+    while( my $a = $it->next ) {
+        $loop_cnt++;
+        is $a->id, 1;
+        is $a->name, 'Led Zeppelin';
+        ok $a->cds;
+        # ******* memo **********
+        # eagerloadは第一階層までにしておく
+        # そもそも深い階層のeagerloadは重いので、
+        # こそまで必要であれば、metadata.queryを利用したほうがいいと思う
+        # ***********************
+        ok $a->cds->[0]->tracks;
+    }
+
+    is $loop_cnt, 1;
+    is $session->uow->query_cnt, 2; # tracks is lazyload
+};
+
+{ # nested get
+    my $session = $mapper->begin_session;
+    my $a = $session->get( 'MyTest11::Artist' => 1 );
+    is $a->name, 'Led Zeppelin';
+    is $a->id, 1;
+
+    is ref($a->cds), 'ARRAY';
+    my $cd_id = 1;
+    for my $cd ( @{$a->cds} ) {
+        is $cd->id, $cd_id++;
+    }
+    is $cd_id, 11;
+
+    my $cd2 = $a->cds->[1];
+    is $cd2->id, 2;
+    is $cd2->title, 'Led Zeppelin II';
+    is ref($cd2->tracks), 'ARRAY';
+    my $track_no = 1;
+    for my $track ( @{$cd2->tracks} ) {
+        is $track->track_no, $track_no++;
+    }
+    is $track_no, 10;
+
+};
 
 done_testing;
 
@@ -86,13 +163,4 @@ __END__
 #    for my $c ( @{$parent->children} ) {
 #        is $c->parent_id, $parent->id;
 #    }
-};
-
-{ # nest join
-    my $session = $mapper->begin_session;
-    my $it
-        = $session->query( 'MyTest11::Artist', { eager_load => 1 } )
-        ->join( { 'MyTest::Cd' => ['MyTest::Track'] } )
-        ->order_by( $artist->c('id')->desc )->execute;
-
 };

@@ -1,90 +1,24 @@
 package Data::ObjectMapper::Utils;
 use strict;
 use warnings;
-use Class::Inspector;
-use Module::Pluggable::Object;
 use Carp::Clan;
+use Try::Tiny;
+use Class::MOP;
 use Scalar::Util;
 use Hash::Merge;
 
 sub load_class {
     my $class_name = shift;
     return $class_name if loaded($class_name);
-
-    if( my $error = load_not_ok($class_name) ) {
-        exception($error);
-    }
-
-    exception(
+    Class::MOP::load_class($class_name);
+    confess(
         "require $class_name was successful but the package is not defined")
       unless loaded($class_name);
 
     return $class_name;
 }
 
-sub loaded { Class::Inspector->loaded($_[0]) }
-
-sub load_not_ok {
-    my $class_name = shift;
-
-    my $error;
-    {
-        local $@;
-        eval "require $class_name;";
-        $error = $@;
-    }
-
-    return $error if $error;
-    return;
-}
-
-sub load_classes_from_namespace {
-    my $namespace = shift;
-
-    my $loader = Module::Pluggable::Object->new(
-        search_path => $namespace,
-        require     => 0,
-    );
-
-    return $loader->plugins;
-}
-
-sub normalized_hash_to_array {
-    my ($data) = @_;
-
-    exception('Data Structure Error')
-      unless ref $data eq 'ARRAY' and ref $data->[0] eq 'HASH';
-
-    my @headers = sort keys %{$data->[0]};
-    my @normalized;
-    for my $d ( @$data ) {
-        my @rray;
-        for my $h ( @headers ) {
-            push @rray, $d->{$h};
-        }
-        push @normalized, \@rray;
-    }
-    return \@headers, \@normalized;
-}
-
-sub normalized_array_to_hash {
-    my ($data) = @_;
-
-    exception('Data Structure Error')
-      unless ref $data eq 'ARRAY' and ref $data->[0] eq 'ARRAY';
-
-    my @headers = @{shift(@$data)};
-    my @normalized;
-    for my $d ( @$data ) {
-        my %result;
-        for my $i ( 0 .. $#headers ) {
-            $result{$headers[$i]} = $d->[$i];
-        }
-        push @normalized, \%result;
-    }
-
-    return \@normalized;
-}
+sub loaded { Class::MOP::is_class_loaded($_[0]) }
 
 sub is_deeply {
     my ( $X, $Y ) = @_;
@@ -147,6 +81,43 @@ sub merge_hashref {
 sub camelize {
     my ($str) = @_;
     join('', map{ ucfirst $_ } split(/(?<=[A-Za-z])_(?=[A-Za-z])|\b/, $str));
+}
+
+sub normalized_hash_to_array {
+    my ($data) = @_;
+
+    exception('Data Structure Error')
+      unless ref $data eq 'ARRAY' and ref $data->[0] eq 'HASH';
+
+    my @headers = sort keys %{$data->[0]};
+    my @normalized;
+    for my $d ( @$data ) {
+        my @rray;
+        for my $h ( @headers ) {
+            push @rray, $d->{$h};
+        }
+        push @normalized, \@rray;
+    }
+    return \@headers, \@normalized;
+}
+
+sub normalized_array_to_hash {
+    my ($data) = @_;
+
+    exception('Data Structure Error')
+      unless ref $data eq 'ARRAY' and ref $data->[0] eq 'ARRAY';
+
+    my @headers = @{shift(@$data)};
+    my @normalized;
+    for my $d ( @$data ) {
+        my %result;
+        for my $i ( 0 .. $#headers ) {
+            $result{$headers[$i]} = $d->[$i];
+        }
+        push @normalized, \%result;
+    }
+
+    return \@normalized;
 }
 
 1;

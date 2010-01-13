@@ -1,16 +1,16 @@
 package Data::ObjectMapper::Relation;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^Data::ObjectMapper/;
 
 sub new {
     my ( $class, $rel_class, $option ) = @_;
 
     bless +{
-        name  => undef,
+        name      => undef,
         rel_class => $rel_class,
-        option   => $option,
-        type => 'rel',
+        option    => $option,
+        type      => 'rel',
     }, $class;
 }
 
@@ -76,5 +76,13 @@ sub get_multi {
 }
 
 sub is_multi { 0 }
+
+sub relation_condition {}
+
+sub mapping {
+    my $self = shift;
+    my $data = shift;
+    return $self->mapper->mapping($data);
+}
 
 1;

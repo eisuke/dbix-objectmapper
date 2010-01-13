@@ -263,7 +263,7 @@ sub mapping {
         }
     }
 
-    return $self->mapped_class ->${constructor}(
+    return $self->mapped_class->${constructor}(
           $type eq 'HASH' ? %$param
         : ( $type eq 'HASHREF' || $type eq 'ARRAYREF' ) ? $param
         : ( $type eq 'ARRAY' ) ? @$param

@@ -5,13 +5,9 @@ use Carp::Clan;
 use overload
     '""' => sub {
         my $self = shift;
-        my $name = $self->table_name;
-        if( ref($name) eq 'ARRAY' ) {
-            return $name->[0] . ' AS ' . $name->[1];
-        }
-        else {
-            return $self->table_name;
-        }
+        my $table_name = $self->table_name;
+        $table_name .= ' AS ' . $self->alias_name if $self->is_clone;
+        return $table_name;
     },
     fallback => 1
     ;
@@ -81,7 +77,27 @@ sub new {
 
 =cut
 
-sub table_name { $_[0]->{table_name} }
+sub table_name {
+    my $self = shift;
+
+    if( $self->is_clone ) {
+        return $self->{table_name}->[0];
+    }
+    else {
+        return $self->{table_name};
+    }
+}
+
+=head2 alias_name
+
+=cut
+
+sub alias_name {
+    my $self = shift;
+    return $self->{table_name}->[1] if $self->is_clone;
+    return;
+}
+
 
 =head2 engine
 
@@ -222,10 +238,10 @@ sub get_foreign_key_by_table {
     my $self = shift;
     my $table = shift || return;
 
+    my $table_name = $table->table_name;
     for my $fk ( @{$self->{foreign_key}} ) {
-        return $fk if $fk->{table} eq $table;
+        return $fk if $fk->{table} eq $table_name;
     }
-
     return;
 }
 
@@ -469,7 +485,7 @@ sub query_object {
 sub select {
     my $self = shift;
     return $self->query_object->select( $self->_select_query_callback )
-        ->column(@{$self->columns})->from( $self->table_name );
+        ->column(@{$self->columns})->from( $self );
 }
 
 sub _select_query_callback {
@@ -548,7 +564,7 @@ sub _get_column_object_from_query {
 
 sub count {
     my $self = shift;
-    return $self->query_object->count->from( $self->table_name );
+    return $self->query_object->count->from( $self );
 }
 
 sub find {
@@ -678,6 +694,12 @@ sub clone {
 
     return $clone;
 }
+
+=head2 is_clone
+
+=cut
+
+sub is_clone { ref($_[0]->{table_name}) eq 'ARRAY' }
 
 =pod
 

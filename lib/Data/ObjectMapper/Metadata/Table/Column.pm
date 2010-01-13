@@ -7,6 +7,8 @@ use base qw(Class::Accessor::Fast Clone);
 use Encode;
 use Scalar::Util();
 use Params::Validate qw(:all);
+use Data::ObjectMapper::Metadata::Table::Column::Desc;
+use Data::ObjectMapper::Metadata::Table::Column::Connect;
 
 use overload
     '==' => \&eq,
@@ -15,8 +17,11 @@ use overload
     '>=' => sub { $_[0]->op( '>=', $_[1] ) },
     '>'  => sub { $_[0]->op( '>',  $_[1] ) },
     '<'  => sub { $_[0]->op( '<',  $_[1] ) },
-    ### XXXX to connect object
-    '+'  => sub { $_[0] . ' || ' . $_[1] },
+    '+'  => sub {
+        Data::ObjectMapper::Metadata::Table::Column::Connect->new(
+            $_[0], $_[1]
+        )
+    },
     '""' => sub { $_[0]->table . $_[0]->sep . $_[0]->name },
     fallback => 1,
 ;
@@ -84,12 +89,20 @@ sub not_like { $_[0]->op( 'NOT LIKE', $_[1]) }
 
 sub desc {
     my $self = shift;
-    $self . ' DESC';
+    return Data::ObjectMapper::Metadata::Table::Column::Desc->new($self);
 }
 
 sub as { [ $_[0], $_[1] ] }
 
 sub is { $_[0]->name => $_[1] || undef }
+
+sub as_alias {
+    my $self = shift;
+    my $name = shift;
+    my $clone = $self->clone;
+    $clone->{table} = $name;
+    return $clone;
+}
 
 sub to_storage {
     my ( $self, $val, $on_update ) = @_;
@@ -103,7 +116,6 @@ sub to_storage {
             confess $self . " : Validation Error.";
         }
     }
-
 
     if( $on_update ) {
         if( my $update = $self->on_update ) {

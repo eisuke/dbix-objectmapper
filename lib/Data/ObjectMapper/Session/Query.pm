@@ -2,6 +2,7 @@ package Data::ObjectMapper::Session::Query;
 use strict;
 use warnings;
 use Carp::Clan;
+use Scalar::Util qw(blessed);
 use Data::ObjectMapper::Iterator;
 
 sub new {
@@ -19,6 +20,8 @@ sub new {
         is_multi      => 0,
         option        => $option,
         alias_table   => +{},
+        org_column    => $query->builder->column,
+        join_struct   => +{},
     }, $class;
 }
 
@@ -30,6 +33,12 @@ sub is_multi {
     my $self = shift;
     $self->{is_multi} = shift if @_;
     return $self->{is_multi};
+}
+
+sub reset_column {
+    my $self = shift;
+    $self->_query->column(@{$self->{org_column}});
+    return $self->{org_column};
 }
 
 {
@@ -46,7 +55,14 @@ sub is_multi {
 
     for my $meth ( qw( pager count first ) ) {
         *{"$pkg\::$meth"} = sub {
-            my $self = shift;
+            my $self          = shift;
+            my $uow           = $self->unit_of_work;
+            my $mapper        = $self->mapper;
+            my $orig_callback = $self->_query->callback;
+            local $self->_query->{callback} = sub {
+                return $uow->add_storage_object(
+                    $mapper->mapping( $orig_callback->(@_), $uow ) );
+            };
             $self->_query->$meth(@_);
         };
     }
@@ -54,68 +70,130 @@ sub is_multi {
 
 sub _to_alias {
     my $self = shift;
+    my @elm = @_;
 
-    for my $i ( 0 .. $#_ ) {
-        my $cond = $_[$i];
+    for my $i ( 0 .. $#elm ) {
+        my $cond = $elm[$i];
         if( ref $cond eq 'ARRAY' ) {
             for my $ci ( 0 .. $#$cond ) {
-                my $c = $cond->[$ci];
-                if ( ref($c) eq 'Data::ObjectMapper::Metadata::Table::Column'
-                    and my $alias = $self->{alias_table}{ $c->table } )
-                {
-                    my $clone = $c->clone;
-                    $clone->{table} = $alias;
-                    $_[$i]->[$ci] = $clone;
+                if( my $alias = $self->__to_alias($cond->[$ci]) ) {
+                    $elm[$i]->[$ci] = $alias;
                 }
             }
         }
         else {
-            if ( ref($cond) eq 'Data::ObjectMapper::Metadata::Table::Column'
-                and my $alias = $self->{alias_table}{ $cond->table } )
-            {
-                my $clone = $cond->clone;
-                $clone->{table} = $alias;
-                $_[$i] = $clone;
+            if( my $alias = $self->__to_alias($cond) ) {
+                $elm[$i] = $alias;
             }
         }
     }
 
-    return @_;
+    return @elm;
+}
+
+sub __to_alias {
+    my ( $self, $c ) = @_;
+    return unless blessed($c) and $c->can('table') and $c->can('as_alias');
+    my $alias = $self->{alias_table}{ $c->table } || return;
+    return $c->as_alias($alias);
 }
 
 sub join {
     my $self = shift;
-    my $join_attr = shift;
-    $join_attr = [ $join_attr ] unless ref $join_attr eq 'ARRAY';
-    my $class_mapper = $self->mapper;
-
-    my @join;
-    for my $attr ( @$join_attr ) {
-        my $rel = $class_mapper->attributes->property($attr)->{isa};
-        $self->{alias_table}->{$rel->table->table_name} = $attr;
-        my $table = $rel->table->clone($attr);
-        my @rel_cond = $rel->relation_condition($class_mapper, $table);
-        push @join, [ $table => [ @rel_cond ] ];
-
-        if( $self->{option}{eagerload} ) {
-            $self->_query->add_column( @{$table->columns} );
-            $self->is_multi(1) if $rel->is_multi
-        }
-    }
-
-    $self->_query->join(@join);
-    $self->_query->group_by( @{ $class_mapper->table->columns } )
-        unless $self->{option}{eagerload};
+    $self->_join( 0, 0, @_ );
     return $self;
 }
 
 sub add_join {
+    my $self = shift;
+    $self->_join( 1, 0, @_ );
+    return $self;
+}
+
+sub eager_join {
+    my $self = shift;
+    $self->_join( 0, 1, @_ );
+    return $self;
+}
+
+sub add_eager_join {
+    my $self = shift;
+    $self->_join( 1, 1, @_ );
+    return $self;
+}
+
+sub _join {
+    my ( $self, $is_add, $is_eager, @join_conf ) = @_;
+    my $join_meth = $is_add ? 'add_join' : 'join';
+
+    my @join;
+    my $is_multi = 0;
+    for my $conf ( @join_conf ) {
+        my ( $join_cond, $join_is_multi ) = $self->_parse_join(
+            $conf, $self->mapper, $self->{join_struct}
+        );
+        push @join, @$join_cond;
+        $is_multi = 1 if $join_is_multi;
+    }
+
+    if( $is_eager ) {
+        $self->reset_column unless $is_add;
+        $self->_query->add_column( @{$_->[0]->columns} ) for @join;
+        $self->is_multi(1) if $is_multi
+    }
+
+    return $self->_query->$join_meth(@join);
+}
+
+sub _parse_join {
+    my ( $self, $join_conf, $class_mapper, $join_struct ) = @_;
+
+    if( ref($join_conf) eq 'HASH' ) {
+        my ( $attr, $rel_join ) = %$join_conf;
+        my ( $join, $is_multi )
+            = $self->_parse_join( $attr, $class_mapper, $join_struct );
+        my $rel = $class_mapper->attributes->property($attr);
+        my @rel_join
+            = ref $rel_join eq 'ARRAY' ? @$rel_join : ($rel_join);
+        my $alias = $join->[0][0]->alias_name || $join->[0][0]->table_name;
+        my $child_join_struct = $join_struct->{ $alias };
+        for my $rj ( @rel_join ) {
+            my ( $join_cond, $join_is_multi )
+                = $self->_parse_join( $rj, $rel->mapper, $child_join_struct );
+            push @$join, @$join_cond;
+            $is_multi = 1 if $join_is_multi;
+        }
+        return $join, $is_multi;
+    }
+    elsif( ref($join_conf) eq 'ARRAY' ) {
+        return [ $join_conf ];
+    }
+    else {
+        my $class_table = $class_mapper->table;
+        if( my $class_table_alias
+            = $self->{alias_table}->{ $class_table->table_name } ) {
+            $class_table = $class_table->clone($class_table_alias);
+        }
+
+        my $rel = $class_mapper->attributes->property($join_conf);
+        my $alias = $join_conf;
+        $alias = $class_table->alias_name . '_' . $alias
+            if $class_table->is_clone;
+        my $table = $rel->table->clone($alias);
+        $self->{alias_table}->{$rel->table->table_name} = $alias;
+        my @rel_cond = $rel->relation_condition( $class_table, $table );
+        $join_struct->{$alias} = +{};
+        return [ [ $table => \@rel_cond ] ], $rel->is_multi;
+    }
+
 
 }
 
 sub execute {
     my $self = shift;
 
+    $self->_query->group_by( @{ $self->mapper->table->columns } )
+        unless $self->is_multi;
     my $join = $self->_query->builder->join || [];
     if( @$join ) {
         for my $meth ( qw(where column order_by group_by) ) {
@@ -130,44 +208,35 @@ sub execute {
     my $mapper = $self->mapper;
 
     if( $self->is_multi ) {
-        my @result;
+        my $result = [];
         my %settle;
         for my $r ( $self->_query->execute->all ) {
-            my $id = $mapper->primary_cache_key($r);
-            my @rels;
-            for my $key ( keys %$r ) {
-                next if $mapper->table->c($key);
-                my $rel = $mapper->attributes->property($key)->{isa};
-                my $obj = $rel->mapper->mapping($r->{$key});
-                $self->unit_of_work->add_storage_object($obj);
-                push @rels, $key;
-                $r->{$key} = $obj;
-            }
-
-            if( my $i = $settle{$id} ) {
-                $i -= 1;
-                for my $key ( @rels ) {
-                    if( $result[$i]->{$key} ) {
-                        if( ref $result[$i]->{$key} eq 'ARRAY') {
-                            push @{$result[$i]->{$key}}, $r->{$key};
-                        }
-                        else {
-                            $result[$i]->{$key} = [ $result[$i]->{$key}, $r->{$key} ];
-                        }
-                    }
-                    else {
-                        $result[$i]->{$key} = $r->{$key};
-                    }
+            for my $key ( keys %{$self->{join_struct}} ) {
+                if( my $prop = $mapper->attributes->property($key) ) {
+                    $r->{$key} = $uow->add_storage_object(
+                        $prop->mapper->mapping($r->{$key})
+                    );
                 }
             }
+
+            my $id = $mapper->primary_cache_key($r);
+            if( exists $settle{$id} ) {
+                my $i = $settle{$id};
+                $self->_merge_result(
+                    $result->[$i],
+                    $r,
+                    $self->{join_struct},
+                    $mapper,
+                );
+            }
             else {
-                push @result, $r;
-                $settle{$id} = scalar(@result);
+                push @$result, $r;
+                $settle{$id} = $#{$result};
             }
         }
 
         return Data::ObjectMapper::Iterator->new(
-            \@result,
+            $result,
             $self->_query,
             sub { $uow->add_storage_object( $mapper->mapping(@_) ) }
         );
@@ -176,12 +245,29 @@ sub execute {
         my $orig_callback = $self->_query->callback;
         local $self->_query->{callback} = sub {
             return $uow->add_storage_object(
-                $mapper->mapping( $orig_callback->(@_) )
+                $mapper->mapping( $orig_callback->(@_), $uow )
             );
         };
         return $self->_query->execute;
     }
 
 }
+
+sub _merge_result {
+    my ( $self, $result, $r, $struct, $mapper ) = @_;
+
+    for my $key ( keys %$struct ) {
+        if( my $prop = $mapper->attributes->property($key) ) {
+            if ( ref $result->{$key} eq 'ARRAY' ) {
+                push @{ $result->{$key} }, $r->{$key};
+            }
+            elsif ( $result->{$key} ) {
+                $result->{$key} = [ $result->{$key}, $r->{$key} ];
+            }
+        }
+    }
+
+}
+
 
 1;

@@ -14,7 +14,7 @@ use URI;
     {
         local $@;
         eval{ Data::ObjectMapper::Utils::load_class('NOEXSITSCLASS') };
-        ok $@;
+        ok $@, $@;
     };
 };
 
@@ -22,22 +22,6 @@ use URI;
 {
     ok Data::ObjectMapper::Utils::loaded('Getopt::Long');
     ok not Data::ObjectMapper::Utils::loaded('NOEXSITSCLASS');
-};
-
-# load_classes_from_namespace
-{
-    my %classes = map { $_ => 1 } Data::ObjectMapper::Utils::load_classes_from_namespace('Data::ObjectMapper::SQL');
-
-    ok delete $classes{$_}, $classes{$_} for (
-        "Data::ObjectMapper::SQL::Select",
-        "Data::ObjectMapper::SQL::Set",
-        "Data::ObjectMapper::SQL::Insert",
-        "Data::ObjectMapper::SQL::Update",
-        "Data::ObjectMapper::SQL::Delete",
-        "Data::ObjectMapper::SQL::Base",
-    );
-
-    is keys %classes, 0;
 };
 
 # normalized_hash_to_array

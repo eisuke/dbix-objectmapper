@@ -10,19 +10,17 @@ sub get {
 
 sub relation_condition {
     my $self = shift;
-    my $class_mapper = shift;
+    my $class_table = shift;
     my $table = shift;
-    my $rel_mapper = $self->mapper;
+    my $rel_table = $self->mapper->table;
 
-    my $fk = $class_mapper->table->get_foreign_key_by_table(
-        $rel_mapper->table
-    );
+    my $fk = $class_table->get_foreign_key_by_table( $rel_table );
 
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
         push @cond,
             $table->c( $fk->{refs}->[$i] )
-                == $class_mapper->table->c($fk->{keys}->[$i]);
+                == $class_table->c($fk->{keys}->[$i]);
     }
 
     return @cond;

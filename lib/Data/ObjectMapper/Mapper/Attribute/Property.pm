@@ -78,4 +78,51 @@ sub get {
     return;
 }
 
+sub mapping {
+    my $self = shift;
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->mapping(@_);
+    }
+
+    return;
+}
+
+sub table {
+    my $self = shift;
+
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->table;
+    }
+
+    return;
+}
+
+sub mapper {
+    my $self = shift;
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->mapper;
+    }
+    return;
+}
+
+sub relation_condition {
+    my $self = shift;
+
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->relation_condition(@_);
+    }
+
+    return;
+}
+
+sub is_multi {
+    my $self = shift;
+
+    if( $self->type eq 'relation' ) {
+        return $self->{isa}->is_multi;
+    }
+
+    return;
+}
+
 1;
