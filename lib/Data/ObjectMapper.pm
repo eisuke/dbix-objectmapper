@@ -34,7 +34,11 @@ sub new {
                 type     => SCALAR,
                 isa      => $DEFAULT_SESSION_CLASS,
                 default  => $DEFAULT_SESSION_CLASS,
-            }
+            },
+            session_attr => {
+                type => HASHREF,
+                default => +{},
+            },
         }
     );
 
@@ -60,7 +64,10 @@ sub maps {
 
 sub begin_session {
     my $self = shift;
-    my %attr = @_;
+    my %attr = (
+        %{$self->{session_attr}},
+        @_
+    );
     $attr{engine} = $self->engine unless exists $attr{engine};
     return $self->session_class->new(%attr);
 }

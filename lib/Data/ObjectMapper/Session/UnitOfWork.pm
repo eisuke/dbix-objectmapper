@@ -82,6 +82,7 @@ sub get {
 
 sub add_storage_object {
     my ( $self, $obj ) = @_;
+
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'persistent', $self );
     $self->_set_cache($mapper);

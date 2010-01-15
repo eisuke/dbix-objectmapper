@@ -115,5 +115,29 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
     dies_ok { $c->to_storage_on_update('str') } 'readonly to_storage_on_update';
 };
 
+{ # func
+    ok my $func = $c->func('substr', 0, 10), 'function';
+    is ref($func), 'Data::ObjectMapper::Metadata::Table::Column::Func', 'function ref';
+    is $func . q{}, 'SUBSTR(b.type, 0, 10)', 'function as_str';
+    my $op = $func == 1;
+    is_deeply $op, [ 'SUBSTR(b.type, 0, 10)', '=', 1];
+    my $alias = $func->as_alias('fuga');
+    is $alias . q{}, 'SUBSTR(fuga.type, 0, 10)', 'function with alias';
+
+    my $func2 = $func->func('sum');
+    is $func2 . q{}, 'SUM(SUBSTR(b.type, 0, 10))', 'nested function';
+
+    my $func2_alias = $func2->as_alias('hoge');
+    is $func2_alias . q{}, 'SUM(SUBSTR(hoge.type, 0, 10))';
+
+    my $func3 = $func2->func('max');
+    is $func3 . q{}, 'MAX(SUM(SUBSTR(b.type, 0, 10)))', 'nested function2';
+};
+
+
+{ # conc
+    is $c->connc('bar'), "b.type || 'bar'";
+    is $c->connc($c), 'b.type || b.type';
+};
 
 done_testing;

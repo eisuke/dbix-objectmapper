@@ -2,6 +2,7 @@ package Data::ObjectMapper::Relation;
 use strict;
 use warnings;
 use Carp::Clan qw/^Data::ObjectMapper/;
+use Data::ObjectMapper::Session::Array;
 
 sub new {
     my ( $class, $rel_class, $option ) = @_;
@@ -26,6 +27,8 @@ sub name {
     return $self->{name};
 }
 
+sub get_foregin_key {}
+
 sub validation {}
 
 sub get_one {
@@ -34,9 +37,7 @@ sub get_one {
     my $mapper = shift;
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
-    my $fk = $class_mapper->table->get_foreign_key_by_table(
-        $rel_mapper->table,
-    );
+    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
 
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
@@ -56,9 +57,7 @@ sub get_multi {
     my $mapper = shift;
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
-    my $fk = $rel_mapper->table->get_foreign_key_by_table(
-        $class_mapper->table
-    );
+    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
 
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
@@ -71,9 +70,12 @@ sub get_multi {
         = $mapper->unit_of_work->query( $self->rel_class )->where(@cond)
         ->order_by( map { $rel_mapper->table->c($_) }
             @{ $rel_mapper->table->primary_key } )->execute->all;
-
-    $mapper->instance->{$name} = \@new_val;
+    $mapper->instance->{$name} = Data::ObjectMapper::Session::Array->new(
+        $mapper->unit_of_work,
+        @new_val
+    );
 }
+
 
 sub is_multi { 0 }
 

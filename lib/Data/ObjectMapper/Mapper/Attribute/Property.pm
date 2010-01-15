@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan;
 use Params::Validate qw(:all);
-
+use Scalar::Util qw(weaken);
 my @TYPES = qw(column relation);
 
 sub new {

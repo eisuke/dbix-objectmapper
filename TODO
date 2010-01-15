@@ -1,22 +1,16 @@
-* query
-* relation
-   foreign_key
-   properties => {
-       cds => {
-           isa => $mapper->relation('Cds')
-       }
-   }
-
+* Add HasMany Element, Remove HasMany Element
+* get with eagerload
+* ManyToMany
 * lazyloading
+* self relation
 
 ======
 
 * Column::Typeの実装
-* Column alias
+* Column::Func
 * queryで、SCALAR REFの場合はそのまま文字列をわたす
 * SQL - exists,any,in support
 * SQL - subquery check
-* has_many の場合の collectionの実装
 * Data::ObjectMapper -> DBIx::ObjectMapper ? DBIx::DataMapper?
 
 ===

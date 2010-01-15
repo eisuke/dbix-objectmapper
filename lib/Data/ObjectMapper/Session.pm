@@ -102,8 +102,7 @@ sub detach {
 
 sub DESTROY {
     my $self = shift;
-    # COMMIT?
-    $self->commit;
+    $self->rollback unless $self->autocommit;
     $self->uow->demolish; ## dissolve cycle reference
 }
 

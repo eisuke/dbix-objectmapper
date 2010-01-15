@@ -1,23 +1,23 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 use File::Spec;
 use FindBin;
 use lib File::Spec->catfile($FindBin::Bin, 'lib');
 use MyTest11;
 
-#use Devel::Leak::Object  qw{ GLOBAL_bless };
-#$Devel::Leak::Object::TRACKSOURCELINES = 1;
-
 MyTest11->setup_default_data;
+MyTest11->mapping_with_foreign_key;
+
 my $mapper = MyTest11->mapper;
 
-{ # has_many
+{ # has_many/has_one
     my $session = $mapper->begin_session;
     my $artist = $mapper->metadata->t('artist');
     my $cd     = $mapper->metadata->t('cd');
-    my $it = $session->query('MyTest11::Artist')->join('cds')
-        ->where( $cd->c('title')->like('Led Zeppelin%') )->execute;
+    my $it = $session->query('MyTest11::Artist')->join({ 'cds' => 'linernote' })
+        ->where( $cd->c('title')->like('Led Zeppelin%') )->order_by($cd->c('id'))->execute;
     ok $it;
 
     my $loop_cnt = 0;
@@ -25,6 +25,12 @@ my $mapper = MyTest11->mapper;
         $loop_cnt++;
         is $a->id, 1;
         is $a->name, 'Led Zeppelin';
+        is ref($a->cds), 'ARRAY';
+        for my $cd ( @{$a->cds} ) {
+            ok $cd->id;
+            ok $cd->linernote;
+            ok $cd->linernote->id;
+        }
     }
     is $loop_cnt, 1;
 };
@@ -114,7 +120,7 @@ my $mapper = MyTest11->mapper;
         # ******* memo **********
         # eagerloadは第一階層までにしておく
         # そもそも深い階層のeagerloadは重いので、
-        # こそまで必要であれば、metadata.queryを利用したほうがいいと思う
+        # そこまで必要であれば、metadata.queryを利用したほうがいいと思う
         # ***********************
         ok $a->cds->[0]->tracks;
     }
@@ -148,19 +154,99 @@ my $mapper = MyTest11->mapper;
 
 };
 
+{ # egear and join
+    my $session = $mapper->begin_session;
+    my $track = $mapper->metadata->t('track');
+    my $it = $session->query('MyTest11::Cd')->eager_join('linernote')
+        ->add_join('tracks')
+        ->where( $track->c('track_no') > 9 )->execute;
+    my $loop_cnt = 0;
+    while( my $cd = $it->next ) {
+        ok $cd->id;
+        ok $cd->linernote;
+        ok $cd->tracks;
+        $loop_cnt++;
+    }
+    is $session->uow->query_cnt, 1 + $loop_cnt; # tracks is lazyload
+};
+
+{ # egear and join2
+    my $session = $mapper->begin_session;
+    my $liner = $mapper->metadata->t('linernote');
+    my $it = $session->query('MyTest11::Cd')->eager_join('tracks')
+        ->add_join('linernote')
+        ->where( $liner->c('note') != undef )->execute;
+    my $loop_cnt = 0;
+    while( my $cd = $it->next ) {
+        ok $cd->id;
+        ok $cd->linernote;
+        ok $cd->tracks;
+        $loop_cnt++;
+    }
+    is $session->uow->query_cnt, 1 + $loop_cnt; # tracks is lazyload
+};
+
+
+{ # errors
+    my $session = $mapper->begin_session;
+
+    throws_ok { # joined same table
+        $session->query('MyTest11::Cd')
+            ->eager_join('linernote')
+            ->add_join('linernote')
+            ->execute;
+    } qr/has already been defined./;
+
+    throws_ok { # not exists
+        $session->query('MyTest11::Artist')
+            ->eager_join('linernote')
+            ->execute;
+    } qr/linernote does not exists/;
+
+
+    dies_ok {
+        $session->query('MyTest11::Artist')
+            ->eager_join({ cds => 'linernote' })
+            ->add_join('linernote')
+            ->execute;
+    };
+
+};
+
+{ # has_many modify
+    my $session = $mapper->begin_session;
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    ok $artist->cds;
+    is scalar(@{$artist->cds}), 10;
+    my $cd1 = shift(@{$artist->cds});
+    is scalar(@{$artist->cds}), 9;
+    is $cd1->__mapper__->status, 'persistent';
+    # deleted $cd1
+};
+
+{ # check
+    my $session = $mapper->begin_session;
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    is scalar(@{$artist->cds}), 9;
+};
+
+{ # add
+    my $session = $mapper->begin_session;
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    my $new_cd = MyTest11::Cd->new(
+        id => 1,
+        artist_id => $artist->id,
+        title => 'Led Zeppelin',
+    );
+    unshift(@{$artist->cds}, $new_cd);
+};
+
+{ # check
+    my $session = $mapper->begin_session;
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    is scalar(@{$artist->cds}), 10;
+};
+
 done_testing;
 
 __END__
-
-{ # eager_load
-    my $session = $mapper->begin_session;
-    my $artist = $session->get(
-        'MyTest11::Artist' => 1,
-        { eagerload => 'MyTest11::Cd' }
-    );
-
-#    is ref($parent->children), 'ARRAY';
-#    for my $c ( @{$parent->children} ) {
-#        is $c->parent_id, $parent->id;
-#    }
-};

@@ -106,8 +106,9 @@ sub reducing {
     my $class_mapper = $self->instance->__class_mapper__;
     my %primary_key = map { $_ => 1 } @{$class_mapper->table->primary_key};
     for my $prop_name ( $class_mapper->attributes->property_names ) {
-        my $col_name
-            = $class_mapper->attributes->property($prop_name)->name;
+        my $prop = $class_mapper->attributes->property($prop_name);
+        next unless $prop->type eq 'column';
+        my $col_name = $prop->name;
         unless ( $primary_key{$col_name}
             and !defined $self->instance->{$prop_name} )
         {
@@ -234,6 +235,7 @@ sub save {
     confess 'it need to be "pending" status.' unless $self->is_pending;
     my $reduce_data = $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
+
     my $comp_result
         = $class_mapper->table->insert->values(%$reduce_data)->execute();
     $self->modify($comp_result);

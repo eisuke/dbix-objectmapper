@@ -1,8 +1,9 @@
 package Data::ObjectMapper::Session::Query;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw(^Data::ObjectMapper::);
 use Scalar::Util qw(blessed);
+use Log::Any qw($log);
 use Data::ObjectMapper::Iterator;
 
 sub new {
@@ -14,6 +15,7 @@ sub new {
     my $mapper = $mapped_class->__class_mapper__;
     my $query  = $mapper->table->select;
     return bless {
+        mapped_class  => $mapped_class,
         mapper        => $mapper,
         unit_of_work  => $uow,
         query         => $query,
@@ -95,7 +97,16 @@ sub __to_alias {
     my ( $self, $c ) = @_;
     return unless blessed($c) and $c->can('table') and $c->can('as_alias');
     my $alias = $self->{alias_table}{ $c->table } || return;
-    return $c->as_alias($alias);
+    if( @$alias > 1 ) {
+        $log->warnings(
+            '**************************' . $/
+          . $c->table . '.' . $c->name . ' has ' . @$alias . ' aliases.'
+          . '("' . join('", "', @$alias) . '")' . $/
+          . 'converts it into "' . $alias->[0] . '" alias by force.'
+          . '**************************'
+        );
+    }
+    return $c->as_alias($alias->[0]);
 }
 
 sub join {
@@ -172,21 +183,33 @@ sub _parse_join {
         my $class_table = $class_mapper->table;
         if( my $class_table_alias
             = $self->{alias_table}->{ $class_table->table_name } ) {
-            $class_table = $class_table->clone($class_table_alias);
+            $class_table = $class_table->clone($class_table_alias->[0]);
         }
 
-        my $rel = $class_mapper->attributes->property($join_conf);
+        my $rel = $class_mapper->attributes->property($join_conf)
+            || confess
+            "$join_conf does not exists $self->{mapped_class} attributes.";
+
         my $alias = $join_conf;
         $alias = $class_table->alias_name . '_' . $alias
             if $class_table->is_clone;
         my $table = $rel->table->clone($alias);
-        $self->{alias_table}->{$rel->table->table_name} = $alias;
+
+        if( my $org_alias = $self->{alias_table}->{$rel->table->table_name} ) {
+            if( my @ex_alias = grep { $_ eq $alias } @$org_alias ) {
+                confess "$ex_alias[0] has already been defined.";
+            }
+            else {
+                push @{$self->{alias_table}->{$rel->table->table_name}}, $alias;
+            }
+        }
+        else {
+            $self->{alias_table}->{$rel->table->table_name} = [ $alias ];
+        }
         my @rel_cond = $rel->relation_condition( $class_table, $table );
         $join_struct->{$alias} = +{};
         return [ [ $table => \@rel_cond ] ], $rel->is_multi;
     }
-
-
 }
 
 sub execute {
@@ -196,7 +219,7 @@ sub execute {
         unless $self->is_multi;
     my $join = $self->_query->builder->join || [];
     if( @$join ) {
-        for my $meth ( qw(where column order_by group_by) ) {
+        for my $meth ( qw(where order_by group_by) ) {
             my $orig = $self->_query->builder->$meth;
             next unless $orig and ref $orig eq 'ARRAY';
             $self->_query->$meth($self->_to_alias(@$orig));

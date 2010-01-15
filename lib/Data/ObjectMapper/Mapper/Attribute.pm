@@ -33,6 +33,7 @@ sub new {
         unless Class::MOP::is_class_loaded($attribute_class);
     my $self = bless \%option, $attribute_class;
     $self->init;
+
     return $self;
 }
 

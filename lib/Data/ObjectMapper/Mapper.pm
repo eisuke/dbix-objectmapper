@@ -130,6 +130,7 @@ sub _initialize {
     $meta->make_mutable if $meta->is_immutable; ## may be Moose Class
 
     $meta->add_method( '__class_mapper__' => sub { $self } );
+
     $meta->add_method(
         '__mapper__' => sub {
             my $instance = shift;

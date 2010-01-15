@@ -13,6 +13,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
         q{CREATE TABLE artist( id integer primary key, name text )},
         q{CREATE TABLE cd( id integer primary key, title text, artist_id integer)},
         q{CREATE TABLE track( id integer primary key, cd_id integer not null, track_no int, title text)},
+        q{CREATE TABLE linernote ( id interger primary key, note text )},
     ],
 });
 
@@ -44,47 +45,90 @@ my $track = $mapper->metadata->table(
     }
 );
 
-my $artist_mapper = $mapper->maps(
-    $artist => 'MyTest11::Artist',
-    constructor => { auto => 1 },
-    accessors => { auto => 1 },
-    attributes => {
-        properties => {
-            cds => +{
-                isa => $mapper->relation( has_many => 'MyTest11::Cd' ),
-            }
-        }
-    }
+my $linernote = $mapper->metadata->table(
+    linernote => { autoload_column => 1 },
 );
 
-my $cd_mapper = $mapper->maps(
-    $cd => 'MyTest11::Cd',
-    constructor => { auto => 1 },
-    accessors   => { auto => 1 },
-    attributes  => {
-        properties => {
-            artist => +{
-                isa => $mapper->relation( belongs_to => 'MyTest11::Artist' )
-            },
-            tracks => +{
-                isa => $mapper->relation( has_many => 'MyTest11::Track'),
-            }
-        }
-    }
-);
+sub mapping {
+    my $artist_mapper = $mapper->maps(
+        $artist => 'MyTest11::Artist',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+    );
 
-my $track_mapper = $mapper->maps(
-    $track => 'MyTest11::Track',
-    constructor => { auto => 1 },
-    accessors => { auto => 1 },
-    attributes => {
-        properties => {
-            cd => {
-                isa => $mapper->relation( belongs_to => 'MyTest11::Cd' ),
+    my $cd_mapper = $mapper->maps(
+        $cd => 'MyTest11::Cd',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+    );
+
+    my $track_mapper = $mapper->maps(
+        $track => 'MyTest11::Track',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+    );
+
+    my $linernote_mapper = $mapper->maps(
+        $linernote => 'MyTest11::Linernote',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+    );
+}
+
+sub mapping_with_foreign_key {
+    my $artist_mapper = $mapper->maps(
+        $artist => 'MyTest11::Artist',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+        attributes  => {
+            properties => {
+                cds => +{
+                    isa => $mapper->relation( has_many => 'MyTest11::Cd' ),
+                }
             }
         }
-    }
-);
+    );
+
+    my $cd_mapper = $mapper->maps(
+        $cd => 'MyTest11::Cd',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+        attributes  => {
+            properties => {
+                artist => +{
+                    isa =>
+                        $mapper->relation( belongs_to => 'MyTest11::Artist' )
+                },
+                tracks => +{
+                    isa => $mapper->relation( has_many => 'MyTest11::Track' ),
+                },
+                linernote => +{
+                    isa =>
+                        $mapper->relation( has_one => 'MyTest11::Linernote' ),
+                }
+            }
+        }
+    );
+
+    my $track_mapper = $mapper->maps(
+        $track => 'MyTest11::Track',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+        attributes  => {
+            properties => {
+                cd => {
+                    isa => $mapper->relation( belongs_to => 'MyTest11::Cd' ),
+                }
+            }
+        }
+    );
+
+    my $linernote_mapper = $mapper->maps(
+        $linernote => 'MyTest11::Linernote',
+        constructor => { auto => 1 },
+        accessors   => { auto => 1 },
+    );
+}
 
 sub engine { $engine }
 
@@ -238,6 +282,13 @@ sub setup_default_data {
         )->execute(['id']);
 
         my $cd_id = $cd_ins->{id};
+
+        $linernote->insert->values(
+            {
+                id => $cd_id,
+                note => $title . ' note',
+            }
+        )->execute();
 
         my $no = 1;
         for (@$tracks) {

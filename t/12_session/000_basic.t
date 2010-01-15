@@ -172,5 +172,26 @@ $mapper->maps(
     is $mapper->metadata->t('artist')->count->execute(), 2;
 };
 
+{ # another scope
+    my $stash = +{};
+    {
+        my $session = $mapper->begin_session();
+        $stash->{artist} = $session->get( 'MyTest11::Artist' => 1 );
+        is $stash->{artist}->__mapper__->status, 'persistent';
+    };
+
+    is $stash->{artist}->__mapper__->status, 'transient'; # recreate
+    is $stash->{artist}->name, 'hoge';
+    is $stash->{artist}->id, 1;
+    ok $stash->{artist}->name('fuga');
+};
+
+{ # check
+    my $session = $mapper->begin_session();
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    is $artist->name, 'hoge';
+    is $artist->id, 1;
+};
+
 done_testing;
 __END__
