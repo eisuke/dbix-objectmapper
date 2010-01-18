@@ -78,10 +78,10 @@ sub get_table_fk_info {
         my $f_table = shift @reldata;
         my $f_cols = shift @reldata;
 
-        my @cols   = map { s/\Q$self->{quote}\E//; lc $_ }
+        my @cols   = map { s/\Q$self->{quote}\E//; lc $_ } ## no critic
             split(/\s*,\s*/, $cols);
 
-        my @f_cols = map { s/\Q$self->{quote}\E//; lc $_ }
+        my @f_cols = map { s/\Q$self->{quote}\E//; lc $_ } ## no critic
             split(/\s*,\s*/, $f_cols);
 
         push(@rels, {

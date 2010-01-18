@@ -558,7 +558,7 @@ sub _get_column_object_from_query {
         return $self->c($c)
     }
     else {
-        return undef;
+        return;
     }
 }
 
@@ -586,23 +586,30 @@ sub get_unique_condition {
     if ( ref $cond eq 'HASH' ) {
         my $ok = 0;
         if( List::MoreUtils::all { $cond->{$_} } @{ $self->primary_key } ) {
-            return undef,
-                map { $self->c($_) == $cond->{$_} } @{ $self->primary_key };
-
+            return (
+                undef,
+                map { $self->c($_) == $cond->{$_} } @{ $self->primary_key }
+            );
         }
         else {
             for my $uinfo ( @{ $self->unique_key } ) {
                 if( List::MoreUtils::all { $cond->{$_} } @{$uinfo->[1]} ) {
-                    return $uinfo->[0],
-                        map { $self->c($_) == $cond->{$_} } @{ $uinfo->[1] };
+                    return (
+                        $uinfo->[0],
+                        map { $self->c($_) == $cond->{$_} } @{ $uinfo->[1] }
+                    );
                 }
             }
         }
     }
-    elsif ( ref $cond eq 'ARRAY' and !ref $cond->[0] ) {
-        return undef,
+    elsif ( ref $cond eq 'ARRAY'
+        and !ref $cond->[0]
+        and @$cond == @{ $self->primary_key } )
+    {
+        return (
+            undef,
             map { $self->c($_) == shift(@$cond) } @{ $self->primary_key }
-            if @$cond == @{ $self->primary_key };
+        );
     }
     elsif ( ref $cond eq 'ARRAY'
         and ref $cond->[0] eq 'ARRAY'
@@ -617,8 +624,10 @@ sub get_unique_condition {
     }
     elsif ( !ref $cond and defined $cond ) {
         if( @{ $self->primary_key } == 1 ) {
-            return undef,
-                map { $self->c($_) == $cond } @{ $self->primary_key };
+            return (
+                undef,
+                map { $self->c($_) == $cond } @{ $self->primary_key }
+            );
         }
     }
 
