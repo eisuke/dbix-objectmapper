@@ -36,41 +36,10 @@ sub get {
         $obj = $class_mapper->mapping($cache);
     }
     elsif( my $eagerload = $option->{eagerload} ) {
-        $eagerload = [ $eagerload ] unless ref($eagerload) eq 'ARRAY';
-        my $query = $self->query($t_class);
-        for my $attr ( @$eagerload ) {
-            my $rel = $class_mapper->attributes->property($attr)->{isa};
-            my $table = $rel->table->clone($attr);
-            my @rel_cond = $rel->relation_condition($class_mapper, $table);
-            $query->add_join([ $table => [ @rel_cond ] ]);
-            $query->add_column(@{$table->columns});
-        }
-
-        $query->where(@cond);
-
-        require Data::Dump;
-        my %result;
-        my $it = $query->execute;
-        while( my $r = $it->next ) {
-            for my $col ( keys %$r ) {
-                if( $class_mapper->table->c($col) ) {
-                    $result{$col} = $r->{$col};
-                }
-                else {
-                    if( $result{$col} ) {
-                        push @{$result{$col}}, $r->{$col};
-                    }
-                    else {
-                        $result{$col} = [ $r->{$col} ];
-                    }
-                }
-            }
-        }
-
-        warn Data::Dump::dump(\%result);
-        $obj = $class_mapper->mapping(\%result);
-        warn Data::Dump::dump($obj);
-        $self->{query_cnt}++;
+        my @eagerload
+            = ref($eagerload) eq 'ARRAY' ? @{$eagerload} : ($eagerload);
+        return $self->query($t_class)->eager_join(@eagerload)->where(@cond)
+            ->execute->first;
     }
     else {
         $obj = $class_mapper->find(@cond) || return;

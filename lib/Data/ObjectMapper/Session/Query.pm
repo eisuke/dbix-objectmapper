@@ -141,7 +141,7 @@ sub _join {
     my $is_multi = 0;
     for my $conf ( @join_conf ) {
         my ( $join_cond, $join_is_multi ) = $self->_parse_join(
-            $conf, $self->mapper, $self->{join_struct}
+            $conf, $self->mapper, $is_eager ? $self->{join_struct} : +{}
         );
         push @join, @$join_cond;
         $is_multi = 1 if $join_is_multi;
@@ -234,14 +234,7 @@ sub execute {
         my $result = [];
         my %settle;
         for my $r ( $self->_query->execute->all ) {
-            for my $key ( keys %{$self->{join_struct}} ) {
-                if( my $prop = $mapper->attributes->property($key) ) {
-                    $r->{$key} = $uow->add_storage_object(
-                        $prop->mapper->mapping($r->{$key})
-                    );
-                }
-            }
-
+            $self->_join_result_to_object($r);
             my $id = $mapper->primary_cache_key($r);
             if( exists $settle{$id} ) {
                 my $i = $settle{$id};
@@ -267,8 +260,10 @@ sub execute {
     else {
         my $orig_callback = $self->_query->callback;
         local $self->_query->{callback} = sub {
+            my $result = $orig_callback->(@_);
+            $self->_join_result_to_object($result);
             return $uow->add_storage_object(
-                $mapper->mapping( $orig_callback->(@_), $uow )
+                $mapper->mapping( $result, $uow )
             );
         };
         return $self->_query->execute;
@@ -276,16 +271,36 @@ sub execute {
 
 }
 
+sub _join_result_to_object {
+    my ( $self, $r ) = @_;
+    my $uow = $self->unit_of_work;
+    my $mapper = $self->mapper;
+
+    for my $key ( keys %{$self->{join_struct}} ) {
+        if( my $prop = $mapper->attributes->property($key) ) {
+            my $obj = $uow->add_storage_object(
+                $prop->mapper->mapping($r->{$key})
+            );
+            if( $prop->is_multi ) {
+                $r->{$key} = [ $obj ];
+            }
+            else {
+                $r->{$key} = $obj;
+            }
+        }
+    }
+}
+
 sub _merge_result {
     my ( $self, $result, $r, $struct, $mapper ) = @_;
 
     for my $key ( keys %$struct ) {
         if( my $prop = $mapper->attributes->property($key) ) {
-            if ( ref $result->{$key} eq 'ARRAY' ) {
-                push @{ $result->{$key} }, $r->{$key};
+            if ( $prop->is_multi ) {
+                push @{ $result->{$key} }, @{$r->{$key}};
             }
-            elsif ( $result->{$key} ) {
-                $result->{$key} = [ $result->{$key}, $r->{$key} ];
+            else {
+                $result->{$key} = $r->{$key};
             }
         }
     }

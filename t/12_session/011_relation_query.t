@@ -78,6 +78,27 @@ my $mapper = MyTest11->mapper;
     is $loop_cnt, 1;
 };
 
+{ # has_many is one record
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+
+    my $it = $session->query(
+        'MyTest11::Artist',
+     )
+     ->eager_join('cds')
+     ->where( $cd->c('id') == 1 )
+     ->execute;
+
+    my $loop_cnt = 0;
+    while( my $artist = $it->next ) {
+        is ref($artist->cds), 'ARRAY';
+        is scalar(@{$artist->cds}), 1;
+        $loop_cnt++;
+    }
+    is $loop_cnt, 1;
+};
+
 { # nest join
     my $session = $mapper->begin_session;
     my $artist = $mapper->metadata->t('artist');
@@ -154,6 +175,27 @@ my $mapper = MyTest11->mapper;
 
 };
 
+{ # get with eargerload
+    my $session = $mapper->begin_session;
+    my $cd = $session->get( 'MyTest11::Cd' => 1, { eagerload => 'artist' } );
+    is $cd->artist->name, 'Led Zeppelin';
+    is $cd->artist->id, 1;
+    is $session->uow->query_cnt, 1;
+};
+
+{ # get with eargerload2
+    my $session = $mapper->begin_session;
+    my $cd = $session->get(
+        'MyTest11::Cd' => 1,
+        { eagerload => ['artist', 'linernote'] }
+    );
+    is $cd->artist->name, 'Led Zeppelin';
+    is $cd->artist->id, 1;
+    ok $cd->linernote;
+    ok $cd->linernote->id;
+    is $session->uow->query_cnt, 1;
+};
+
 { # egear and join
     my $session = $mapper->begin_session;
     my $track = $mapper->metadata->t('track');
@@ -164,7 +206,9 @@ my $mapper = MyTest11->mapper;
     while( my $cd = $it->next ) {
         ok $cd->id;
         ok $cd->linernote;
+        ok $cd->linernote->id;
         ok $cd->tracks;
+        is ref($cd->tracks), 'ARRAY';
         $loop_cnt++;
     }
     is $session->uow->query_cnt, 1 + $loop_cnt; # tracks is lazyload
@@ -173,16 +217,20 @@ my $mapper = MyTest11->mapper;
 { # egear and join2
     my $session = $mapper->begin_session;
     my $liner = $mapper->metadata->t('linernote');
+
     my $it = $session->query('MyTest11::Cd')->eager_join('tracks')
         ->add_join('linernote')
-        ->where( $liner->c('note') != undef )->execute;
+        ->where( $liner->c('note')->func('length') > 0 )->execute;
     my $loop_cnt = 0;
     while( my $cd = $it->next ) {
         ok $cd->id;
         ok $cd->linernote;
+        ok $cd->linernote->id;
         ok $cd->tracks;
+        is ref($cd->tracks), 'ARRAY';
         $loop_cnt++;
     }
+
     is $session->uow->query_cnt, 1 + $loop_cnt; # tracks is lazyload
 };
 
