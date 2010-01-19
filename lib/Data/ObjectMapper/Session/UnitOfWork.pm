@@ -120,7 +120,8 @@ sub flush {
             $self->_clear_cache($mapper);
         }
         elsif( $mapper->is_persistent ) {
-            if( delete $self->{del_objects}->{$id} ) {
+            if( exists $self->{del_objects}->{$id} ) {
+                delete $self->{del_objects}->{$id};
                 $mapper->delete();
                 $self->_clear_cache($mapper);
             }

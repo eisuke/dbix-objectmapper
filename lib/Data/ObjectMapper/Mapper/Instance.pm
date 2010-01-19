@@ -271,6 +271,21 @@ sub delete {
     confess 'it need to be "persistent" status.' unless $self->is_persistent;
     my $uniq_cond = $self->identity_condition;
     my $class_mapper = $self->instance->__class_mapper__;
+
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $prop = $class_mapper->attributes->property($prop_name);
+        next unless $prop->type eq 'relation';
+        if( $prop->{isa}->is_cascade_delete($self) ) {
+            if( my $instance = $self->instance->{$prop->name} ) {
+                my @instance
+                    = ref $instance eq 'ARRAY' ? @$instance : ($instance);
+                $self->unit_of_work->delete($_) for @instance;
+                $self->unit_of_work->flush;
+            }
+            $prop->{isa}->cascade_delete($self);
+        }
+    }
+
     my $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
     $self->change_status('detached');
     return $result;
