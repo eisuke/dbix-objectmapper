@@ -1,6 +1,6 @@
 * ManyToMany
 * lazyloading
-* self relation
+* session query join の条件を別途指定するテスト
 
 ======
 

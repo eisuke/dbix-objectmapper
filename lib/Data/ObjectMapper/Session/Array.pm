@@ -1,6 +1,7 @@
 package Data::ObjectMapper::Session::Array;
 use strict;
 use warnings;
+use Scalar::Util qw(refaddr weaken);
 use base qw(Tie::Array);
 
 sub new {
@@ -14,18 +15,32 @@ sub new {
 sub TIEARRAY {
     my $class = shift;
     my $uow = shift;
-    bless { value => +[], uow => $uow }, $class;
+    my $self = bless {
+        value => +[],
+        uowaddr => refaddr($uow),
+        uow     => ref($uow),
+    }, $class;
+    return $self;
+}
+
+sub uow {
+    my $self = shift;
+    return $self->{uow}->instance( $self->{uowaddr} );
 }
 
 sub _remove {
     my $self = shift;
-    $self->{uow}->delete($_) for grep { defined $_ } @_;
+    if ( my $uow = $self->uow ) {
+        $uow->delete($_) for grep { defined $_ } @_;
+    }
     return @_;
 }
 
 sub _add {
     my $self = shift;
-    $self->{uow}->add($_) for grep { defined $_ } @_;
+    if ( my $uow = $self->uow ) {
+        $uow->add($_) for grep { defined $_ } @_;
+    }
     return @_;
 }
 
@@ -77,6 +92,11 @@ sub CLEAR {
     $self->_remove(@{$self->{value}});
     $self->{value} = [];
     return;
+}
+
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 
 1;

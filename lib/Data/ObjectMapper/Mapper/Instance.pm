@@ -123,9 +123,23 @@ sub cache_keys {
     my $result = shift || $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
     return (
-        $class_mapper->primary_cache_key($result),
-        $class_mapper->unique_cache_keys($result),
+        $self->primary_cache_key($result, $class_mapper),
+        $self->unique_cache_keys($result, $class_mapper),
     );
+}
+
+sub primary_cache_key {
+    my $self = shift;
+    my $result = shift || $self->reducing;
+    my $class_mapper = shift || $self->instance->__class_mapper__;
+    return $class_mapper->primary_cache_key($result);
+}
+
+sub unique_cache_keys {
+    my $self = shift;
+    my $result = shift || $self->reducing;
+    my $class_mapper = shift || $self->instance->__class_mapper__;
+    return $class_mapper->unique_cache_keys($result);
 }
 
 sub reflesh {
@@ -133,13 +147,10 @@ sub reflesh {
     my $class_mapper = $self->instance->__class_mapper__;
     my ( $key, @cond )
         = $class_mapper->get_unique_condition( $self->identity_condition );
-    my $new_val = $self->unit_of_work->_get_cache($key)
-        || $class_mapper->table->_find(@cond);
-    if( $new_val ) {
-        $self->change_status('persistent');
-        $self->unit_of_work->_set_cache($self);
-        $self->modify( $new_val );
-    }
+    my $new_val = $class_mapper->table->_find(@cond);
+    $self->change_status('persistent');
+    $self->unit_of_work->_set_cache($self);
+    $self->modify( $new_val );
 }
 
 sub modify {
@@ -257,13 +268,14 @@ sub delete {
 sub demolish {
     my $self = shift;
     my $id = refaddr($self->instance) || return;
+    $self->{unit_of_work} = undef;
     delete $INSTANCES{$id} if exists $INSTANCES{$id};
 }
 
 sub DESTROY {
     my $self = shift;
-    $log->debug("DESTROY $self");
     $self->demolish;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 
 1;

@@ -40,7 +40,6 @@ sub new {
         +{ primary_key       => +[] },
         +{ unique_key        => +[] },
         +{ foreign_key       => +[] },
-        +{ temp_column       => +[] },
         +{ readonly_column   => +[] },
         +{ utf8_column       => +[] },
         +{ column_default    => +{} },
@@ -258,13 +257,6 @@ sub __array_accessor {
 
     return $self->{$accessor};
 }
-
-sub temp_column {
-    my $self = shift;
-    return $self->__array_accessor('temp_column', @_);
-}
-
-sub temp_column_map { $_[0]->{temp_column_map} ||= +{} }
 
 sub readonly_column {
     my $self = shift;
@@ -497,6 +489,7 @@ sub _select_query_callback {
         my %result;
 
         for my $i ( 0 .. $#{$column} ) {
+            next unless defined $result->[$i];
             my $col_obj = $self->_get_column_object_from_query( $column->[$i] );
             if( ref $column->[$i] eq 'ARRAY' ) { # AS(alias)
                 if( $col_obj ) {
@@ -709,31 +702,6 @@ sub clone {
 =cut
 
 sub is_clone { ref($_[0]->{table_name}) eq 'ARRAY' }
-
-=pod
-
-check...
-
-    my @primary_key
-        = map { $column_name_to_alias{$_} } @{ $class->provided_primary_key };
-
-    my @unique_key;
-    for my $uk ( @{$class->provided_unique_key} ) {
-        my @u_keys;
-        for my $i ( 0 .. $#{$uk->[1]} ) {
-            push(
-                @u_keys,
-                $column_name_to_alias{$uk->[1][$i]} || $uk->[1][$i]
-            );
-        }
-        push @unique_key, [ $uk->[0], \@u_keys ];
-    }
-    $class->unique_key( \@unique_key );
-
-    return @columns;
-
-
-=cut
 
 1;
 

@@ -90,3 +90,26 @@ sub relation {
 
 1;
 __END__
+
+=head1 NAME
+
+Data::ObjectMapper - object-relational mapper and database toolkit.
+
+=head1 DESCRIPTION
+
+Data::ObjectMapper is a object-relational mapper of "Data Mapper Pattern", like Python's SQLAlchemy, and simple interface for database access.
+
+More information of "Data Mapper Pattern" is <http://martinfowler.com/eaaCatalog/dataMapper.html>.
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

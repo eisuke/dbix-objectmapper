@@ -82,7 +82,7 @@ sub commit {
 sub rollback {
     my $self = shift;
 
-    cluck "Can't rollback. autocommit is true this session."
+    cluck "Can't rollback. autocommit is TRUE this session."
         if $self->autocommit;
     $self->{transaction}->rollback;
 }
@@ -104,6 +104,8 @@ sub DESTROY {
     my $self = shift;
     $self->rollback unless $self->autocommit;
     $self->uow->demolish; ## dissolve cycle reference
+    $self->{unit_of_work} = undef;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 
 1;

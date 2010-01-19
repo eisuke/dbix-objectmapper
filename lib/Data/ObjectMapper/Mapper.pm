@@ -217,7 +217,7 @@ sub _initialize {
 
     my $destroy = sub {
         my $instance = shift;
-        $log->debug("DESTROY $instance");
+        warn "DESTROY $instance" if $ENV{MAPPER_DEBUG};
         if ( blessed($instance)
             and my $mapper = Data::ObjectMapper::Mapper::Instance->get(
                 $instance

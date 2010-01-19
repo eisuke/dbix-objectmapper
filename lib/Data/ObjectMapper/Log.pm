@@ -6,8 +6,14 @@ use Try::Tiny;
 try {
     require Log::Any::Adapter;
     Log::Any::Adapter->import;
-    my $min_level = 'notice';
-    $min_level = 'debug' if $ENV{MAPPER_DEBUG};
+    my $min_level = 'info';
+
+    if( $ENV{MAPPER_DEBUG} ) {
+        $min_level = 'debug';
+    }
+    elsif( $ENV{HARNESS_ACTIVE} ) {
+        $min_level = 'notice';
+    }
 
     Log::Any::Adapter->set(
         { category => qr/^Data::ObjectMapper/ },

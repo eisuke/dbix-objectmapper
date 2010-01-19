@@ -48,7 +48,6 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
                     refs  => ['id']
                 }
             ],
-            temp_column     => ['memo'],
             readonly_column => ['id'],
             utf8_column     => ['name'],
             column_default  => { name        => 'default' },
@@ -70,7 +69,6 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
     is $id->size, 8;
     is $id->type, 'integer';
     is_deeply $meta->unique_key('name_uniq'), ['name'];
-    is_deeply $meta->temp_column, ['memo'];
     is_deeply $meta->utf8_column, [ 'name' ];
 
     ok $meta->c('name')->utf8;

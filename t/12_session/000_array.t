@@ -6,8 +6,20 @@ use Data::ObjectMapper::Session::Array;
 
 {
     package Data::ObjectMapper::Session::DummyUOW;
+    use Scalar::Util qw(refaddr);
 
-    sub new { bless +{ add => [], delete => [] }, $_[0] }
+    my %INSTANCE;
+
+    sub instance {
+        my ($class, $addr) = @_;
+        $INSTANCE{$addr};
+    }
+
+    sub new {
+        my $self = bless +{ add => [], delete => [] }, $_[0];
+        $INSTANCE{refaddr($self)} = $self;
+        $self;
+    }
 
     sub add {
         my $self = shift;
@@ -17,6 +29,11 @@ use Data::ObjectMapper::Session::Array;
     sub delete {
         my $self = shift;
         push @{$self->{delete}}, @_;
+    }
+
+    sub DESTROY {
+        my $self = shift;
+        delete $INSTANCE{refaddr($self)};
     }
 
     1;

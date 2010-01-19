@@ -46,6 +46,8 @@ sub get_one {
                 == $mapper->instance->{$fk->{keys}->[$i]};
     }
 
+    return undef if @cond == 1 and !defined $cond[0]->[2];
+
     $mapper->instance->{$name} = $mapper->unit_of_work->get(
         $self->rel_class => \@cond
     );
@@ -70,6 +72,7 @@ sub get_multi {
         = $mapper->unit_of_work->query( $self->rel_class )->where(@cond)
         ->order_by( map { $rel_mapper->table->c($_) }
             @{ $rel_mapper->table->primary_key } )->execute->all;
+
     $mapper->instance->{$name} = Data::ObjectMapper::Session::Array->new(
         $mapper->unit_of_work,
         @new_val
@@ -85,6 +88,12 @@ sub mapping {
     my $self = shift;
     my $data = shift;
     return $self->mapper->mapping($data);
+}
+
+sub is_self_reference {
+    my $self = shift;
+    my $refs_table = shift;
+    return $refs_table eq $self->table;
 }
 
 1;

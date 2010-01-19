@@ -5,17 +5,27 @@ use Carp::Clan;
 use Scalar::Util qw(refaddr blessed);
 use Log::Any qw($log);
 
-sub new {
-    my ( $class, $cache, $query ) = @_;
+my %INSTANCE;
 
-    bless {
+sub instance {
+    my ( $class, $addr ) = @_;
+    return $INSTANCE{$addr};
+}
+
+sub new {
+    my ( $class, $cache, $query, $option ) = @_;
+
+    my $self = bless {
         query_cnt   => 0,
         query       => $query,
         cache       => $cache,
         objects     => +[],
         map_objects => +{},
         del_objects => +{},
+        option      => $option || +{},
     }, $class;
+
+    return $INSTANCE{refaddr($self)} = $self;
 }
 
 sub query_cnt { $_[0]->{query_cnt} }
@@ -30,40 +40,56 @@ sub get {
 
     $self->flush;
     my ( $key, @cond ) = $class_mapper->get_unique_condition($id);
-    my $obj;
-    if( my $cache = $self->_get_cache($key) ) {
-        $log->info("{UnitOfWork} Cache Hit: $key");
-        $obj = $class_mapper->mapping($cache);
-    }
-    elsif( my $eagerload = $option->{eagerload} ) {
+
+    if( my $eagerload = $option->{eagerload} ) {
         my @eagerload
             = ref($eagerload) eq 'ARRAY' ? @{$eagerload} : ($eagerload);
         return $self->query($t_class)->eager_join(@eagerload)->where(@cond)
             ->execute->first;
     }
-    else {
-        $obj = $class_mapper->find(@cond) || return;
-        $self->{query_cnt}++;
+    elsif( my $cached_obj = $self->_get_cache($key) ) {
+        $log->info("{UnitOfWork} Cache Hit: $key");
+        if( $option->{share_object} || $self->{option}{share_object} ) {
+            return $cached_obj;
+        }
+        else {
+            my $result = $cached_obj->__mapper__->reducing;
+            my $obj = $cached_obj->__class_mapper__->mapping( $result );
+            return $self->add_storage_object($obj);
+        }
     }
-
-    return $self->add_storage_object($obj);
+    else {
+        my $obj = $class_mapper->find(@cond) || return;
+        $self->{query_cnt}++;
+        return $self->add_storage_object($obj);
+    }
 }
 
 sub add_storage_object {
     my ( $self, $obj ) = @_;
 
     my $mapper = $obj->__mapper__;
-    $mapper->change_status( 'persistent', $self );
-    $self->_set_cache($mapper);
-    $self->add($obj);
-    return $obj;
+    my $cache_key = $mapper->primary_cache_key;
+
+    if ( $self->{option}{share_object}
+        and my $cache_obj = $self->_get_cache($cache_key) )
+    {
+        return $cache_obj;
+    }
+    else {
+        $mapper->change_status( 'persistent', $self );
+        $self->add($obj);
+        return $obj;
+    }
 }
 
 sub add {
     my ( $self, $obj ) = @_;
+
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'pending', $self ) unless $mapper->is_persistent;
     unless( exists $self->{map_objects}->{refaddr($obj)} ) {
+        $self->_set_cache($mapper);
         push @{$self->{objects}}, $obj;
         $self->{map_objects}->{refaddr($obj)} = $#{$self->{objects}};
     }
@@ -113,10 +139,10 @@ sub _get_cache {
 
 sub _set_cache {
     my ( $self, $mapper ) = @_;
-    my $result = $mapper->reducing;
+    #my $result = $mapper->reducing;
     for my $key ( $mapper->cache_keys ) {
         $log->info("{UnitOfWork} Cache Set: $key");
-        $self->cache->set( $key => $result );
+        $self->cache->set( $key => $mapper->instance );
     }
 }
 
@@ -131,16 +157,20 @@ sub _clear_cache {
 sub demolish {
     my $self = shift;
     $self->flush;
-    for my $obj ( @{ $self->{objects} } ) {
-        $obj->__mapper__->demolish;
-    }
-    $self->{objects} = +[];
+    $_->__mapper__->demolish for @{ $self->{objects} };
+    $self->{objects}     = +[];
+    $self->{map_objects} = +{};
+    $self->{del_objects} = +{};
+
+    #$self->cache->clear;
+    $self->{cache} = undef;
+    delete $INSTANCE{refaddr($self)};
 }
 
 sub DESTROY {
     my $self = shift;
-    $log->debug("DESTROY $self");
     $self->demolish;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 
 1;

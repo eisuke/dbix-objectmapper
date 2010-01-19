@@ -59,32 +59,14 @@ ok $mapper->maps(
     is $child_child->[0]->parent->id, 1; # query_cnt++
     is $child_child->[0]->parent->children->[3]->parent->id, 1; # query_cnt++
     is $session->uow->query_cnt, 4;
+
+    eval "require Test::Memory::Cycle";
+    unless( @$ ) {
+        Test::Memory::Cycle::memory_cycle_ok( $parent );
+    }
 };
 
 
 done_testing;
 
 __END__
-
-{ # eager_load
-    my $session = $mapper->begin_session;
-    my $parent = $session->get(
-        Parent => 1,
-        { eagerload => 'children' }
-    );
-
-#    is ref($parent->children), 'ARRAY';
-#    for my $c ( @{$parent->children} ) {
-#        is $c->parent_id, $parent->id;
-#    }
-};
-
-
-{ # nest join
-    my $session = $mapper->begin_session;
-    my $it
-        = $session->query( 'MyTest11::Artist', { eager_load => 1 } )
-        ->join( { 'MyTest::Cd' => ['MyTest::Track'] } )
-        ->order_by( $artist->c('id')->desc )->execute;
-
-};

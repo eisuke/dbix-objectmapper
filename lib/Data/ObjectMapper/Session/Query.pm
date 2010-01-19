@@ -2,7 +2,7 @@ package Data::ObjectMapper::Session::Query;
 use strict;
 use warnings;
 use Carp::Clan qw(^Data::ObjectMapper::);
-use Scalar::Util qw(blessed);
+use Scalar::Util qw(blessed refaddr);
 use Log::Any qw($log);
 use Data::ObjectMapper::Iterator;
 
@@ -97,7 +97,10 @@ sub __to_alias {
     my ( $self, $c ) = @_;
     return unless blessed($c) and $c->can('table') and $c->can('as_alias');
     my $alias = $self->{alias_table}{ $c->table } || return;
-    if( @$alias > 1 ) {
+    return $c if $c->table eq $self->mapper->table;  # for self relation
+
+    my @alias_name = values %$alias;
+    if( @alias_name > 1 ) {
         $log->warnings(
             '**************************' . $/
           . $c->table . '.' . $c->name . ' has ' . @$alias . ' aliases.'
@@ -106,7 +109,7 @@ sub __to_alias {
           . '**************************'
         );
     }
-    return $c->as_alias($alias->[0]);
+    return $c->as_alias($alias_name[0]);
 }
 
 sub join {
@@ -141,7 +144,10 @@ sub _join {
     my $is_multi = 0;
     for my $conf ( @join_conf ) {
         my ( $join_cond, $join_is_multi ) = $self->_parse_join(
-            $conf, $self->mapper, $is_eager ? $self->{join_struct} : +{}
+            $conf,
+            $self->mapper,
+            $is_eager ? $self->{join_struct} : +{},
+            0,
         );
         push @join, @$join_cond;
         $is_multi = 1 if $join_is_multi;
@@ -157,20 +163,24 @@ sub _join {
 }
 
 sub _parse_join {
-    my ( $self, $join_conf, $class_mapper, $join_struct ) = @_;
+    my ( $self, $join_conf, $class_mapper, $join_struct, $depth ) = @_;
 
     if( ref($join_conf) eq 'HASH' ) {
         my ( $attr, $rel_join ) = %$join_conf;
         my ( $join, $is_multi )
-            = $self->_parse_join( $attr, $class_mapper, $join_struct );
+            = $self->_parse_join( $attr, $class_mapper, $join_struct, $depth );
         my $rel = $class_mapper->attributes->property($attr);
         my @rel_join
             = ref $rel_join eq 'ARRAY' ? @$rel_join : ($rel_join);
         my $alias = $join->[0][0]->alias_name || $join->[0][0]->table_name;
         my $child_join_struct = $join_struct->{ $alias };
         for my $rj ( @rel_join ) {
-            my ( $join_cond, $join_is_multi )
-                = $self->_parse_join( $rj, $rel->mapper, $child_join_struct );
+            my ( $join_cond, $join_is_multi ) = $self->_parse_join(
+                $rj,
+                $rel->mapper,
+                $child_join_struct,
+                $depth + 1,
+            );
             push @$join, @$join_cond;
             $is_multi = 1 if $join_is_multi;
         }
@@ -181,31 +191,34 @@ sub _parse_join {
     }
     else {
         my $class_table = $class_mapper->table;
-        if( my $class_table_alias
-            = $self->{alias_table}->{ $class_table->table_name } ) {
-            $class_table = $class_table->clone($class_table_alias->[0]);
-        }
-
         my $rel = $class_mapper->attributes->property($join_conf)
             || confess
             "$join_conf does not exists $self->{mapped_class} attributes.";
 
-        my $alias = $join_conf;
-        $alias = $class_table->alias_name . '_' . $alias
-            if $class_table->is_clone;
-        my $table = $rel->table->clone($alias);
+        confess "$join_conf is not relation property."
+            unless $rel->type eq 'relation';
 
-        if( my $org_alias = $self->{alias_table}->{$rel->table->table_name} ) {
-            if( my @ex_alias = grep { $_ eq $alias } @$org_alias ) {
-                confess "$ex_alias[0] has already been defined.";
-            }
-            else {
-                push @{$self->{alias_table}->{$rel->table->table_name}}, $alias;
-            }
+        my $alias = $join_conf;
+
+        if ( $depth > 0 and my $class_table_alias
+            = $self->{alias_table}{ $class_table->table_name })
+        {
+            $class_table
+                = $class_table->clone( ( values %$class_table_alias )[0] );
+            $alias = $class_table->alias_name . '_' . $alias;
         }
-        else {
-            $self->{alias_table}->{$rel->table->table_name} = [ $alias ];
+
+        my $table = $rel->table->clone($alias);
+        if ( my $settle_table_alias = $self->{alias_table} ) {
+            confess "$alias has already been defined."
+                if $settle_table_alias->{ $table->table_name }
+                    { refaddr($rel) }
+                    and $settle_table_alias->{ $table->table_name }
+                    { refaddr($rel) } eq $alias;
         }
+
+        $self->{alias_table}{ $table->table_name }{ refaddr($rel) }
+            = $alias;
         my @rel_cond = $rel->relation_condition( $class_table, $table );
         $join_struct->{$alias} = +{};
         return [ [ $table => \@rel_cond ] ], $rel->is_multi;
@@ -216,7 +229,7 @@ sub execute {
     my $self = shift;
 
     $self->_query->group_by( @{ $self->mapper->table->columns } )
-        unless $self->is_multi;
+        if (keys %{$self->{alias_table}}) > 0 and !$self->is_multi;
     my $join = $self->_query->builder->join || [];
     if( @$join ) {
         for my $meth ( qw(where order_by group_by) ) {
@@ -233,6 +246,7 @@ sub execute {
     if( $self->is_multi ) {
         my $result = [];
         my %settle;
+
         for my $r ( $self->_query->execute->all ) {
             $self->_join_result_to_object($r);
             my $id = $mapper->primary_cache_key($r);
@@ -277,6 +291,7 @@ sub _join_result_to_object {
     my $mapper = $self->mapper;
 
     for my $key ( keys %{$self->{join_struct}} ) {
+        next unless exists $r->{$key};
         if( my $prop = $mapper->attributes->property($key) ) {
             my $obj = $uow->add_storage_object(
                 $prop->mapper->mapping($r->{$key})
@@ -307,5 +322,9 @@ sub _merge_result {
 
 }
 
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
+}
 
 1;
