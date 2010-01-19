@@ -173,8 +173,19 @@ sub get_val_trigger {
         $self->reflesh;
     }
 
-    if( $class_mapper->attributes->property($name)->type eq 'relation' ) {
+    my $prop = $class_mapper->attributes->property($name);
+    if( $prop->type eq 'relation' ) {
         $self->load_rel_val($name) unless defined $self->instance->{$name};
+    }
+    elsif( my %lazy_column = $class_mapper->attributes->lazy_column($name) ) {
+        unless ( defined $self->instance->{$name} ) {
+            my $uniq_cond = $self->identity_condition;
+            my $val
+                = $class_mapper->table->select->column( values %lazy_column )
+                ->where(@$uniq_cond)->first;
+            $self->unit_of_work->{query_cnt}++;
+            $self->instance->{$_} = $val->{ $_ } for keys %lazy_column;
+        }
     }
 
     $self->demolish if $self->is_transient;

@@ -30,6 +30,8 @@ sub init {
             $isa->name($name);
         }
 
+        $self->properties->{$name}{isa} = $isa;
+
         $properties{$name}
             = Data::ObjectMapper::Mapper::Attribute::Property->new(
             %{ $self->properties->{$name} }

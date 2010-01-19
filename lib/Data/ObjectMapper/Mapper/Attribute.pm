@@ -45,4 +45,24 @@ sub properties     { $_[0]->{properties} }
 sub property_names { confess "Abstruct Method" }
 sub property       { confess "Abstruct Method" }
 
+sub lazy_column {
+    my ( $self, $name ) = @_;
+    my $prop = $self->property($name);
+    if( $prop->lazy eq 1 ) {
+        return $name => $prop->{isa};
+    }
+    elsif( $prop->lazy ) {
+        my %lazy_column;
+        for my $prop_name ( $self->property_names ) {
+            my $other_prop = $self->property($prop_name);
+            $lazy_column{$prop_name} = $other_prop->{isa}
+                if $other_prop->lazy eq $prop->lazy;
+        }
+        return %lazy_column;
+    }
+    else {
+        return;
+    }
+}
+
 1;

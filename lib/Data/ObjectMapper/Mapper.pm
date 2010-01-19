@@ -274,7 +274,17 @@ sub mapping {
 
 sub find {
     my $self = shift;
-    return $self->mapping( $self->table->_find(@_) );
+
+    my @column;
+    for my $prop_name ( $self->attributes->property_names ) {
+        my $prop = $self->attributes->property($prop_name);
+        next unless $prop->type eq 'column' and !$prop->lazy;
+        push @column, $prop->{isa};
+    }
+
+    return $self->mapping(
+        $self->table->select->column(@column)->where(@_)->first
+    );
 }
 
 sub get_unique_condition {
