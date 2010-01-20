@@ -76,37 +76,43 @@ sub check {
     }
 }
 
-{ # basic
+subtest 'basic' => sub {
     my $session = $mapper->begin_session;
     check($session->get( 'MyTest12::BBS' => 1 ));
     is $session->uow->query_cnt, 8;
-}
-{ #query
+    done_testing;
+};
+
+subtest 'query' => sub {
     my $session = $mapper->begin_session;
     my $it = $session->query('MyTest12::BBS')->execute;
     check($it->[0]);
     is $session->uow->query_cnt, 8;
+    done_testing;
 };
 
-{ # eagerload
+subtest 'eagerload' => sub {
     my $session = $mapper->begin_session;
     my $first = $session->get( 'MyTest12::BBS' => 1, { eagerload => 'children' } );
     check($first);
     is $session->uow->query_cnt, 7;
+    done_testing;
 };
 
-{ # eagerload2
+subtest 'eagerload2' => sub {
     my $session = $mapper->begin_session;
     my $first = $session->get( 'MyTest12::BBS' => 1, { eagerload => [ 'parent', 'children'] } );
     check($first);
     is $session->uow->query_cnt, 7;
+    done_testing;
 };
 
-{ # join nested
+subtest 'join nested' => sub {
     my $session = $mapper->begin_session;
     my $first = $session->query('MyTest12::BBS')->join( { children => 'parent' } )->where( $bbs->c('id')->as_alias('children_parent') == 1 )->first;
     check($first);
     is $session->uow->query_cnt, 7;
+    done_testing;
 };
 
 done_testing();

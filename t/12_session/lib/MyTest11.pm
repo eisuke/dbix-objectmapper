@@ -83,7 +83,10 @@ sub mapping_with_foreign_key {
         attributes  => {
             properties => {
                 cds => +{
-                    isa => $mapper->relation( has_many => 'MyTest11::Cd' ),
+                    isa => $mapper->relation(
+                        has_many => 'MyTest11::Cd',
+                        { cascade  => 'all' },
+                    ),
                 }
             }
         }
@@ -96,15 +99,20 @@ sub mapping_with_foreign_key {
         attributes  => {
             properties => {
                 artist => +{
-                    isa =>
-                        $mapper->relation( belongs_to => 'MyTest11::Artist' )
+                    isa => $mapper->relation( belongs_to => 'MyTest11::Artist' )
                 },
                 tracks => +{
-                    isa => $mapper->relation( has_many => 'MyTest11::Track' ),
+                    isa => $mapper->relation(
+                        has_many => 'MyTest11::Track',
+                        { cascade  => 'all' },
+                    ),
                 },
                 linernote => +{
                     isa =>
-                        $mapper->relation( has_one => 'MyTest11::Linernote' ),
+                        $mapper->relation(
+                            has_one => 'MyTest11::Linernote',
+                            { cascade  => 'all' },
+                        ),
                 }
             }
         }

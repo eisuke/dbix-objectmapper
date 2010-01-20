@@ -198,6 +198,8 @@ sub _parse_join {
         confess "$join_conf is not relation property."
             unless $rel->type eq 'relation';
 
+        # XXXXX many_to_many is not suppurted eager_load
+
         my $alias = $join_conf;
 
         if ( $depth > 0 and my $class_table_alias

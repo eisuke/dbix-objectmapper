@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use base qw(Data::ObjectMapper::Relation);
 
+sub initial_is_multi { 0 };
+
 sub get {
     my $self = shift;
     $self->get_one(@_);

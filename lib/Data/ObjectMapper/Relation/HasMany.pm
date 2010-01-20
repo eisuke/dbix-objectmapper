@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use base qw(Data::ObjectMapper::Relation);
 
+sub initial_is_multi { 1 };
+
 sub get {
     my $self = shift;
     $self->get_multi(@_);
@@ -30,7 +32,5 @@ sub relation_condition {
 
     return @cond;
 }
-
-sub is_multi { 1 }
 
 1;

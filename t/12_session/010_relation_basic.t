@@ -55,6 +55,7 @@ ok $mapper->maps(
 
     my $child1 = $session->get( Child => 4 );
     is $child1->parent->id, 1;
+
     my $child_child = $child1->parent->children;
     is $child_child->[0]->parent->id, 1; # query_cnt++
     is $child_child->[0]->parent->children->[3]->parent->id, 1; # query_cnt++
@@ -64,6 +65,7 @@ ok $mapper->maps(
     unless( @$ ) {
         Test::Memory::Cycle::memory_cycle_ok( $parent );
     }
+
 };
 
 

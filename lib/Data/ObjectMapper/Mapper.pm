@@ -254,13 +254,14 @@ sub mapping {
     for my $prop_name ( $self->attributes->property_names ) {
         my $prop = $self->attributes->property($prop_name);
         my $name = $prop->name || $prop_name;
+        my $val = $hashref_data->{$name};
         if( $type eq 'HASH' or $type eq 'HASHREF' ) {
             $param ||= +{};
-            $param->{$prop_name} = $hashref_data->{$name};
+            $param->{$prop_name} = $val;
         }
         elsif( $type eq 'ARRAY' or $type eq 'ARRAYREF' ) {
             $param ||= +[];
-            push @$param, $hashref_data->{$name};
+            push @$param, $val;
         }
     }
 
@@ -282,13 +283,14 @@ sub find {
         push @column, $prop->{isa};
     }
 
-    return $self->mapping(
-        $self->table->select->column(@column)->where(@_)->first
-    );
+    my $it = $self->table->select->column(@column)->where(@_)->execute;
+    return unless $it;
+    return $self->mapping($it->next);
 }
 
 sub get_unique_condition {
     my ( $self, $id ) = @_;
+
     my ( $type, @cond ) = $self->table->get_unique_condition($id);
     confess "condition is not unique." unless @cond;
     return $self->create_cache_key($type, @cond), @cond;

@@ -85,14 +85,15 @@ sub add_storage_object {
 
 sub add {
     my ( $self, $obj ) = @_;
-
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'pending', $self ) unless $mapper->is_persistent;
+    # detached,expiredの場合はflushのところで無視される
     unless( exists $self->{map_objects}->{refaddr($obj)} ) {
         $self->_set_cache($mapper);
         push @{$self->{objects}}, $obj;
         $self->{map_objects}->{refaddr($obj)} = $#{$self->{objects}};
     }
+
     return $obj;
 }
 
@@ -150,7 +151,7 @@ sub _set_cache {
 sub _clear_cache {
     my ( $self, $mapper ) = @_;
     for my $key ( $mapper->cache_keys ) {
-        $log->info("{UnitOfWork} Cache Remove: $key");
+        $log->info("{UnitOfWork} Cache Remove: $key ");
         $self->cache->remove( $key );
     }
 }

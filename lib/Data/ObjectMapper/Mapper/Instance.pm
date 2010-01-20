@@ -2,6 +2,7 @@ package Data::ObjectMapper::Mapper::Instance;
 use strict;
 use warnings;
 use Carp::Clan;
+use Try::Tiny;
 use Scalar::Util qw(refaddr weaken);
 use Log::Any qw($log);
 use Data::ObjectMapper::Utils;
@@ -9,16 +10,16 @@ use Data::ObjectMapper::Utils;
 my %INSTANCES;
 my %STATUS = (
     # "status" => "changable status"
-    transient  => [ 'pending', 'persistent' ],
-    pending    => ['expired'],
-    persistent => ['expired', 'detached'],
+    transient  => [ 'pending', 'persistent', 'detached' ],
+    pending    => [ 'expired', 'detached' ],
+    persistent => [ 'expired', 'detached' ],
     detached   => [],
-    expired    => ['persistent'],
+    expired    => [ 'persistent', 'detached' ],
 );
 
 sub new {
     my ( $class, $instance ) = @_;
-    return $class->get($instance) || $class->create($instance);
+    return $class->get(refaddr($instance)) || $class->create($instance);
 }
 
 sub create {
@@ -31,13 +32,23 @@ sub create {
         modified_data      => +{},
         unit_of_work       => undef,
         identity_condition => undef,
+        relation_condition => +{},
+        primary_cache_key  => undef,
+        unique_cache_keys  => [],
     }, $class;
     $INSTANCES{refaddr($instance)} = $self;
-    $self->init_identity_condition;
+    $self->initialize;
     return $self;
 }
 
 sub instances { %INSTANCES }
+
+sub initialize {
+    my $self = shift;
+    $self->init_identity_condition;
+    $self->init_relation_identity_condition;
+    $self->init_cache_keys;
+}
 
 sub init_identity_condition {
     my $self = shift;
@@ -62,13 +73,45 @@ sub init_identity_condition {
 
 sub identity_condition { $_[0]->{identity_condition} }
 
-sub get {
-    my ( $self, $instance ) = @_;
-    $INSTANCES{refaddr($instance)};
+sub init_relation_identity_condition {
+    my $self = shift;
+    my $record = shift || $self->reducing;
+    my $class_mapper = $self->instance->__class_mapper__;
+
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $prop = $class_mapper->attributes->property($prop_name);
+        next unless $prop->type eq 'relation';
+        my @cond = $prop->{isa}->identity_condition($self);
+        next unless @cond;
+        $self->{relation_condition}->{$prop_name} = \@cond;
+    }
 }
 
-sub unit_of_work       { $_[0]->{unit_of_work} }
-sub status             { $_[0]->{status} }
+sub relation_condition { $_[0]->{relation_condition} }
+
+sub init_cache_keys {
+    my $self = shift;
+    my $result = shift || $self->reducing;
+    my $class_mapper = $self->instance->__class_mapper__;
+    $self->{primary_cache_key} = $class_mapper->primary_cache_key($result);
+    $self->{unique_cache_keys} = [ $class_mapper->unique_cache_keys($result) ];
+}
+
+sub cache_keys {
+    my $self = shift;
+    return ( $self->primary_cache_key, $self->unique_cache_keys );
+}
+
+sub primary_cache_key { $_[0]->{primary_cache_key} }
+sub unique_cache_keys { @{$_[0]->{unique_cache_keys}} }
+
+sub get {
+    my ( $self, $addr ) = @_;
+    $INSTANCES{$addr};
+}
+
+sub unit_of_work { $_[0]->{unit_of_work} }
+sub status       { $_[0]->{status} }
 
 sub change_status {
     my $self = shift;
@@ -84,6 +127,45 @@ sub change_status {
                 $self->{unit_of_work} = $uow;
             }
         }
+        elsif( $status_name eq 'detached' ) {
+            my $class_mapper = $self->instance->__class_mapper__;
+            for my $prop_name ( $class_mapper->attributes->property_names ) {
+                my $prop = $class_mapper->attributes->property($prop_name);
+                next unless $prop->type eq 'relation';
+                if( $prop->{isa}->is_cascade_detach() ) {
+                    if( my $instance = $self->instance->{$prop_name} ) {
+                        my @instance
+                            = ref $instance eq 'ARRAY'
+                            ? @$instance
+                            : ($instance);
+                        $self->unit_of_work->detach($_) for @instance;
+                    }
+                }
+            }
+        }
+        elsif( $status_name eq 'expired' ) {
+            my $class_mapper = $self->instance->__class_mapper__;
+            for my $prop_name ( $class_mapper->attributes->property_names ) {
+                my $prop = $class_mapper->attributes->property($prop_name);
+                next unless $prop->type eq 'relation';
+                if( $prop->{isa}->is_cascade_reflesh_expire() ) {
+                    if( my $instance = $self->instance->{$prop_name} ) {
+                        my @instance
+                            = ref $instance eq 'ARRAY'
+                                ? @$instance
+                                    : ($instance);
+                        for ( @instance ) {
+                            my $mapper = $_->__mapper__;
+                            if (   $mapper->is_pending
+                                || $mapper->is_persistent )
+                            {
+                                $mapper->change_status('expired');
+                            }
+                        }
+                    }
+                }
+            }
+        }
         else {
             #warn $status_name;
         }
@@ -97,6 +179,7 @@ sub is_transient  { $_[0]->status eq 'transient' }
 sub is_persistent { $_[0]->status eq 'persistent' }
 sub is_detached   { $_[0]->status eq 'detached' }
 sub is_pending    { $_[0]->status eq 'pending' }
+sub is_expired    { $_[0]->status eq 'expired' }
 
 sub instance { $_[0]->{instance} }
 
@@ -118,39 +201,30 @@ sub reducing {
     return \%result;
 }
 
-sub cache_keys {
-    my $self = shift;
-    my $result = shift || $self->reducing;
-    my $class_mapper = $self->instance->__class_mapper__;
-    return (
-        $self->primary_cache_key($result, $class_mapper),
-        $self->unique_cache_keys($result, $class_mapper),
-    );
-}
-
-sub primary_cache_key {
-    my $self = shift;
-    my $result = shift || $self->reducing;
-    my $class_mapper = shift || $self->instance->__class_mapper__;
-    return $class_mapper->primary_cache_key($result);
-}
-
-sub unique_cache_keys {
-    my $self = shift;
-    my $result = shift || $self->reducing;
-    my $class_mapper = shift || $self->instance->__class_mapper__;
-    return $class_mapper->unique_cache_keys($result);
-}
-
 sub reflesh {
     my $self = shift;
     my $class_mapper = $self->instance->__class_mapper__;
     my ( $key, @cond )
         = $class_mapper->get_unique_condition( $self->identity_condition );
-    my $new_val = $class_mapper->table->_find(@cond);
+    my $new_val = $class_mapper->table->_find(@cond) || return;
+
     $self->change_status('persistent');
     $self->unit_of_work->_set_cache($self);
     $self->modify( $new_val );
+
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $prop = $class_mapper->attributes->property($prop_name);
+        next unless $prop->type eq 'relation';
+        if( $prop->{isa}->is_cascade_reflesh_expire() ) {
+            if( my $instance = $self->instance->{$prop_name} ) {
+                my @instance
+                    = ref $instance eq 'ARRAY'
+                        ? @$instance
+                            : ($instance);
+                $_->__mapper__->reflesh for @instance;
+            }
+        }
+    }
 }
 
 sub modify {
@@ -158,8 +232,9 @@ sub modify {
     my $rdata = shift;
     my $class_mapper = $self->instance->__class_mapper__;
     for my $prop_name ( $class_mapper->attributes->property_names ) {
-        my $col = $class_mapper->attributes->property($prop_name)->name;
-        $self->instance->{$prop_name} = $rdata->{$col} || undef;
+        my $col = $class_mapper->attributes->property($prop_name)->name
+            || $prop_name;
+        $self->instance->{$prop_name} = $rdata->{$col} if exists $rdata->{$col};
     }
 
     return $self->instance;
@@ -169,11 +244,17 @@ sub get_val_trigger {
     my ( $self, $name ) = @_;
 
     my $class_mapper = $self->instance->__class_mapper__;
-    if( $self->status eq 'expired' ) {
+    my $prop = $class_mapper->attributes->property($name);
+
+    if( $self->is_expired ) {
         $self->reflesh;
     }
+    elsif( !$self->is_persistent ) {
+        $self->instance->{$name} = []
+            if !defined $self->instance->{$name} and $prop->is_multi;
+        return;
+    }
 
-    my $prop = $class_mapper->attributes->property($name);
     if( $prop->type eq 'relation' ) {
         $self->load_rel_val($name) unless defined $self->instance->{$name};
     }
@@ -235,20 +316,40 @@ sub modified_data { $_[0]->{modified_data} }
 sub update {
     my ( $self ) = @_;
     confess 'it need to be "persistent" status.' unless $self->is_persistent;
+
     my $reduce_data = $self->reducing;
     my $modified_data = $self->modified_data;
     my $uniq_cond = $self->identity_condition;
     my $class_mapper = $self->instance->__class_mapper__;
-    my $result = $class_mapper->table->update->set(%$modified_data)
-        ->where(@$uniq_cond)->execute();
-    my $new_val = Data::ObjectMapper::Utils::merge_hashref(
-        $reduce_data,
-        $modified_data
-    );
-    $self->modify($new_val);
-    $self->{is_modified} = 0;
-    $self->{modified_data} = +{};
-    $self->change_status('expired');
+
+    my $result;
+    try {
+        if( keys %$modified_data ) {
+            $result = $class_mapper->table->update->set(%$modified_data)
+                ->where(@$uniq_cond)->execute();
+        }
+        my $new_val = Data::ObjectMapper::Utils::merge_hashref(
+            $reduce_data,
+            $modified_data
+        );
+
+        for my $prop_name ( $class_mapper->attributes->property_names ) {
+            my $prop = $class_mapper->attributes->property($prop_name);
+            next unless $prop->type eq 'relation';
+            if( $prop->{isa}->is_cascade_save_update() ) {
+                $prop->{isa}->cascade_update( $prop_name, $self );
+            }
+        }
+
+        $self->modify($new_val);
+        $self->{is_modified} = 0;
+        $self->{modified_data} = +{};
+    } catch {
+        $self->change_status('detached');
+        confess @_;
+    };
+
+    $self->change_status('expired'); # cascade expire if cascade_reflesh_expire
     return !$result || $self->instance;
 }
 
@@ -258,10 +359,29 @@ sub save {
     my $reduce_data = $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
 
-    my $comp_result
-        = $class_mapper->table->insert->values(%$reduce_data)->execute();
-    $self->modify($comp_result);
-    $self->init_identity_condition;
+    try {
+        my $comp_result
+            = $class_mapper->table->insert->values(%$reduce_data)->execute();
+        $self->modify($comp_result);
+        $self->initialize;
+
+        for my $prop_name ( $class_mapper->attributes->property_names ) {
+            my $prop = $class_mapper->attributes->property($prop_name);
+            next unless $prop->type eq 'relation';
+
+            if( $prop->{isa}->is_cascade_save_update() ) {
+                if( my $instance = $self->instance->{$prop_name} ) {
+                    for ( ref $instance eq 'ARRAY' ? @$instance : $instance ) {
+                        $prop->{isa}->cascade_save($prop_name, $self, $_ );
+                    }
+                }
+            }
+        }
+    } catch {
+        $self->change_status('detached');
+        confess @_;
+    };
+
     $self->change_status('expired');
     return $self->instance;
 }
@@ -272,21 +392,27 @@ sub delete {
     my $uniq_cond = $self->identity_condition;
     my $class_mapper = $self->instance->__class_mapper__;
 
-    for my $prop_name ( $class_mapper->attributes->property_names ) {
-        my $prop = $class_mapper->attributes->property($prop_name);
-        next unless $prop->type eq 'relation';
-        if( $prop->{isa}->is_cascade_delete($self) ) {
-            if( my $instance = $self->instance->{$prop->name} ) {
-                my @instance
-                    = ref $instance eq 'ARRAY' ? @$instance : ($instance);
-                $self->unit_of_work->delete($_) for @instance;
-                $self->unit_of_work->flush;
+    my $result;
+    try {
+        for my $prop_name ( $class_mapper->attributes->property_names ) {
+            my $prop = $class_mapper->attributes->property($prop_name);
+            next unless $prop->type eq 'relation';
+            if( $prop->{isa}->is_cascade_delete() ) {
+                if( my $instance = $self->instance->{$prop->name} ) {
+                    my @instance
+                        = ref $instance eq 'ARRAY' ? @$instance : ($instance);
+                    $self->unit_of_work->detach($_) for @instance;
+                }
+                $prop->{isa}->cascade_delete($self);
             }
-            $prop->{isa}->cascade_delete($self);
         }
-    }
 
-    my $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
+        $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
+    } catch {
+        $self->change_status('detached');
+        confess @_;
+    };
+
     $self->change_status('detached');
     return $result;
 }

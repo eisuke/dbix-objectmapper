@@ -39,8 +39,36 @@ use Data::ObjectMapper::Session::Array;
     1;
 };
 
+{
+    package Data::ObjectMapper::Session::DummyMapper;
+    use Scalar::Util qw(refaddr);
+    my %INSTANCE;
+
+    sub get {
+        my ($class, $addr) = @_;
+        $INSTANCE{$addr};
+    }
+
+    sub new {
+        my $self = bless +{ unit_of_work => undef }, $_[0];
+        $INSTANCE{refaddr($self)} = $self;
+        $self;
+    }
+
+    sub unit_of_work { $_[0]->{unit_of_work} }
+
+    sub DESTROY {
+        my $self = shift;
+        delete $INSTANCE{refaddr($self)};
+    }
+
+    1;
+};
+
 my $uow = Data::ObjectMapper::Session::DummyUOW->new;
-my $array = Data::ObjectMapper::Session::Array->new($uow, qw(a b c d));
+my $mapper = Data::ObjectMapper::Session::DummyMapper->new;
+$mapper->{unit_of_work} = $uow;
+my $array = Data::ObjectMapper::Session::Array->new($mapper, qw(a b c d));
 
 ok tied(@$array);
 is_deeply $array, $uow->{add};

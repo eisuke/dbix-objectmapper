@@ -76,7 +76,10 @@ sub delete {
 sub commit {
     my $self = shift;
     $self->flush;
-    $self->{transaction}->commit unless $self->autocommit;
+    unless( $self->autocommit ) {
+        $self->{transaction}->commit;
+        $self->{transaction} = $self->{engine}->transaction;
+    }
 }
 
 sub rollback {
@@ -102,9 +105,9 @@ sub detach {
 
 sub DESTROY {
     my $self = shift;
-    $self->rollback unless $self->autocommit;
     $self->uow->demolish; ## dissolve cycle reference
     $self->{unit_of_work} = undef;
+    $self->rollback unless $self->autocommit;
     warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 

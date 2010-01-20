@@ -5,20 +5,24 @@ use Scalar::Util qw(refaddr weaken);
 use base qw(Tie::Array);
 
 sub new {
-    my ( $class, $uow, @val ) = @_;
+    my ( $class, $mapper, @val ) = @_;
     my $array;
-    tie @$array, $class, $uow;
+    tie @$array, $class, $mapper;
     push @$array, @val;
     return $array;
 }
 
 sub TIEARRAY {
     my $class = shift;
-    my $uow = shift;
+    my $mapper = shift;
+    my $uow = $mapper->unit_of_work;
+
     my $self = bless {
-        value => +[],
-        uowaddr => refaddr($uow),
-        uow     => ref($uow),
+        value      => +[],
+        uowaddr    => refaddr($uow),
+        uow        => ref($uow),
+        mapperaddr => refaddr($mapper),
+        mapper     => ref($mapper),
     }, $class;
     return $self;
 }
@@ -26,6 +30,11 @@ sub TIEARRAY {
 sub uow {
     my $self = shift;
     return $self->{uow}->instance( $self->{uowaddr} );
+}
+
+sub mapper {
+    my $self = shift;
+    return $self->{mapper}->get( $self->{mapperaddr} );
 }
 
 sub _remove {
