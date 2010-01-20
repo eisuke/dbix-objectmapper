@@ -126,6 +126,7 @@ sub cascade_delete {
 
     my @cond = $self->identity_condition($mapper);
     return if !@cond || ( @cond == 1 and !defined $cond[0]->[2] );
+
     $self->assc_table->delete->where(@cond)->execute;
 }
 
