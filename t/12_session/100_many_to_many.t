@@ -143,4 +143,8 @@ subtest 'cascade_delete' => sub {
     done_testing;
 };
 
+subtest 'eagerload' => sub {
+    plan skip_all => 'TODO';
+};
+
 done_testing;

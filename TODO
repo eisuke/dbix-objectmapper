@@ -1,4 +1,3 @@
-* ManyToMany
 * session query join の条件を別途指定するテスト
 
 ======
