@@ -49,6 +49,11 @@ use Data::ObjectMapper::Session::Array;
         $INSTANCE{$addr};
     }
 
+    sub instance {
+        my $self = shift;
+        return $self;
+    }
+
     sub new {
         my $self = bless +{ unit_of_work => undef }, $_[0];
         $INSTANCE{refaddr($self)} = $self;
@@ -56,6 +61,22 @@ use Data::ObjectMapper::Session::Array;
     }
 
     sub unit_of_work { $_[0]->{unit_of_work} }
+
+    sub add_multi_val {
+        my $self = shift;
+        my $name = shift;
+        my $obj  = shift;
+
+        $self->unit_of_work->add($obj);
+    }
+
+    sub remove_multi_val {
+        my $self = shift;
+        my $name = shift;
+        my $obj  = shift;
+
+        $self->unit_of_work->delete($obj);
+    }
 
     sub DESTROY {
         my $self = shift;
@@ -68,7 +89,7 @@ use Data::ObjectMapper::Session::Array;
 my $uow = Data::ObjectMapper::Session::DummyUOW->new;
 my $mapper = Data::ObjectMapper::Session::DummyMapper->new;
 $mapper->{unit_of_work} = $uow;
-my $array = Data::ObjectMapper::Session::Array->new($mapper, qw(a b c d));
+my $array = Data::ObjectMapper::Session::Array->new('name', $mapper, qw(a b c d));
 
 ok tied(@$array);
 is_deeply $array, $uow->{add};

@@ -108,4 +108,22 @@ subtest 'add' => sub {
     done_testing;
 };
 
+subtest 'remove' => sub {
+    my $session = $mapper->begin_session( autocommit => 0 );
+    ok my $p = $session->get( 'MyTest14::Parent' => 10 );
+    is $p->id, 10;
+    ok $p->children;
+    is ref($p->children), 'ARRAY';
+    is scalar(@{$p->children}), 6;
+
+    shift @{$p->children};
+    $session->commit;
+
+    # check
+    ok my $check = $session->get( 'MyTest14::Parent' => 10 );
+    is scalar(@{$check->children}), 5;
+
+    done_testing;
+};
+
 done_testing;

@@ -48,7 +48,6 @@ sub _init_option {
         }
     }
 
-
 }
 
 {
@@ -109,6 +108,7 @@ sub get_multi {
             @{ $rel_mapper->table->primary_key } )->execute->all;
 
     $mapper->instance->{$name} = Data::ObjectMapper::Session::Array->new(
+        $name,
         $mapper,
         @new_val
     );

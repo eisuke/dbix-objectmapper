@@ -26,15 +26,17 @@ sub create {
     my ( $class, $instance ) = @_;
 
     my $self = bless {
-        instance           => $instance,
-        status             => 'transient',
-        is_modified        => 0,
-        modified_data      => +{},
-        unit_of_work       => undef,
-        identity_condition => undef,
-        relation_condition => +{},
-        primary_cache_key  => undef,
-        unique_cache_keys  => [],
+        instance            => $instance,
+        status              => 'transient',
+        is_modified         => 0,
+        modified_data       => +{},
+        unit_of_work        => undef,
+        identity_condition  => undef,
+        relation_condition  => +{},
+        primary_cache_key   => undef,
+        unique_cache_keys   => [],
+        save_many_to_many   => [],
+        remove_many_to_many => [],
     }, $class;
     $INSTANCES{refaddr($instance)} = $self;
     $self->initialize;
@@ -116,6 +118,7 @@ sub status       { $_[0]->{status} }
 sub change_status {
     my $self = shift;
     my $status_name = shift;
+    return if $self->status eq $status_name;
 
     if ( $STATUS{$status_name}
         and grep { $_ eq $status_name } @{$STATUS{ $self->status }} )
@@ -324,14 +327,15 @@ sub update {
 
     my $result;
     try {
+        my $new_val;
         if( keys %$modified_data ) {
             $result = $class_mapper->table->update->set(%$modified_data)
                 ->where(@$uniq_cond)->execute();
+            $new_val = Data::ObjectMapper::Utils::merge_hashref(
+                $reduce_data,
+                $modified_data
+            );
         }
-        my $new_val = Data::ObjectMapper::Utils::merge_hashref(
-            $reduce_data,
-            $modified_data
-        );
 
         for my $prop_name ( $class_mapper->attributes->property_names ) {
             my $prop = $class_mapper->attributes->property($prop_name);
@@ -341,7 +345,27 @@ sub update {
             }
         }
 
-        $self->modify($new_val);
+        for my $smm ( @{$self->{save_many_to_many}} ) {
+            my $prop = $class_mapper->attributes->property($smm->{name});
+            next unless $prop->type eq 'relation';
+            $prop->{isa}->many_to_many_add(
+                $smm->{name},
+                $self,
+                $self->get($smm->{mapper_addr})->instance,
+            );
+        }
+
+        for my $rmm ( @{$self->{remove_many_to_many}} ) {
+            my $prop = $class_mapper->attributes->property($rmm->{name});
+            next unless $prop->type eq 'relation';
+            $prop->{isa}->many_to_many_remove(
+                $rmm->{name},
+                $self,
+                $self->get($rmm->{mapper_addr})->instance,
+            );
+        }
+
+        $self->modify($new_val) if $new_val;
         $self->{is_modified} = 0;
         $self->{modified_data} = +{};
     } catch {
@@ -355,6 +379,7 @@ sub update {
 
 sub save {
     my ( $self ) = @_;
+
     confess 'it need to be "pending" status.' unless $self->is_pending;
     my $reduce_data = $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
@@ -415,6 +440,58 @@ sub delete {
 
     $self->change_status('detached');
     return $result;
+}
+
+sub add_multi_val {
+    my $self = shift;
+    my $name = shift;
+    my $obj  = shift;
+
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $prop = $class_mapper->attributes->property($name) || return;
+    return unless $prop->type eq 'relation';
+
+    if ( $prop->{isa}->type eq 'many_to_many'
+        and ( $obj->__mapper__->is_transient || $obj->__mapper__->is_pending )
+        )
+    {
+        my $mapper_addr = refaddr($obj);
+        $self->_regist_many_to_many_event( $name, $mapper_addr, 'save' );
+    }
+    else {
+        $self->unit_of_work->add($obj);
+    }
+}
+
+sub remove_multi_val {
+    my $self = shift;
+    my $name = shift;
+    my $obj  = shift;
+
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $prop = $class_mapper->attributes->property($name) || return;
+
+    return unless $prop->type eq 'relation';
+
+    if (    $prop->{isa}->type eq 'many_to_many'
+        and $obj->__mapper__->is_persistent )
+    {
+        my $mapper_addr  = refaddr($obj);
+        $self->_regist_many_to_many_event($name, $mapper_addr, 'remove');
+    }
+    else {
+        $self->unit_of_work->delete($obj);
+    }
+}
+
+sub _regist_many_to_many_event {
+    my $self = shift;
+    my ($name, $mapper_addr, $event) = @_;
+    $self->{is_modified} = 1;
+    push @{$self->{$event . '_many_to_many'}}, {
+        name => $name,
+        mapper_addr => $mapper_addr,
+    };
 }
 
 sub demolish {

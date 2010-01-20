@@ -5,32 +5,28 @@ use Scalar::Util qw(refaddr weaken);
 use base qw(Tie::Array);
 
 sub new {
-    my ( $class, $mapper, @val ) = @_;
+    my ( $class, $name, $mapper, @val ) = @_;
     my $array;
-    tie @$array, $class, $mapper;
+    tie @$array, $class, $name, $mapper;
     push @$array, @val;
     return $array;
 }
 
 sub TIEARRAY {
     my $class = shift;
+    my $name = shift;
     my $mapper = shift;
-    my $uow = $mapper->unit_of_work;
 
     my $self = bless {
         value      => +[],
-        uowaddr    => refaddr($uow),
-        uow        => ref($uow),
-        mapperaddr => refaddr($mapper),
+        name       => $name,
+        mapperaddr => refaddr($mapper->instance),
         mapper     => ref($mapper),
     }, $class;
     return $self;
 }
 
-sub uow {
-    my $self = shift;
-    return $self->{uow}->instance( $self->{uowaddr} );
-}
+sub name { $_[0]->{name} }
 
 sub mapper {
     my $self = shift;
@@ -39,17 +35,23 @@ sub mapper {
 
 sub _remove {
     my $self = shift;
-    if ( my $uow = $self->uow ) {
-        $uow->delete($_) for grep { defined $_ } @_;
+
+    if( my $mapper = $self->mapper ) {
+        $mapper->remove_multi_val( $self->name, $_ )
+            for grep { defined $_ } @_;
     }
+
     return @_;
 }
 
 sub _add {
     my $self = shift;
-    if ( my $uow = $self->uow ) {
-        $uow->add($_) for grep { defined $_ } @_;
+
+    if( my $mapper = $self->mapper ) {
+        $mapper->add_multi_val( $self->name, $_ )
+            for grep { defined $_ } @_;
     }
+
     return @_;
 }
 
