@@ -1,6 +1,7 @@
 ---
-abstract: ~
-author: ~
+abstract: 'object-relational mapper and database toolkit.'
+author:
+  - 'Eisuke Oishi'
 build_requires:
   DBD::SQLite: 1.14
   DateTime::Format::SQLite: 0
@@ -49,4 +50,4 @@ requires:
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
-version: undef
+version: 0.1001

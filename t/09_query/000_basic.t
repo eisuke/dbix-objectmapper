@@ -41,13 +41,13 @@ is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
 
 { # insert
     ok my $a1
-        = $query->insert->table('artist')->values( name => 'add1' )->execute();
+        = $query->insert->into('artist')->values( name => 'add1' )->execute();
     ok my $a2
-        = $query->insert->table('artist')->values( name => 'add2' )->execute(['id']);
+        = $query->insert->into('artist')->values( name => 'add2' )->execute(['id']);
     ok $a2->{id};
 
     dies_ok {
-        $query->insert->table('artist')->values( hoge => 'hoge' )->execute;
+        $query->insert->into('artist')->values( hoge => 'hoge' )->execute;
     };
 };
 

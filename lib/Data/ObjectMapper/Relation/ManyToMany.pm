@@ -71,6 +71,8 @@ sub cascade_save {
     my $mapper = shift;
     my $instance = shift;
 
+    return unless $self->is_cascade_save_update;
+
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
 

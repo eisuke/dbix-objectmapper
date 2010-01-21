@@ -87,7 +87,7 @@ use Try::Tiny;
     # insert
     is_deeply { id => 1, t => 'texttext', key1 => 1, key2 => 1 },
         $dr->insert(
-        {   table  => 'test1',
+        {   into   => 'test1',
             values => {
                 t    => 'texttext',
                 key1 => 1,
@@ -132,7 +132,7 @@ use Try::Tiny;
     $dr->transaction(
         sub{
             my $res = $dr->insert(
-                $dr->query->insert->table('test1')->values(
+                $dr->query->insert->into('test1')->values(
                     t => 'texttext2',
                     key1 => 3,
                     key2 => 3,
@@ -153,7 +153,7 @@ use Try::Tiny;
         $dr->transaction(
             sub{
                 my $res2 = $dr->insert({
-                    table => 'test1',
+                    into   => 'test1',
                     values => {
                         t => 'texttext3',
                         key1 => 4,
@@ -180,7 +180,7 @@ use Try::Tiny;
     $dr->transaction(
         sub{
             $dr->insert({
-                table => 'test1',
+                into   => 'test1',
                 values => {
                     t => 'texttext_txn_do',
                     key1 => 5,
@@ -188,7 +188,7 @@ use Try::Tiny;
                 },
             },['id']);
             $dr->insert({
-                table => 'test1',
+                into   => 'test1',
                 values => {
                     t => 'texttext_txn_do',
                     key1 => 6,
@@ -213,7 +213,7 @@ use Try::Tiny;
                 sub{
                     $dr->delete({ table => 'test1', where => [ [ 'id', 1 ]] });
                     $dr->insert({
-                        table => 'test2',
+                        into   => 'test2',
                         values => {
                             t => 'texttext_txn_do_fail',
                             key1 => 7,

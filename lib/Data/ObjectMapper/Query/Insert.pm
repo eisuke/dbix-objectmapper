@@ -16,7 +16,7 @@ sub new {
 {
     no strict 'refs';
     my $pkg = __PACKAGE__;
-    for my $meth ( qw( table values add_table add_values ) ) {
+    for my $meth ( qw( into values add_values ) ) {
         *{"$pkg\::$meth"} = sub {
             my $self = shift;
             $self->builder->$meth(@_);

@@ -632,7 +632,7 @@ sub insert {
     return $self->query_object->insert(
         $self->_insert_query_callback,
         $self->primary_key
-    )->table( $self->table_name );
+    )->into( $self->table_name );
 }
 
 sub _insert_query_callback {

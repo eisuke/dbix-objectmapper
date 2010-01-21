@@ -26,6 +26,7 @@ __PACKAGE__->accessors({
 
 sub as_sql {
     my $self = shift;
+    my $mode = shift;
 
     my @bind;
     my ($from, @from_bind) = $self->from_as_sql;
@@ -59,6 +60,10 @@ sub as_sql {
         if( my $add_stm = $self->${method}() ) {
             $stm .= $add_stm;
         }
+    }
+
+    if( $mode and $mode eq 'parts' ) {
+        $stm = '( ' . $stm . ' )';
     }
 
     return wantarray ? ($stm, @bind) : $stm;

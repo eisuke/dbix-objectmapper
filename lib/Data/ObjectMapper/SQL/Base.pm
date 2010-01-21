@@ -131,7 +131,9 @@ sub convert_columns_to_sql {
 sub convert_func_to_sql {
     my ($class, $func) = @_;
     return unless $func;
-    return $func unless $func and ref $func eq 'HASH';
+    return $func unless ref $func;
+    return $$func if ref $func eq 'SCALAR';
+    return $func unless ref $func eq 'HASH';
 
     my $key   = ( keys %$func )[0];
     my $value = $func->{$key};
@@ -145,7 +147,11 @@ sub convert_func_to_sql {
 
 sub convert_column_alias_to_sql {
     my ($class, $param) = @_;
-    return $param unless $param and ref $param eq 'ARRAY';
+    return $param unless $param;
+    return $param unless ref $param;
+    return $$param if ref $param eq 'SCALAR';
+    return $param unless ref $param eq 'ARRAY';
+
     my $col = $class->convert_func_to_sql( $param->[0] );
     my $alias = $param->[1];
     if( $col and $alias ) {
@@ -181,9 +187,10 @@ sub convert_table_to_sql {
         push @bind, @t_bind if @t_bind;
     }
     elsif( ref $table eq 'Data::ObjectMapper::SQL::Select' ) {
-        my ( $sub_stm, @sub_bind ) = $table->as_sql;
-        $stm = '( ' . $sub_stm . ' )';
-        @bind = @sub_bind;
+        ( $stm, @bind ) = $table->as_sql('parts');
+    }
+    elsif( ref $table eq 'SCALAR' ) {
+        $stm = $$table;
     }
     else {
         $stm = $table . q{};
@@ -249,12 +256,16 @@ sub convert_conditions_to_sql {
         elsif( ref $w eq 'HASH' ) {
             my $op   = ( keys %$w )[0];
             my $cond = $w->{$op};
+
             if ( my ( $stm_op, @bind_op ) =
                 $class->convert_conditions_to_sql( $op, @{$cond} ) )
             {
                 $stm .= $stm_op;
                 push @bind, @bind_op;
             }
+        }
+        elsif( ref $w eq 'SCALAR' ) {
+            $stm .= $$w;
         }
         else {
             $stm .= $w;
@@ -281,9 +292,20 @@ sub convert_condition_to_sql {
                 or lc( $w->[1] ) =~ /^\s*(?:not\s*)*in\s*$/ )
             {
                 $stm .= ' NOT' if $w->[1] eq '!=' or $w->[1] =~ /not/;
-                $stm .= ' IN (' . join(',', ('?') x @{$w->[2]} ) . ')';
-                push @bind,
-                  map { $class->convert_val_to_sql_format($_) } @{ $w->[2] };
+                $stm .= ' IN (';
+                my @stm_in;
+                for my $v ( @{$w->[2]} ) {
+                    if( ref $v eq 'Data::ObjectMapper::SQL::Select' ) {
+                        my ( $sub_stm, @sub_bind ) = $v->as_sql('parts');
+                        push @stm_in, $sub_stm;
+                        push @bind, @sub_bind;
+                    }
+                    else {
+                        push @bind, $class->convert_val_to_sql_format($v);
+                        push @stm_in, '?';
+                    }
+                }
+                $stm .= join(',', @stm_in ) . ')';
             }
             elsif( uc($w->[1]) eq 'BETWEEN' and @{$w->[2]} == 2 ) {
                 $stm .= ' BETWEEN ? AND ?';
@@ -313,9 +335,32 @@ sub convert_condition_to_sql {
             $stm .= ' ' . uc($w->[1]) . ' ?';
             push @bind, $class->convert_val_to_sql_format($w->[2]);
         }
+        elsif( ref $w->[2] eq 'Data::ObjectMapper::SQL::Select' ) {
+            my ( $sub_stm, @sub_bind ) = $w->[2]->as_sql('parts');
+            $stm .= ' ' . uc($w->[1]) . ' ' . $sub_stm;
+            push @bind, @sub_bind;
+        }
+        elsif( ref $w->[2] eq 'HASH' ) {
+            my ( $sub_stm, @sub_bind )
+                = $class->convert_condition_to_sql( [ $w->[2] ] );
+            $stm .= ' ' .uc($w->[1]) . ' ' . $sub_stm;
+            push @bind, @sub_bind;
+        }
         else {
             $stm .= ' ' . uc($w->[1]) . ' ?';
             push @bind, $w->[2];
+        }
+    }
+    elsif( @$w == 1 and ref $w->[0] eq 'HASH' ) {
+        my $key = ( keys %{$w->[0]} )[0];
+        my $val = $w->[0]->{$key};
+        if( ref($val) eq 'Data::ObjectMapper::SQL::Select' ) {
+            my ( $sub_stm, @sub_bind ) = $val->as_sql('parts');
+            $stm = q{}; #reset;
+            $stm .= uc($key) . $sub_stm;
+            push @bind, @sub_bind;
+        }
+        else {
         }
     }
     else {

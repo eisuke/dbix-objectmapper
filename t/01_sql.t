@@ -126,7 +126,7 @@ SELECT a, b, c, d, SUM(d) FROM table WHERE ( a = ? AND SUM(d) > ? AND text @@ ? 
 === INSERT
 --- input
 Data::ObjectMapper::SQL->insert(
-    table => 'hoge',
+    into   => 'hoge',
     values => {
         a => 1,
         b => 2,
@@ -140,7 +140,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?) <= 1,2,3,4
 === INSERT SELECT
 --- input
 Data::ObjectMapper::SQL->insert()
-->table('hoge')
+->into('hoge')
 ->values(
     [ qw(a b c d) ] => Data::ObjectMapper::SQL->select
                     ->from('hoge2')
@@ -155,7 +155,7 @@ INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <=
 === INSERT SELECT add
 --- input
 my $sql = Data::ObjectMapper::SQL->insert();
-$sql->add_table('hoge');
+$sql->into('hoge');
 $sql->add_values(
     [ qw(a b c d) ] => Data::ObjectMapper::SQL->select
                     ->from('hoge2')
@@ -168,10 +168,10 @@ return $sql;
 --- expected
 INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <= 1,2
 
-=== INSERT MULTI
+=== INSERT MULTI ARRAY
 --- input
 Data::ObjectMapper::SQL->insert()
-->table('hoge')
+->into('hoge')
 ->values(
     [ qw(a b c d) ],
     [ qw(1 2 3 4) ],
@@ -181,10 +181,23 @@ Data::ObjectMapper::SQL->insert()
 --- expected
 INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,4,5,6,7,8,9,10,11,12
 
+=== INSERT MULTI HASH
+--- input
+Data::ObjectMapper::SQL->insert()
+->into('hoge')
+->values(
+    { a => 1, b => 2, c => 3, d => 4 },
+    { a => 5, b => 6, c => 7, d => 8 },
+    { a => 9, b => 10, c => 11, d => 12},
+);
+--- expected
+INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,4,5,6,7,8,9,10,11,12
+
+
 === INSERT MULTI ADD
 --- input
 my $sql = Data::ObjectMapper::SQL->insert();
-$sql->add_table('hoge');
+$sql->into('hoge');
 $sql->add_values(
     [ qw(a b c d) ],
     [ qw(1 2 3 4) ],
@@ -198,7 +211,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,
 === INSERT ADD
 --- input
 my $sql = Data::ObjectMapper::SQL->insert();
-$sql->table('foo');
+$sql->into('foo');
 $sql->values( a => 1, b => 2 );
 $sql->add_values( c => 3 );
 
@@ -292,7 +305,7 @@ SELECT * FROM array_test WHERE ( a = ? ) <= {1,2}
 
 === ARRAY INSERT FOR PG
 --- input
-Data::ObjectMapper::SQL->insert->table('array_test')->values( id => 1, array_field => [1,2]);
+Data::ObjectMapper::SQL->insert->into('array_test')->values( id => 1, array_field => [1,2]);
 --- expected
 INSERT INTO array_test ( array_field, id ) VALUES (?,?) <= {1,2},1
 
@@ -354,3 +367,58 @@ Data::ObjectMapper::SQL->new('Pg')->union->sets(
 --- expected
 ( SELECT id, name FROM table1 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table2 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table3 WHERE ( id = ? ) ) GROUP BY id ORDER BY id LIMIT 10 OFFSET 100 <= 1,1,1
 
+=== SUBQUERY1
+--- input
+my $sql = Data::ObjectMapper::SQL->select->column(qw(id text))->from('parent')->join(
+  [
+   [
+    Data::ObjectMapper::SQL->select->from('child')->where( [ 'id', '>', 10 ] ),
+    'c',
+   ],
+    [ [ 'parent.id', \'c.parent_id' ] ],
+  ]
+)->where( [ 'parent_id', 1 ] );
+
+$sql;
+--- expected
+SELECT id, text FROM parent LEFT OUTER JOIN ( SELECT * FROM child WHERE ( id > ? ) ) AS c ON ( parent.id = c.parent_id ) WHERE ( parent_id = ? ) <= 10,1
+
+=== SUBQUERY2
+--- input
+Data::ObjectMapper::SQL->select->column('col1')->from('tab1')->where(
+    [ { exists => Data::ObjectMapper::SQL->select->column('1')->from('tab2')->where( [ 'col2', \'tab1.col2'] ) } ]
+);
+--- expected
+SELECT col1 FROM tab1 WHERE ( EXISTS( SELECT 1 FROM tab2 WHERE ( col2 = tab1.col2 ) ) ) <= 
+
+=== SUBQUERY3
+--- input
+Data::ObjectMapper::SQL->select->from('testm')->where(
+    [
+       'key',
+       '=',
+        [ Data::ObjectMapper::SQL->select->column({distinct => 'code1'})
+          ->from('test2m')->where( ['code1', 'like', 'a%']) ]
+    ]
+);
+--- expected
+SELECT * FROM testm WHERE ( key IN (( SELECT DISTINCT(code1) FROM test2m WHERE ( code1 LIKE ? ) )) ) <= a%
+
+=== SUBQUERY4
+--- input
+Data::ObjectMapper::SQL->select->from('testm')->where(
+   [
+       'key',
+       '>',
+       { any => Data::ObjectMapper::SQL->select->column({distinct => 'code1'})->from('test2m')->where( [ 'code1', 'like', 'a%'] ) }
+   ]
+);
+--- expected
+SELECT * FROM testm WHERE ( key > ANY( SELECT DISTINCT(code1) FROM test2m WHERE ( code1 LIKE ? ) ) ) <= a%
+
+=== DIRECT input
+--- input
+Data::ObjectMapper::SQL->select->from('table')->where( \'id=1', [ 'cd', 1 ] );
+
+--- expected
+SELECT * FROM table WHERE ( id=1 AND cd = ? ) <= 1

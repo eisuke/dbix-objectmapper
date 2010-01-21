@@ -1,16 +1,16 @@
 package Data::ObjectMapper::SQL::Insert;
 use strict;
 use warnings;
-use Carp;
+use Carp::Clan;
 use base qw(Data::ObjectMapper::SQL::Base);
 
 __PACKAGE__->initdata({
-    table  => undef,
+    into   => undef,
     values => {},
 });
 
 __PACKAGE__->accessors({
-    convert_table_to_sql => [qw(table)],
+    convert_table_to_sql => [qw(into)],
 });
 
 sub values {
@@ -19,11 +19,18 @@ sub values {
         if ( ref $_[0] eq 'ARRAY' ) {
             $self->{values} = \@_;
         }
-        elsif( @_ % 2 == 0 ) {
+        elsif( ref $_[0] eq 'HASH' and @_ > 1 ) {
+            my @values = $self->_convert_insert_values_hash_to_array(@_);
+            $self->{values} = \@values;
+        }
+        elsif( @_ > 1 and @_ % 2 == 0 ) {
             $self->{values} = {@_};
         }
-        elsif( @_ == 1 ) {
+        elsif( @_ == 1 and ref $_[0] eq 'HASH' ) {
             $self->{values} = $_[0];
+        }
+        else {
+            confess "Invalid Argument";
         }
 
         return $self;
@@ -32,15 +39,40 @@ sub values {
     return $self->{values};
 }
 
+sub _convert_insert_values_hash_to_array {
+    my $self = shift;
+    my @keys = sort keys %{$_[0]};
+    my @values = ( \@keys );
+    for my $hash ( @_ ) {
+        my @val = map{ $hash->{$_} } @keys;
+        push @values, \@val;
+    }
+    return @values;
+}
+
 sub add_values {
     my $self = shift;
+
     if ( ref $_[0] eq 'ARRAY' ) {
-        $self->values(@_);
+        $self->{values} = [] unless ref $self->{values} eq 'ARRAY';
+        push @{$self->{values}}, @_;
     }
-    elsif ( @_ % 2 == 0 ) {
+    elsif( ref $_[0] eq 'HASH' and @_ > 1 ) {
+        my @values = $self->_convert_insert_values_hash_to_array(@_);
+        $self->add_values(\@values);
+    }
+    elsif ( @_ > 1 and @_ % 2 == 0 ) {
         my %values = @_;
         $self->{values}{$_} = $values{$_} for keys %values;
     }
+    elsif( @_ == 1 and ref $_[0] eq 'HASH' ) {
+        $self->add_values(%{$_[0]});
+    }
+    else {
+        confess "Invalid Argument";
+    }
+
+    $self;
 }
 
 sub _values_as_sql {
@@ -90,7 +122,7 @@ sub as_sql {
     my $self = shift;
     my ($stm, @bind);
 
-    my ( $table_name, @no_bind ) = $self->table_as_sql;
+    my ( $table_name, @no_bind ) = $self->into_as_sql;
     $stm = 'INSERT INTO ' . $table_name;
 
     my ($value_stm, @value_bind) = $self->_values_as_sql($self->{values});

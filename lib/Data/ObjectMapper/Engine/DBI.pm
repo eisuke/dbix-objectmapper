@@ -295,7 +295,7 @@ sub insert {
             unless ( defined $query->{values}->{$pk} ) {
                 $ret_id->{$pk} = $self->driver->last_insert_id(
                     $self->dbh,
-                    $query->table,
+                    $query->into,
                     $pk
                 );
             }
