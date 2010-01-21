@@ -15,15 +15,16 @@ sub new {
     my $mapper = $mapped_class->__class_mapper__;
     my $query  = $mapper->table->select;
     return bless {
-        mapped_class  => $mapped_class,
-        mapper        => $mapper,
-        unit_of_work  => $uow,
-        query         => $query,
-        is_multi      => 0,
-        option        => $option,
-        alias_table   => +{},
-        org_column    => $query->builder->column,
-        join_struct   => +{},
+        mapped_class     => $mapped_class,
+        mapper           => $mapper,
+        unit_of_work     => $uow,
+        query            => $query,
+        is_multi         => 0,
+        option           => $option,
+        alias_table      => +{},
+        org_column       => $query->builder->column,
+        join_struct      => +{},
+        set_default_cond => 0,
     }, $class;
 }
 
@@ -50,6 +51,7 @@ sub reset_column {
                        add_where add_order_by add_group_by ) ) {
         *{"$pkg\::$meth"} = sub {
             my $self = shift;
+            $self->{set_default_cond} = 0 if $meth eq 'where';
             $self->_query->$meth(@_);
             return $self;
         };
@@ -61,6 +63,12 @@ sub reset_column {
             my $uow           = $self->unit_of_work;
             my $mapper        = $self->mapper;
             my $orig_callback = $self->_query->callback;
+
+            unless( $self->{set_default_cond} ) {
+                $self->_query->add_where( @{$mapper->default_condition} );
+                $self->{set_default_cond} = 1;
+            }
+
             local $self->_query->{callback} = sub {
                 return $uow->add_storage_object(
                     $mapper->mapping( $orig_callback->(@_), $uow ) );
@@ -232,6 +240,12 @@ sub execute {
 
     $self->_query->group_by( @{ $self->mapper->table->columns } )
         if (keys %{$self->{alias_table}}) > 0 and !$self->is_multi;
+
+    unless( $self->{set_default_cond} ) {
+        $self->_query->add_where( @{$self->mapper->default_condition} );
+        $self->{set_default_cond} = 1;
+    }
+
     my $join = $self->_query->builder->join || [];
     if( @$join ) {
         for my $meth ( qw(where order_by group_by) ) {

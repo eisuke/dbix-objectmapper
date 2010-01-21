@@ -90,6 +90,7 @@ sub new {
 
     $self->{table} = $option{table};
     $self->{mapped_class} = $option{mapped_class};
+    $self->{default_condition} = $option{default_condition};
 
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
@@ -114,7 +115,8 @@ sub _init_attributes_config {
 {
     no strict 'refs';
     my $package = __PACKAGE__;
-    for my $meth (qw(table mapped_class attributes accessors constructor)) {
+    for my $meth (qw(table mapped_class attributes accessors
+                     constructor default_condition)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
@@ -275,7 +277,7 @@ sub mapping {
 
 sub find {
     my $self = shift;
-
+    my @where = @_;
     my @column;
     for my $prop_name ( $self->attributes->property_names ) {
         my $prop = $self->attributes->property($prop_name);
@@ -283,7 +285,8 @@ sub find {
         push @column, $prop->{isa};
     }
 
-    my $it = $self->table->select->column(@column)->where(@_)->execute;
+    push @where, @{$self->default_condition};
+    my $it = $self->table->select->column(@column)->where(@where)->execute;
     return unless $it;
     return $self->mapping($it->next);
 }
