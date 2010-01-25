@@ -3,9 +3,33 @@
 ======
 
 * Column::Typeの実装
-* queryで、SCALAR REFの場合はそのまま文字列をわたす
+
+INT(INTEGER)
+CHAR
+VARCHAR
+TEXT
+FLOAT
+NUMERIC
+DECIMAL
+TIMESTAMP
+DATETIME
+CLOB
+BLOB
+BOOLEAN
+SMALLINT
+DATE
+TIME
+
+
+
+
+
+
+
+
+===
+
 * SQL - exists,any,in support
-* SQL - subquery check
 * Data::ObjectMapper -> DBIx::ObjectMapper ? DBIx::DataMapper?
 
 ===
