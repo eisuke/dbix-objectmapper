@@ -137,7 +137,7 @@ sub to_storage {
                 $val = $default->();
             }
             else {
-                #$val = $default; XXXX
+                $val = \$default;
             }
         }
     }

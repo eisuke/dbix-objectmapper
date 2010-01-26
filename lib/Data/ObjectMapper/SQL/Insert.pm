@@ -80,18 +80,24 @@ sub _values_as_sql {
     my $values = shift;
 
     if ( ref $values eq 'HASH' ) {
-        my ( @col, @val );
+        my ( @col, @val, @bind );
 
         for my $key ( sort keys %$values ) {
             push @col, $key;
-            push @val, $self->convert_val_to_sql_format( $values->{$key} );
+            if( ref $values->{$key} eq 'SCALAR' ) {
+                push @val, ${$values->{$key}};
+            }
+            else {
+                push @val, '?';
+                push @bind, $self->convert_val_to_sql_format( $values->{$key} );
+            }
         }
 
         return sprintf(
             " ( %s ) VALUES (%s)",
             join( ', ', @col ),
-            join( ',', ('?') x @val )
-        ), @val;
+            join( ',', @val )
+        ), @bind;
     }
     elsif ( ref $values eq 'ARRAY' ) {
         if ( ref $values->[1] eq 'ARRAY' ) {
@@ -100,8 +106,19 @@ sub _values_as_sql {
             my @multi_stm;
             my @bind_val;
             for my $v ( @$values ) {
-                push @multi_stm, sprintf("(%s)", join(',', ('?') x @$v));
-                push @bind_val, @$v;
+                my ( @val, @bind );
+                for my $vv ( @$v ) {
+                    if( ref $vv eq 'SCALAR' ) {
+                        push @val, $$vv;
+                    }
+                    else {
+                        push @val, '?';
+                        push @bind, $self->convert_val_to_sql_format($vv);
+                    }
+                }
+
+                push @multi_stm, sprintf( "(%s)", join( ',', @val ) );
+                push @bind_val, @bind;
             }
             $stm .= join(', ', @multi_stm );
             return $stm, @bind_val;

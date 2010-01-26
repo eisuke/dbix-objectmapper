@@ -137,6 +137,20 @@ Data::ObjectMapper::SQL->insert(
 --- expected
 INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?) <= 1,2,3,4
 
+=== INSERT2
+--- input
+Data::ObjectMapper::SQL->insert(
+    into   => 'hoge',
+    values => {
+        id => \'nextval(\'hoge_seq\')',
+        b => 2,
+        c => 3,
+        d => 4,
+    }
+);
+--- expected
+INSERT INTO hoge ( b, c, d, id ) VALUES (?,?,?,nextval('hoge_seq')) <= 2,3,4
+
 === INSERT SELECT
 --- input
 Data::ObjectMapper::SQL->insert()
