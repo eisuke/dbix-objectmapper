@@ -268,6 +268,13 @@ Data::ObjectMapper::SQL->update->table('foo')->set( a => 1 )->where( [qw(c 1)] )
 --- expected
 UPDATE foo SET a = ? WHERE ( c = ? ) <= 1,1
 
+=== UPDATE DIRECT
+--- input
+Data::ObjectMapper::SQL->update->table('foo')->set( a => \'a + 1', b => 1 )->where( [qw(c 1)] );
+--- expected
+UPDATE foo SET a = a + 1 , b = ? WHERE ( c = ? ) <= 1,1
+
+
 === DELETE
 --- input
 Data::ObjectMapper::SQL->delete(

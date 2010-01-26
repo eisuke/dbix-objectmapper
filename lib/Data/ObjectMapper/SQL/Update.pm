@@ -41,8 +41,13 @@ sub set_as_sql {
     my @key;
     my @bind;
     for my $key ( keys %{$self->{set}} ) {
-        push @key, $key . ' = ?';
-        push @bind, $self->convert_val_to_sql_format($self->{set}{$key});
+        if( ref $self->{set}{$key} eq 'SCALAR' ) {
+            push @key, $key . ' = ' . ${$self->{set}{$key}};
+        }
+        else {
+            push @key, $key . ' = ?';
+            push @bind, $self->convert_val_to_sql_format($self->{set}{$key});
+        }
     }
     return join( ' , ', @key ), @bind;
 }
