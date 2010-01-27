@@ -2,7 +2,7 @@ package Data::ObjectMapper::Mapper;
 use strict;
 use warnings;
 use Carp::Clan;
-
+use Clone;
 use List::MoreUtils;
 use Scalar::Util qw(blessed weaken);
 use Digest::MD5 qw(md5_hex);
@@ -47,7 +47,8 @@ use Data::ObjectMapper::Mapper::Attribute;
     sub DESTROY {
         my $self = shift;
         warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
-        delete $INITIALIZED_CLASSES{$self->mapped_class};
+        delete $INITIALIZED_CLASSES{ $self->mapped_class }
+            if $self->mapped_class;
     }
 };
 
@@ -60,13 +61,26 @@ sub new {
     }
 
     my $self = bless {
-        table         => undef,
-        mapped_class  => undef,
-        attributes    => +{},
-        accessors     => +{},
-        constructor   => +{},
-        mapped        => 0,
+        table        => undef,
+        mapped_class => undef,
+        attributes   => +{},
+        accessors    => +{},
+        constructor  => +{},
+        input_option => +{},
+        mapped       => 0,
     }, $class;
+
+    if( ref $_[0] eq $class ) {
+        my $orig_mapper = shift;
+        my $mapped_class = shift;
+        my $orig_option = Clone::clone($orig_mapper->{input_option});
+        my %input_option = @_;
+        my $option = Data::ObjectMapper::Utils::merge_hashref(
+            Clone::clone($orig_mapper->{input_option}),
+            \%input_option,
+        );
+        return $class->new( $orig_mapper->table => $mapped_class, %$option );
+    }
 
     unshift @_, 'table';
     splice @_, 2, 0, 'mapped_class';
@@ -84,8 +98,6 @@ sub new {
             constructor       => { type => HASHREF, default => +{} },
             default_condition => { type => ARRAYREF, default => +[] },
             default_value     => { type => HASHREF, default => +{} },
-            # XXX TODO
-            # inherit          => { type => OBJECT, isa => 'Data::ObjectMapper::Mapper' }
         }
     );
 
@@ -93,6 +105,10 @@ sub new {
     $self->{mapped_class} = $option{mapped_class};
     $self->{default_condition} = $option{default_condition};
     $self->{default_value} = $option{default_value};
+    $self->{input_option} = +{
+        map { $_ => $option{$_} } qw(constructor attributes accessors
+                                     default_value default_condition)
+    };
 
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
