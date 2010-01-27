@@ -146,7 +146,12 @@ sub _initialize {
         Class::MOP::load_class( $self->mapped_class );
     }
 
-    my $meta = Class::MOP::Class->create($self->mapped_class);
+    my $inline_constructor = 1;
+    my $meta = Class::MOP::get_metaclass_by_name($self->mapped_class) || do {
+        $inline_constructor = 0;
+        Class::MOP::Class->create($self->mapped_class);
+    };
+
     $meta->make_mutable if $meta->is_immutable; ## may be Moose Class
 
     $meta->add_method( '__class_mapper__' => sub { $self } );
@@ -255,9 +260,10 @@ sub _initialize {
     }
 
     $meta->make_immutable(
-        inline_constructor => 0,
+        inline_constructor => $inline_constructor,
         inline_accessors   => 0,
-    ); # XXXX Moose?
+        inline_destructor  => 0,
+    );
 
     $self->_set_initialized_class;
 }
