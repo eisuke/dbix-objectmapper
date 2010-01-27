@@ -14,7 +14,8 @@ sub new {
 
     my $mapper = $mapped_class->__class_mapper__;
     my $query  = $mapper->table->select;
-    return bless {
+
+    bless {
         mapped_class     => $mapped_class,
         mapper           => $mapper,
         unit_of_work     => $uow,

@@ -83,10 +83,8 @@ sub _as_sql_accessor {
 
 sub new {
     my $class = shift;
-    my $self = bless {
-        %{$class->initdata},
-    }, $class;
-
+    my $initdata = Clone::clone($class->initdata);
+    my $self = bless $initdata, $class;
     $self->_init(@_) if @_;
     return $self;
 }
@@ -424,6 +422,11 @@ sub clone {
     my $self = shift;
     my $clone_data = Clone::clone($self);
     return bless $clone_data, ref($self);
+}
+
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 
 1;

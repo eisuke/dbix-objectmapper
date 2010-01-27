@@ -383,10 +383,11 @@ sub save {
     confess 'it need to be "pending" status.' unless $self->is_pending;
     my $reduce_data = $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
+    my $data = { %$reduce_data, %{$class_mapper->default_value} };
 
     try {
         my $comp_result
-            = $class_mapper->table->insert->values(%$reduce_data)->execute();
+            = $class_mapper->table->insert->values(%$data)->execute();
         $self->modify($comp_result);
         $self->initialize;
 

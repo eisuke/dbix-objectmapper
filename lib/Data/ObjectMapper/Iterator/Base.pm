@@ -55,4 +55,9 @@ sub callback {
     }
 }
 
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
+}
+
 1;

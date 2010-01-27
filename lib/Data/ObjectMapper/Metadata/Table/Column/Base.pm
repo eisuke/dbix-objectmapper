@@ -164,4 +164,9 @@ sub from_storage {
     return $self->type->from_storage($val);
 }
 
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
+}
+
 1;

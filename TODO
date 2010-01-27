@@ -23,30 +23,6 @@ URI
 YAML
 
 
-=== db ==
-INT(INTEGER)
-CHAR
-VARCHAR
-TEXT
-FLOAT
-NUMERIC
-DECIMAL
-TIMESTAMP
-DATETIME
-CLOB
-BLOB
-BOOLEAN
-SMALLINT
-DATE
-TIME
-
-
-
-
-
-
-
-
 ===
 
 * SQL - exists,any,in support

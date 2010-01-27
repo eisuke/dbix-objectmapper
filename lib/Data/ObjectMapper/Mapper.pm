@@ -83,6 +83,7 @@ sub new {
             accessors         => { type => HASHREF, default => +{} },
             constructor       => { type => HASHREF, default => +{} },
             default_condition => { type => ARRAYREF, default => +[] },
+            default_value     => { type => HASHREF, default => +{} },
             # XXX TODO
             # inherit          => { type => OBJECT, isa => 'Data::ObjectMapper::Mapper' }
         }
@@ -91,6 +92,7 @@ sub new {
     $self->{table} = $option{table};
     $self->{mapped_class} = $option{mapped_class};
     $self->{default_condition} = $option{default_condition};
+    $self->{default_value} = $option{default_value};
 
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
@@ -116,7 +118,7 @@ sub _init_attributes_config {
     no strict 'refs';
     my $package = __PACKAGE__;
     for my $meth (qw(table mapped_class attributes accessors
-                     constructor default_condition)) {
+                     constructor default_condition default_value)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };

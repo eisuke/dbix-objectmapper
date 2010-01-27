@@ -742,6 +742,11 @@ sub clone {
 
 sub is_clone { ref($_[0]->{table_name}) eq 'ARRAY' }
 
+sub DESTROY {
+    my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
+}
+
 1;
 
 __END__
