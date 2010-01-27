@@ -19,7 +19,7 @@ my $mapper = Data::ObjectMapper->new(
     }),
 );
 
-my $artist = $mapper->metadata->table( artist => { autoload_column => 1 } );
+my $artist = $mapper->metadata->table( artist => 'autoload' );
 $mapper->metadata
     ->t('artist')
     ->insert

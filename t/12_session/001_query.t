@@ -16,7 +16,7 @@ my $mapper = Data::ObjectMapper->new(
     }),
 );
 
-my $artist = $mapper->metadata->table( artist => { autoload_column => 1 } );
+my $artist = $mapper->metadata->table( artist => 'autoload' );
 my @names = qw(a b c d e f g);
 $artist->insert->values({ name => $_ })->execute for @names;
 

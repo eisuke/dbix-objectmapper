@@ -1,9 +1,29 @@
-* session query join の条件を別途指定するテスト
-
-======
-
 * Column::Typeの実装
+=== generic ===
+String
+Text
+Integer
+SmallInteger
+BigInteger
+Numeric
+Float
+DateTime
+Date
+Time
+Interval
+Boolean
+Binary
+Storable
+Array
 
+
+==
+AutoIncrement
+URI
+YAML
+
+
+=== db ==
 INT(INTEGER)
 CHAR
 VARCHAR

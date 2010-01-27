@@ -2,7 +2,7 @@ package Data::ObjectMapper::Metadata::Table::Column::Base;
 use strict;
 use warnings;
 use Carp::Clan;
-use base qw(Class::Accessor::Fast Clone);
+use base qw(Clone);
 use Encode;
 use Scalar::Util;
 use Params::Validate qw(:all);
@@ -34,23 +34,32 @@ my $ATTRIBUTES = {
     name  => { type => SCALAR },
     table => { type => SCALAR },
     sep   => { type => SCALAR },
-    type  => { type => SCALAR },
-    size  => {
-        type     => SCALAR | UNDEF,
-        callback => sub { defined $_[0] ? $_[0] =~ /^\d+$/ : 1 }
+    type  => {
+        type => OBJECT,
+        isa  => 'Data::ObjectMapper::Metadata::Table::Column::Type'
     },
-    is_nullable => { type => BOOLEAN },
-    default     => { type => SCALAR | UNDEF | CODEREF | ARRAYREF },
-    on_update   => { type => SCALAR | UNDEF | CODEREF | ARRAYREF },
-    utf8        => { type => BOOLEAN  | UNDEF },
-    readonly    => { type => BOOLEAN  | UNDEF },
-    inflate     => { type => CODEREF  | UNDEF },
-    deflate     => { type => CODEREF  | UNDEF },
-    validation  => { type => CODEREF  | UNDEF },
+    is_nullable    => { type => BOOLEAN },
+    default        => { type => CODEREF|UNDEF, optional => 1 },
+    server_default => { type => SCALAR|UNDEF, optional => 1 },
+    server_check   => { type => SCALAR|UNDEF, optional => 1 },
+    on_update      => { type => CODEREF|UNDEF, optional => 1 },
+    readonly       => { type => BOOLEAN|UNDEF, optional => 1 },
+    from_storage   => { type => CODEREF|UNDEF, optional => 1 },
+    to_storage     => { type => CODEREF|UNDEF, optional => 1 },
+    validation     => { type => CODEREF|UNDEF, optional => 1 },
 };
 
-
-__PACKAGE__->mk_ro_accessors( map{ $_ } keys %$ATTRIBUTES );
+sub name           { $_[0]->{name} }
+sub table          { $_[0]->{table} }
+sub sep            { $_[0]->{sep} }
+sub type           { $_[0]->{type} }
+sub is_nullable    { $_[0]->{is_nullable} }
+sub default        { $_[0]->{default} }
+sub server_default { $_[0]->{server_default} }
+sub server_check   { $_[0]->{server_check} }
+sub on_update      { $_[0]->{on_update} }
+sub readonly       { $_[0]->{readonly} }
+sub validation     { $_[0]->{validation} }
 
 sub new {
     my $class = shift;
@@ -123,35 +132,25 @@ sub to_storage {
 
     if( $on_update ) {
         if( my $update = $self->on_update ) {
-            if( ref $update eq 'CODE' ) {
-                $val = $update->($val);
-            }
-            else {
-                $val = $update;
-            }
+            $val = $update->($val);
         }
     }
     else {
-        if( !defined $val and my $default = $self->default ) {
-            if( ref $default eq 'CODE' ) {
+        if( !defined $val ) {
+            if( my $default = $self->default ) {
                 $val = $default->();
             }
-            else {
-                $val = \$default;
+            elsif( my $server_default = $self->server_default ) {
+                $val = \$server_default;
             }
         }
     }
 
-    if( defined $val and my $deflate = $self->deflate ) {
-        $val = $deflate->($val);
+    if( defined $val and my $to_storage = $self->{to_storage} ) {
+        $val = $to_storage->($val);
     }
 
-
-    if( defined $val and $self->utf8 and Encode::is_utf8($val) ) {
-        $val = Encode::encode( 'utf8', $val )
-    }
-
-    return $val;
+    return $self->type->to_storage($val);
 }
 
 sub to_storage_on_update {
@@ -161,12 +160,8 @@ sub to_storage_on_update {
 
 sub from_storage {
     my ( $self, $val ) = @_;
-
-    $val = $self->inflate->($val) if $val and $self->inflate;
-    $val = Encode::decode( 'utf8', $val )
-        if $val and $self->utf8 and !Encode::is_utf8($val);
-
-    return $val;
+    $val = $self->{from_storage}->($val) if $val and $self->{from_storage};
+    return $self->type->from_storage($val);
 }
 
 1;

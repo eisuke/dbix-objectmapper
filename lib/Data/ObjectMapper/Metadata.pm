@@ -31,16 +31,19 @@ sub engine {
 sub table {
     my $self = shift;
 
-    if ( @_  == 2 ) {
-        my $table_name = shift;
-        my $attr = shift;
-        $attr->{engine} ||= $self->engine if $self->engine;
-        $self->{tables}{$table_name}
-            = Data::ObjectMapper::Metadata::Table->new( $table_name, $attr );
-    }
-    elsif( @_ == 1 ) {
+    if( @_ == 1 ) {
         my $table_name = shift;
         return $self->{tables}{$table_name};
+    }
+    elsif ( @_  == 2 || @_ == 3 ) {
+        my $table_name = shift;
+        my $col        = shift || [];
+        my $attr       = shift || +{};
+        $attr->{engine} ||= $self->engine if $self->engine;
+        $self->{tables}{$table_name} =
+            Data::ObjectMapper::Metadata::Table->new(
+                $table_name, $col, $attr
+            );
     }
     else {
         return $self->{tables};
@@ -53,7 +56,7 @@ sub autoload_all_tables {
     my $self   = shift;
     my $engine = $self->engine;
     my @tables = $engine->get_tables;
-    $self->table( $_ => { engine => $engine, autoload_column => 1 } )
+    $self->table( $_ => [], { engine => $engine, autoload => 1 } )
         for @tables;
     return @tables;
 }

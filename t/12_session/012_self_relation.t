@@ -16,11 +16,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
 
 my $mapper = Data::ObjectMapper->new( engine => $engine );
 
-my $bbs = $mapper->metadata->table(
-    'bbs' => {
-        autoload_column => 1,
-    }
-);
+my $bbs = $mapper->metadata->table( 'bbs' => 'autoload' );
 
 $bbs->insert->values($_)->execute for(
     { comment => 'first' },

@@ -45,6 +45,7 @@ requires:
   Log::Any: 0
   Params::Validate: 0
   Scalar::Util: 0
+  Sub::Exporter: 0
   Text::Balanced: 0
   Try::Tiny: 0
   perl: 5.8.1

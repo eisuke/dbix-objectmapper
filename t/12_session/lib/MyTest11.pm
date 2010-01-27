@@ -19,14 +19,10 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
 
 my $mapper = Data::ObjectMapper->new( engine => $engine );
 
-my $artist = $mapper->metadata->table(
-    artist => {
-        autoload_column => 1,
-    }
-);
+my $artist = $mapper->metadata->table( artist => 'autoload' );
 my $cd = $mapper->metadata->table(
-    cd => {
-        autoload_column => 1,
+    cd => 'autoload',
+    {
         foreign_key => {
             table => 'artist',
             keys => ['artist_id'],
@@ -35,8 +31,8 @@ my $cd = $mapper->metadata->table(
     }
 );
 my $track = $mapper->metadata->table(
-    track => {
-        autoload_column => 1,
+    track => 'autoload',
+    {
         foreign_key => {
             table => 'cd',
             keys => ['cd_id'],
@@ -45,9 +41,7 @@ my $track = $mapper->metadata->table(
     }
 );
 
-my $linernote = $mapper->metadata->table(
-    linernote => { autoload_column => 1 },
-);
+my $linernote = $mapper->metadata->table( linernote => 'autoload' );
 
 sub mapping {
     my $artist_mapper = $mapper->maps(

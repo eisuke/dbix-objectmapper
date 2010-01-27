@@ -16,11 +16,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
 
 my $mapper = Data::ObjectMapper->new( engine => $engine );
 
-my $lazy = $mapper->metadata->table(
-    'lazyload' => {
-        autoload_column => 1,
-    }
-);
+my $lazy = $mapper->metadata->table( 'lazyload' => 'autoload' );
 
 $lazy->insert->values($_)->execute for(
     { comment => 'first', add_comment1 => 'first add_comment1', add_comment2 => 'first add_comment2', add_comment3 => 'first add_comment3' },

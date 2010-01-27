@@ -2,25 +2,17 @@ use strict;
 use warnings;
 use Test::More qw(no_plan);
 use Data::ObjectMapper::Metadata;
+use Data::ObjectMapper::Metadata::Sugar qw(:all);
 use Data::ObjectMapper::Engine::DBI;
 
 {
     ok my $metadata = Data::ObjectMapper::Metadata->new;
 
     ok my $person = $metadata->table(
-        'person' => {
-            primary_key => ['id'],
-            column      => [
-                {   name        => 'id',
-                    type        => 'integer',
-                    is_nullable => 0,
-                },
-                {   name        => 'name',
-                    type        => 'text',
-                    is_nullable => 0,
-                },
-            ],
-        }
+        'person' => [
+            Col( id => Int(), PrimaryKey ),
+            Col( name => Text(), NotNull ),
+        ],
     );
 
     ok $metadata->table('person');

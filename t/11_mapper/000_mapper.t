@@ -22,9 +22,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
 });
 
 my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
-my $artist_table = $meta->table(
-    artist => { autoload_column => 1 }
-);
+my $artist_table = $meta->table( artist => 'autoload' );
 
 sub is_same_addr($$) {
     is Scalar::Util::refaddr($_[0]), Scalar::Util::refaddr($_[1]);

@@ -20,26 +20,14 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
 
 my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
 my $person = $meta->table(
-    'person' => {
-        autoload_column => 1,
-        column  => [
-            {   name    => 'created',
-                default => $now_func,
-
-                #validation  => $validation,
-            },
-            {   name      => 'modified',
-                on_update => $now_func,
-            }
-        ],
+    'person' => 'autoload',
+    {
+        default   => { created => $now_func },
+        on_update => { modified => $now_func }
     },
 );
 
-my $address = $meta->table(
-    address => {
-        autoload_column => 1,
-    },
-);
+my $address = $meta->table( address => 'autoload' );
 
 { #insert
     ok $person->insert->values(

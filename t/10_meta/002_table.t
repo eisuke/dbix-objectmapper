@@ -3,43 +3,23 @@ use warnings;
 use Test::More qw(no_plan);
 use Data::ObjectMapper::Engine::DBI;
 
-BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
-
+use Data::ObjectMapper::Metadata::Table;
+use Data::ObjectMapper::Metadata::Sugar qw(:all);
 
 {
-    my $now = sub { time() };
     my $inflate = sub{ 'inflate' };
     my $deflate = sub{ 'deflate' };
-    my $validation = sub{ 1 };
 
     ok my $meta = Data::ObjectMapper::Metadata::Table->new(
-        testmetadata => {
-            primary_key => ['id'],
-            column      => [
-                {   name        => 'id',
-                    type        => 'integer',
-                    is_nullable => 1,
-                    size        => 8,
-                },
-                {   name        => 'name',
-                    type        => 'text',
-                    is_nullable => 1,
-                    size        => 10000,
-                },
-                {   name        => 'created',
-                    type        => 'timestamp',
-                    is_nullable => 1,
-                    size        => '30',
-                    default     => $now,
-                    validation  => $validation,
-                },
-                {   name        => 'updated',
-                    type        => 'timestamp',
-                    is_nullable => 1,
-                    size        => '30',
-                    on_update   => $now,
-                },
-            ],
+        testmetadata => [
+            Col( id      => Int(), PrimaryKey, Readonly ),
+            Col( name    => Text(undef, utf8 => 1), NotNull ),
+            Col( cd      => String(3), NotNull, Unique ),
+            Col( r       => SmallInt(), NotNull, ForeignKey( 'refs' => 'col') ),
+            Col( created => DateTime(), Default{ time() }, Validation{ 1 } ),
+            Col( updated => DateTime(), OnUpdate{ time() } ),
+        ],
+        {
             unique_key      => [ 'name_uniq' => ['name'] ],
             foreign_key     => [
                 {
@@ -48,45 +28,49 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
                     refs  => ['id']
                 }
             ],
-            readonly_column => ['id'],
-            utf8_column     => ['name'],
-            column_default  => { name        => 'default' },
-            column_coerce   => {
+            readonly => ['id'],
+            utf8     => ['name'],
+            default  => { name => sub{ 'default' } },
+            coerce   => {
                 name => {
-                    inflate => $inflate,
-                    deflate => $deflate,
+                    to_storage   => $inflate,
+                    from_storage => $deflate,
                 },
             },
-            column_validation => { name => $validation, }
+            validation => { name => sub{ 1 } , }
         }
     );
 
     is $meta->table_name, 'testmetadata';
     is_deeply $meta->primary_key, [qw(id)];
     is_deeply [ map { $_->name } @{ $meta->columns } ],
-        [qw(id name created updated)];
+        [qw(id name cd r created updated)];
     ok my $id = $meta->c('id');
-    is $id->size, 8;
-    is $id->type, 'integer';
+    is ref($id->type), 'Data::ObjectMapper::Metadata::Table::Column::Type::Int';
     is_deeply $meta->unique_key('name_uniq'), ['name'];
-    is_deeply $meta->utf8_column, [ 'name' ];
+    is_deeply $meta->unique_key('c_uniq_cd'), ['cd'];
+    is_deeply $meta->utf8, [ 'name' ];
 
-    ok $meta->c('name')->utf8;
-    is_deeply $meta->column_default, { name => 'default', created => $now };
-    is_deeply $meta->column_coerce, {
-        name => { inflate => $inflate, deflate => $deflate },
-    };
+    ok $meta->c('name')->type->utf8;
+    is ref($meta->default->{$_}), 'CODE' for qw(name created);
 
-    is_deeply $meta->column_validation, {
-        name => $validation,
-        created => $validation,
-    };
+    ok $meta->coerce->{name};
+    is ref($meta->coerce->{name}{to_storage}), 'CODE';
+    is ref($meta->coerce->{name}{from_storage}), 'CODE';
+
+    is ref($meta->validation->{$_}), 'CODE' for qw(name created);
+
 
     is_deeply $meta->foreign_key, [
         {
             keys  => ['name'],
             table => 'test',
             refs  => ['id']
+        },
+        {
+            keys => ['r'],
+            table => 'refs',
+            refs => ['col'],
         }
     ];
 
@@ -95,7 +79,7 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
             keys  => ['name'],
             table => 'test',
             refs  => ['id']
-        }
+        },
     ];
 };
 
@@ -110,42 +94,30 @@ BEGIN{ use_ok('Data::ObjectMapper::Metadata::Table') }
         ],
     });
 
-    my $now = sub{ time() };
-
     ok my $meta = Data::ObjectMapper::Metadata::Table->new(
-        testmetadata => {
+        testmetadata => [
+            Col( name => Text(undef, utf8 => 1) ),
+            Col( created => Default { time() } ),
+            Col( updated => OnUpdate { time() }),
+        ],
+        {
             engine => $engine,
-            autoload_column => 1,
-            column => [
-                {
-                    name => 'name',
-                    utf8 => 1,
-                },
-                {
-                    name => 'created',
-                    default => $now,
-                },
-                {
-                    name => 'updated',
-                    on_update => $now,
-                },
-            ],
+            autoload => 1,
         }
     );
 
     ok $meta->c('id');
     ok $meta->c('name');
-    ok $meta->c('name')->utf8;
+    ok $meta->c('name')->{type}->utf8;
     ok $meta->c('created');
-    is $meta->c('created')->default, $now;
+    is $meta->c('created')->{type}->realtype, 'timestamp';
+    is ref($meta->c('created')->default), 'CODE';
     ok $meta->c('updated');
-    is $meta->c('updated')->on_update, $now;
+    is ref($meta->c('updated')->on_update), 'CODE';
 
     ok my $meta2 = Data::ObjectMapper::Metadata::Table->new(
-        testfk => {
-            engine => $engine,
-            autoload_column => 1,
-        }
+        testfk => 'autoload',
+        { engine => $engine }
     );
 
     is_deeply $meta2->foreign_key, [

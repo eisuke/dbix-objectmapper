@@ -20,6 +20,7 @@ use Clone;
 use Data::ObjectMapper::Utils;
 use Data::ObjectMapper::Metadata::Table::Column;
 use Data::ObjectMapper::Query;
+use Data::ObjectMapper::Metadata::Table::Column::TypeMap;
 
 our $DEFAULT_NAMESEP = '.';
 my $DEFAULT_COLUMN_METACLASS = 'Data::ObjectMapper::Metadata::Table::Column';
@@ -28,26 +29,26 @@ my $DEFAULT_QUERY_CLASS      = 'Data::ObjectMapper::Query';
 sub new {
     my $class = shift;
 
-    my ( $table_name, $param ) = validate_pos(
+    my ( $table_name, $column, $param ) = validate_pos(
         @_,
         { type => SCALAR|ARRAYREF },
+        { type => ARRAYREF|SCALAR },
         { type => HASHREF, optional => 1 },
     );
 
     my @init_attr = (
-        +{ table_name        => $table_name },
-        +{ engine            => undef },
-        +{ primary_key       => +[] },
-        +{ unique_key        => +[] },
-        +{ foreign_key       => +[] },
-        +{ readonly_column   => +[] },
-        +{ utf8_column       => +[] },
-        +{ column_default    => +{} },
-        +{ column_on_update  => +{} },
-        +{ column_coerce     => +{} },
-        +{ column_validation => +{} },
-        +{ autoload_column   => undef },
-        +{ column            => +[] },
+        +{ table_name  => $table_name },
+        +{ engine      => undef },
+        +{ primary_key => +[] },
+        +{ unique_key  => +[] },
+        +{ foreign_key => +[] },
+        +{ readonly    => +[] },
+        +{ utf8        => +[] },
+        +{ default     => +{} },
+        +{ on_update   => +{} },
+        +{ coerce      => +{} },
+        +{ validation  => +{} },
+        +{ autoload    => undef },
     );
 
     my $self = bless +{}, $class;
@@ -67,6 +68,14 @@ sub new {
         $self->{$meth} = $attr->{$meth};
         $self->${meth}($param->{$meth}) if exists $param->{$meth};
     }
+
+    if( $column and $column eq 'autoload') {
+        $self->{autoload} = 1;
+        $self->autoload();
+        $column = [];
+    }
+
+    $self->column( $column );
 
     return $self;
 }
@@ -143,15 +152,24 @@ sub unique_key {
         );
 
         my $exists = 0;
+        my $exists_elm = 0;
         for my $uk ( @{$self->{unique_key}} ) {
-            $exists++;
-            last if $uk->[0] eq $name;
+            $exists_elm++;
+            if ($uk->[0] eq $name
+                || Data::ObjectMapper::Utils::is_deeply(
+                    [ sort @{ $uk->[1] } ],
+                    [ sort @$keys ]
+                )
+            ) {
+                $exists = 1;
+                last;
+            }
         }
 
         if( $exists ) {
             return splice(
-                @{ $self->{unique_key}},
-                ( $exists - 1 ),
+                @{ $self->{unique_key} },
+                ( $exists_elm - 1 ),
                 1,
                 [ $name, $keys ]
             );
@@ -258,19 +276,19 @@ sub __array_accessor {
     return $self->{$accessor};
 }
 
-sub readonly_column {
+sub readonly {
     my $self = shift;
-    return $self->__array_accessor('readonly_column', @_);
+    return $self->__array_accessor('readonly', @_);
 }
 
-sub readonly_column_map { $_[0]->{readonly_column_map} ||= +{} }
+sub readonly_map { $_[0]->{readonly_map} ||= +{} }
 
-sub utf8_column {
+sub utf8 {
     my $self = shift;
-    return $self->__array_accessor('utf8_column', @_);
+    return $self->__array_accessor('utf8', @_);
 }
 
-sub utf8_column_map { $_[0]->{utf8_column_map} ||= +{} }
+sub utf8_map { $_[0]->{utf8_map} ||= +{} }
 
 sub __hash_accessor {
     my $self = shift;
@@ -286,37 +304,37 @@ sub __hash_accessor {
     return $self->{$accessor};
 }
 
-sub column_default {
+sub default {
     my $class = shift;
-    $class->__hash_accessor('column_default', @_);
+    $class->__hash_accessor('default', @_);
 }
 
-sub column_on_update {
+sub on_update {
     my $class = shift;
-    $class->__hash_accessor('column_on_update', @_);
+    $class->__hash_accessor('on_update', @_);
 }
 
-sub column_coerce {
+sub coerce {
     my $class = shift;
-    $class->__hash_accessor('column_coerce', @_);
+    $class->__hash_accessor('coerce', @_);
 }
 
-sub column_validation {
+sub validation {
     my $class = shift;
-    $class->__hash_accessor('column_validation', @_);
+    $class->__hash_accessor('validation', @_);
 }
 
 
 
-=head2 autoload_column
+=head2 autoload
 
 =cut
 
-sub autoload_column {
+sub autoload {
     my $self = shift;
 
-    confess "autoload_column needs engine."    unless $self->engine;
-    confess "autoload_column needs table_name" unless $self->table_name;
+    confess "autoload needs engine."    unless $self->engine;
+    confess "autoload needs table_name" unless $self->table_name;
     my $engine = $self->engine;
     $self->{column_map} ||= +{};
 
@@ -329,7 +347,16 @@ sub autoload_column {
     my $foreign_key = $self->engine->get_foreign_key( $self->table_name );
     $self->foreign_key($foreign_key);
 
-    $self->column( $engine->get_column_info( $self->table_name ) );
+    for my $conf ( @{$engine->get_column_info( $self->table_name )} ) {
+        my $type_class
+            = Data::ObjectMapper::Metadata::Table::Column::TypeMap->get(
+            $conf->{type} );
+        my $realtype = $conf->{type};
+        $conf->{type} = $type_class->new(
+            $conf->{size}, utf8 => 0, realtype => $realtype );
+        $conf->{server_default} = delete $conf->{default};
+        $self->column( $conf );
+    }
 }
 
 sub column {
@@ -382,76 +409,88 @@ sub _set_column {
         $c = Data::ObjectMapper::Utils::merge_hashref( { %$org }, $c );
     }
 
-    my $name = $c->{name} || confess 'column name not found.';
+    my $name = delete $c->{name} || confess 'column name not found.';
 
-    my $coarce = $self->column_coerce->{$name} || +{};
+    if( delete $c->{primary_key} ) {
+        my $primary_key = $self->primary_key;
+        push @{$primary_key}, $name;
+        $self->primary_key($primary_key);
+    }
+
+    if( delete $c->{unique} ) {
+        $self->unique_key( 'c_uniq_' . $name . '' => [$name] );
+    }
+
+    if( my $fk = delete $c->{foreign_key} ) {
+        $self->foreign_key({
+            keys  => [ $name ],
+            table => $fk->[0],
+            refs  => [ $fk->[1] ],
+        });
+    }
+
+    my $coarce = $self->coerce->{$name} || +{};
     if ( $c->{coerce} ) {
         $coarce
             = Data::ObjectMapper::Utils::merge_hashref( $coarce, $c->{coerce} );
     }
 
-    my $default = $self->column_default->{$name} || do {
+    my $default = $self->default->{$name} || do {
         if( $c->{default} ) {
-            $self->column_default->{$name} = $c->{default};
+            $self->default->{$name} = $c->{default};
         }
         else {
             undef;
         }
     };
 
-    my $on_update = $self->column_on_update->{$name} || do {
+    my $on_update = $self->on_update->{$name} || do {
         if( $c->{on_update} ) {
-            $self->column_on_update->{$name} = $c->{on_update};
+            $self->on_update->{$name} = $c->{on_update};
         }
         else {
             undef;
         }
     };
 
-    my $is_utf8 = $self->utf8_column_map->{$name} || do {
-        if( $c->{utf8} ) {
-            push @{$self->utf8_column}, $name;
-            $self->utf8_column_map->{$name} = scalar(@{$self->utf8_column});
-        }
-        else {
-            undef;
-        }
-    };
+    $c->{type}->utf8(1) if $self->utf8_map->{$name};
 
-    my $readonly = $self->readonly_column_map->{$name} || do {
+    my $readonly = $self->readonly_map->{$name} || do {
         if ( $c->{readonly} ) {
-            push @{ $self->readonly_column }, $name;
-            $self->readonly_column_map->{$name}
-                = scalar( @{ $self->readonly_column } );
+            push @{ $self->readonly }, $name;
+            $self->readonly_map->{$name}
+                = scalar( @{ $self->readonly } );
         }
         else {
             undef;
         }
     };
 
-    my $validation = $self->column_validation->{$name} || do {
+    my $validation = $self->validation->{$name} || do {
         if( $c->{validation} ) {
-            $self->column_validation->{$name} = $c->{validation};
+            $self->validation->{$name} = $c->{validation};
         }
         else {
             undef;
         }
     };
+
+    $c->{is_nullable} = 1 unless exists $c->{is_nullable};
 
     my $column_obj = $self->column_metaclass->new(
-        name        => $name,
-        table       => $self->table_name,
-        sep         => $self->namesep,
-        type        => $c->{type} || undef,
-        size        => $c->{size} || undef,
-        is_nullable => $c->{is_nullable} || undef,
-        default     => $default,
-        on_update   => $on_update,
-        utf8        => $is_utf8,
-        readonly    => $readonly,
-        inflate     => $coarce->{inflate} || undef,
-        deflate     => $coarce->{deflate} || undef,
-        validation  => $validation,
+        name           => $name,
+        table          => $self->table_name,
+        sep            => $self->namesep,
+        type           => $c->{type} || undef,
+        is_nullable    => $c->{is_nullable},
+        default        => $default,
+        server_default => $c->{server_default} || undef,
+        server_check   => $c->{server_check}   || undef,
+        on_update      => $on_update,
+        readonly       => $readonly,
+        to_storage     => $coarce->{to_storage} || undef,
+        from_storage   => $coarce->{from_storage} || undef,
+        validation     => $validation,
     );
 
     if ($override_column) {

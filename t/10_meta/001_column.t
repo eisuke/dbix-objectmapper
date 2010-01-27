@@ -5,21 +5,21 @@ use Test::Exception;
 use Encode;
 
 use Data::ObjectMapper::Metadata::Table::Column;
+use Data::ObjectMapper::Metadata::Table::Column::Type::Text;
 
 my $c = Data::ObjectMapper::Metadata::Table::Column->new(
     {   name        => 'type',
         sep         => '.',
         table       => 'b',
-        type        => 'text',
-        size        => undef,
+        type => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new( utf8 => 1 ),
         is_nullable => 1,
         validation  => undef,
         on_update   => sub { '-on_update' },
         default     => sub { '-default' },
-        utf8        => 1,
         readonly    => undef,
-        inflate     => sub { $_[0] . '-inflate' },
-        deflate     => sub { $_[0] . '-deflate' },
+        from_storage   => sub { $_[0] . '-inflate' },
+        to_storage     => sub { $_[0] . '-deflate' },
+        server_default => undef,
     }
 );
 
@@ -54,8 +54,7 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
 };
 
 { # property
-    is $c->type, 'text', 'property type';
-    is $c->size, undef, 'property size';
+    is ref($c->type), 'Data::ObjectMapper::Metadata::Table::Column::Type::Text', 'property type';
     is $c->is_nullable, 1, 'property is_nullable';
 };
 
@@ -73,16 +72,15 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
         {   name        => 'type',
             sep         => '.',
             table       => 'b',
-            type        => 'text',
-            size        => undef,
+            type        => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new,
             is_nullable => 1,
             validation  => sub { $_[0] =~ /^\d+$/ },
             on_update   => undef,
             default     => undef,
-            utf8        => undef,
             readonly    => undef,
-            inflate     => undef,
-            deflate     => undef,
+            from_storage => undef,
+            to_storage     => undef,
+            server_default => undef,
         }
     );
 
@@ -97,16 +95,15 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
         {   name        => 'type',
             sep         => '.',
             table       => 'b',
-            type        => 'text',
-            size        => undef,
+            type        => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new,
             is_nullable => 1,
             validation  => undef,
             on_update   => undef,
             default     => undef,
-            utf8        => undef,
             readonly    => 1,
-            inflate     => undef,
-            deflate     => undef,
+            to_storage     => undef,
+            from_storage     => undef,
+            server_default => undef,
         }
     );
 

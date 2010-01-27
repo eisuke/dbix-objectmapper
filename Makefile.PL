@@ -23,6 +23,7 @@ requires 'Digest::MD5';
 requires 'Text::Balanced';
 requires 'List::MoreUtils';
 requires 'DateTime';
+requires 'Sub::Exporter';
 
 build_requires 'Test::More', 0.88;
 test_requires 'DBD::SQLite'         => 1.14;
