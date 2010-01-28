@@ -47,15 +47,17 @@ our $map = {
     # Interval
     'interval' => 'Interval',
 
+    # float
+    'float'            => 'Float',
+    'real'             => 'Float',
+    'double precision' => 'Float',
+    'double'           => 'Float',
+
     # Numeric
-    'float'            => 'Numeric',
+    'numeric'          => 'Numeric',
     'decimal'          => 'Numeric',
     'dec'              => 'Numeric',
-    'numeric'          => 'Numeric',
-    'real'             => 'Numeric',
-    'double precision' => 'Numeric',
     'money'            => 'Numeric',
-    'double'           => 'Numeric',
 
     # Blob
     'blob'  => 'Binary',

@@ -11,7 +11,7 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
     {   name        => 'type',
         sep         => '.',
         table       => 'b',
-        type => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new( utf8 => 1 ),
+        type => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new( undef, 'utf8' ),
         is_nullable => 1,
         validation  => undef,
         on_update   => sub { '-on_update' },

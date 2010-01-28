@@ -353,8 +353,9 @@ sub autoload {
             = Data::ObjectMapper::Metadata::Table::Column::TypeMap->get(
             $conf->{type} );
         my $realtype = $conf->{type};
-        $conf->{type} = $type_class->new(
-            $conf->{size}, utf8 => 0, realtype => $realtype );
+        $conf->{type} = $type_class->new();
+        $conf->{type}->size($conf->{size});
+        $conf->{type}->realtype($realtype);
         $conf->{server_default} = delete $conf->{default};
         $self->column( $conf );
     }
@@ -477,6 +478,10 @@ sub _set_column {
     };
 
     $c->{is_nullable} = 1 unless exists $c->{is_nullable};
+
+    if( my $engine = $self->engine ) {
+        $c->{type}->set_engine_option($engine);
+    }
 
     my $column_obj = $self->column_metaclass->new(
         name           => $name,

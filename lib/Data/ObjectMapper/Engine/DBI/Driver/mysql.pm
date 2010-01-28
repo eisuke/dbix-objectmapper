@@ -102,4 +102,10 @@ sub get_tables {
     return @tables;
 }
 
+sub set_time_zone_query {
+    my ( $self ) = @_;
+    my $tz = $self->{time_zone};
+    return "SET timezone = $tz";
+}
+
 1;

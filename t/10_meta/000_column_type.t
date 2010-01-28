@@ -13,7 +13,7 @@ sub build_pkg($) {
 {
     my $type = 'String';
     my $pkg = build_pkg $type;
-    my $obj = $pkg->new( 10, utf8 => 1 );
+    my $obj = $pkg->new( 10, 'utf8' );
     is $obj->type, lc($type);
     ok $obj->utf8;
     is $obj->size, 10;

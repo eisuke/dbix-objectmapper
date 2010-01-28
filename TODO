@@ -27,6 +27,7 @@ YAML
 
 * SQL - exists,any,in support
 * Data::ObjectMapper -> DBIx::ObjectMapper ? DBIx::DataMapper?
+* relation order
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators
@@ -41,6 +42,3 @@ http://www.sqlalchemy.org/docs/05/mappers.html#mapping-a-class-against-arbitrary
  => herefore the table is not affected by save or delete operations
 
 http://www.sqlalchemy.org/docs/05/mappers.html#multiple-mappers-for-one-class
-
-====
-http://www.sqlalchemy.org/docs/05/mappers.html#dictionary-based-collections

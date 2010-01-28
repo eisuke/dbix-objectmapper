@@ -85,9 +85,10 @@ sub last_insert_id {
     $dbh->last_insert_id( undef, undef, $table, $column );
 }
 
-sub set_time_zone {
-    my ( $self, $dbh, $tz ) = @_;
-    $dbh->do("SET timezone TO ?", {}, $tz);
+sub set_time_zone_query {
+    my ( $self ) = @_;
+    my $tz = $self->time_zone;
+    return "SET timezone TO $tz";
 }
 
 1;

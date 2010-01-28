@@ -10,31 +10,42 @@ sub new {
 
     my $self = bless {
         type     => $type ? lc($type) : undef,
-        realtype => undef,
         size     => undef,
         utf8     => undef,
+        realtype => undef,
     }, $class;
-
-    my $size = undef;
-    unless( @_ % 2 == 0 ) {
-        $size = shift;
-    }
-
-    my %args = @_;
-    $self->{size} = $size if $size and looks_like_number( $size );
-    $self->{utf8} = 1 if $args{utf8};
-    $self->{realtype} = $args{realtype} if exists $args{realtype};
 
     $self->_init(@_);
     return $self;
 }
 
-sub type     { $_[0]->{type} }
-sub size     { $_[0]->{size} }
-sub utf8     { $_[0]->{utf8} }
-sub realtype { $_[0]->{realtype} }
+sub type { $_[0]->{type} }
 
-sub _init {}
+sub utf8 {
+    my $self = shift;
+    $self->{utf8} = shift if @_;
+    return $self->{utf8};
+}
+
+sub size {
+    my $self = shift;
+    $self->{size} = shift if @_;
+    return $self->{size};
+}
+
+sub realtype {
+    my $self = shift;
+    $self->{realtype} = shift if @_;
+    return $self->{realtype};
+}
+
+sub _init {
+    my $self = shift;
+    if( @_ ) {
+        my $size = shift;
+        $self->{size} = $size if $size and looks_like_number( $size )
+    }
+}
 
 sub from_storage {
     my ( $self, $val ) = @_;
@@ -45,5 +56,7 @@ sub to_storage {
     my ( $self, $val ) = @_;
     return $val;
 }
+
+sub set_engine_option {}
 
 1;

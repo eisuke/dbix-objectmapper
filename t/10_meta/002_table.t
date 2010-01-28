@@ -13,7 +13,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     ok my $meta = Data::ObjectMapper::Metadata::Table->new(
         testmetadata => [
             Col( id      => Int(), PrimaryKey, Readonly ),
-            Col( name    => Text(undef, utf8 => 1), NotNull ),
+            Col( name    => Text('utf8'), NotNull ),
             Col( cd      => String(3), NotNull, Unique ),
             Col( r       => SmallInt(), NotNull, ForeignKey( 'refs' => 'col') ),
             Col( created => DateTime(), Default{ time() }, Validation{ 1 } ),

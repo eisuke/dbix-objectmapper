@@ -39,8 +39,11 @@ sub _init {
     }
 
     $self->{connect_do}
-        = ref $connect_do eq 'ARRAY' ? $connect_do : [$connect_do]
-        if $connect_do;
+        = $connect_do
+        ? ref $connect_do eq 'ARRAY'
+            ? $connect_do
+            : [$connect_do]
+        : [];
 
     push @connect_info,
       {
@@ -62,6 +65,8 @@ sub _init {
     my $type = $connector->driver->{driver} || confess 'Driver Not Found.';
 
     $self->{query} ||= Data::ObjectMapper::SQL->new($type);
+    $self->{driver_type} = $type;
+    $self->{time_zone} = $option->{time_zone} || undef;
 
     $self->{driver} = Data::ObjectMapper::Engine::DBI::Driver->new(
         $type,
@@ -72,7 +77,14 @@ sub _init {
         sql             => $self->query,
         log             => $self->log,
         datetime_parser => $self->{datetime_parser} || undef,
+        time_zone       => $self->{time_zone},
     );
+
+    if ( $self->{time_zone}
+        and my $tzq = $self->{driver}->set_time_zone_query )
+    {
+        push @{ $self->{connect_do} }, $tzq;
+    }
 
     $self->init_option($option);
 
@@ -103,12 +115,13 @@ sub init_option {
 
 ### Driver
 sub driver          { $_[0]->{driver} }
+sub driver_type     { $_[0]->{driver_type} }
 sub iterator        { $_[0]->{iterator} }
 sub query           { $_[0]->{query} }
 sub namesep         { $_[0]->driver->namesep }
 sub quote           { $_[0]->driver->quote }
 sub datetime_parser { $_[0]->driver->datetime_parser }
-sub set_time_zone   { $_[0]->driver->set_time_zone( $_[0]->dbh, $_[1] ) }
+sub time_zone       { $_[0]->{time_zone} }
 
 ### Database Handle
 sub dbh { $_[0]->{connector}->dbh }

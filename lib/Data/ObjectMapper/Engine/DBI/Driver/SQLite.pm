@@ -12,7 +12,16 @@ sub init {
     try {
         require DateTime::Format::SQLite;
         DateTime::Format::SQLite->import;
-        $self->{datetime_parser} ||= 'DateTime::Format::SQLite';
+        my $dt_pkg = 'DateTime::Format::SQLite';
+        $self->{datetime_parser} ||= $dt_pkg;
+
+        ## added format_timestamp/parse_timestamp
+        {
+            no strict 'refs';
+            *{"$dt_pkg\::format_timestamp"} = *{"$dt_pkg\::format_datetime"};
+            *{"$dt_pkg\::parse_timestamp"} = *{"$dt_pkg\::parse_datetime"};
+        };
+
     } catch {
         confess "Couldn't load DateTime::Format::SQLite: $_";
     };

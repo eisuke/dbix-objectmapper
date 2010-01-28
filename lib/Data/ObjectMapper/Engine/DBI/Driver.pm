@@ -33,6 +33,7 @@ sub query     { $_[0]->{query} }
 sub log       { $_[0]->{log} }
 sub namesep   { $_[0]->{namesep} }
 sub quote     { $_[0]->{quote} }
+sub time_zone { $_[0]->{time_zone} }
 
 sub default_connection_mode { 'fixup' }
 
@@ -201,6 +202,6 @@ sub datetime_parser {
     };
 }
 
-sub set_time_zone { }
+sub set_time_zone_query { }
 
 1;

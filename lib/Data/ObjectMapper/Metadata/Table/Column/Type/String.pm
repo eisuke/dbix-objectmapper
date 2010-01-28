@@ -3,6 +3,14 @@ use strict;
 use warnings;
 use base qw(Data::ObjectMapper::Metadata::Table::Column::Type);
 use Encode;
+use Scalar::Util qw(looks_like_number);
+
+sub _init {
+    my $self = shift;
+    my ( $size, @opt ) = @_;
+    $self->{size} = $size if $size and looks_like_number( $size );
+    $self->{utf8} = 1 if grep { $_ eq 'utf8' } @opt;
+}
 
 sub from_storage {
     my ( $self, $val ) = @_;
