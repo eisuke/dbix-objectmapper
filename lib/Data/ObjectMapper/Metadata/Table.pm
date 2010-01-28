@@ -22,9 +22,9 @@ use Data::ObjectMapper::Metadata::Table::Column;
 use Data::ObjectMapper::Query;
 use Data::ObjectMapper::Metadata::Table::Column::TypeMap;
 
-our $DEFAULT_NAMESEP = '.';
-my $DEFAULT_COLUMN_METACLASS = 'Data::ObjectMapper::Metadata::Table::Column';
-my $DEFAULT_QUERY_CLASS      = 'Data::ObjectMapper::Query';
+sub DEFAULT_NAMESEP          {'.'}
+sub DEFAULT_COLUMN_METACLASS {'Data::ObjectMapper::Metadata::Table::Column'}
+sub DEFAULT_QUERY_CLASS      {'Data::ObjectMapper::Query'}
 
 sub new {
     my $class = shift;
@@ -53,6 +53,7 @@ sub new {
 
     my $self = bless +{}, $class;
 
+    my $DEFAULT_COLUMN_METACLASS = DEFAULT_COLUMN_METACLASS();
     $self->{column_metaclass} = $param->{column_metaclass}
         || $DEFAULT_COLUMN_METACLASS;
 
@@ -60,7 +61,7 @@ sub new {
         "column_metaclass is not $DEFAULT_COLUMN_METACLASS (or a subclass)"
         unless $self->{column_metaclass}->isa($DEFAULT_COLUMN_METACLASS);
 
-    $self->{query_class} = $param->{query_class} || $DEFAULT_QUERY_CLASS;
+    $self->{query_class} = $param->{query_class} || DEFAULT_QUERY_CLASS();
 
     for my $attr ( @init_attr ) {
         my @key = keys %$attr;
@@ -393,7 +394,7 @@ sub namesep {
         return $self->engine->namesep;
     }
     else {
-        return $DEFAULT_NAMESEP;
+        return DEFAULT_NAMESEP();
     }
 }
 
@@ -668,10 +669,12 @@ sub get_unique_condition {
 
 sub insert {
     my $self = shift;
-    return $self->query_object->insert(
+    my $query = $self->query_object->insert(
         $self->_insert_query_callback,
         $self->primary_key
     )->into( $self->table_name );
+    $query->values(@_) if @_;
+    return $query;
 }
 
 sub _insert_query_callback {

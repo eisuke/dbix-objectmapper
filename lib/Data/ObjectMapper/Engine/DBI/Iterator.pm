@@ -118,7 +118,7 @@ sub _reset {
             $self->_sth->finish;
         }
 
-        $self->_sth(undef);
+        $self->{_sth} = undef;
     }
 
     $self->cursor(0);

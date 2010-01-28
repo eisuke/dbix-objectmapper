@@ -16,6 +16,7 @@ use Data::ObjectMapper::Mapper::Instance;
 use Data::ObjectMapper::Mapper::Constructor;
 use Data::ObjectMapper::Mapper::Accessor;
 use Data::ObjectMapper::Mapper::Attribute;
+use Data::ObjectMapper::Metadata::Query;
 
 {
     my %INITIALIZED_CLASSES;
@@ -80,6 +81,12 @@ sub new {
             \%input_option,
         );
         return $class->new( $orig_mapper->table => $mapped_class, %$option );
+    }
+    elsif( ref $_[0] eq 'ARRAY' ) {
+        my ( $query, $alias_name, $param ) = @{$_[0]};
+        $_[0] = Data::ObjectMapper::Metadata::Query->new(
+            $alias_name => $query, $param || +{}
+        );
     }
 
     unshift @_, 'table';
