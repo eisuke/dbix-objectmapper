@@ -81,7 +81,7 @@ sub get {
     if( $map->{$type} ) {
         $type_class = $prefix . $map->{$type};
     }
-    elsif( $type =~ /$type/ ) {
+    elsif( $type =~ /$is_array/ ) {
         $type_class = $prefix . 'Array';
     }
     else {

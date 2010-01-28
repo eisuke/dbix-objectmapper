@@ -315,27 +315,6 @@ Data::ObjectMapper::SQL->select(
 --- expected
 SELECT * FROM hoge LEFT JOIN order_goods ON ( order_goods.order_id = ? ) WHERE ( a = ? ) <= 1,2
 
-=== ARRAY SELECT FOR PG
---- input
-Data::ObjectMapper::SQL->select(
-    from => 'array_test',
-    where => [ [ 'a', \[ 1, 2 ] ] ]
-);
---- expected
-SELECT * FROM array_test WHERE ( a = ? ) <= {1,2}
-
-=== ARRAY INSERT FOR PG
---- input
-Data::ObjectMapper::SQL->insert->into('array_test')->values( id => 1, array_field => [1,2]);
---- expected
-INSERT INTO array_test ( array_field, id ) VALUES (?,?) <= {1,2},1
-
-=== ARRAY UPDATE FOR PG
---- input
-Data::ObjectMapper::SQL->update->table('array_test')->set( array_field => [1,2] )->where( [ 'array_field', \[ 2, 3 ] ] );
---- expected
-UPDATE array_test SET array_field = ? WHERE ( array_field = ? ) <= {1,2},{2,3}
-
 === UNION
 --- input
 Data::ObjectMapper::SQL->union(

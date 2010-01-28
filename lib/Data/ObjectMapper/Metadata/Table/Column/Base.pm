@@ -47,6 +47,7 @@ my $ATTRIBUTES = {
     from_storage   => { type => CODEREF|UNDEF, optional => 1 },
     to_storage     => { type => CODEREF|UNDEF, optional => 1 },
     validation     => { type => CODEREF|UNDEF, optional => 1 },
+    # AutoIncrement XXXXX
 };
 
 sub name           { $_[0]->{name} }
@@ -75,7 +76,13 @@ sub op {
         return [ $self, $op, \$col ];
     }
     else {
-        return \@_;
+        if( (ref $val || '') eq 'ARRAY' ) {
+            $val = [ map { $self->type->to_storage($_) } @$val ];
+        }
+        elsif( $val and !ref($val) ) {
+            $val = $self->type->to_storage($val);
+        }
+        return [ $self, $op, $val ];
     }
 }
 

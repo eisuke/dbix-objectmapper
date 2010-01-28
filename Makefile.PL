@@ -35,6 +35,7 @@ test_requires 'Test::Warn'          => 0.11;
 
 recommends 'DateTime::Format::Pg';
 recommends 'DateTime::Format::MySQL';
+recommends 'Bit::Vector';
 
 tests "t/*.t t/*/*.t";
 author_tests 'xt';

@@ -2,6 +2,7 @@ package Data::ObjectMapper::Engine::DBI::Driver;
 use strict;
 use warnings;
 use Data::ObjectMapper::Utils;
+use DBI qw(:sql_types);
 
 sub new {
     my $class  = shift;
@@ -203,5 +204,14 @@ sub datetime_parser {
 }
 
 sub set_time_zone_query { }
+
+sub escape_binary_func {
+    my $self = shift;
+    my $dbh  = shift;
+    return sub {
+        my $val = shift;
+        return $dbh->quote($val, SQL_BLOB);
+    };
+}
 
 1;

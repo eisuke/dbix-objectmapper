@@ -299,7 +299,7 @@ sub convert_condition_to_sql {
                         push @bind, @sub_bind;
                     }
                     else {
-                        push @bind, $class->convert_val_to_sql_format($v);
+                        push @bind, $v;
                         push @stm_in, '?';
                     }
                 }
@@ -307,8 +307,7 @@ sub convert_condition_to_sql {
             }
             elsif( uc($w->[1]) eq 'BETWEEN' and @{$w->[2]} == 2 ) {
                 $stm .= ' BETWEEN ? AND ?';
-                push @bind,
-                  map { $class->convert_val_to_sql_format($_) } @{ $w->[2] };
+                push @bind, @{ $w->[2] };
             }
             else {
                 confess 'Invalid Parameters in WHERE clause.('
@@ -331,7 +330,7 @@ sub convert_condition_to_sql {
         # for array column for pg
         elsif( ref $w->[2] eq 'REF' ) {
             $stm .= ' ' . uc($w->[1]) . ' ?';
-            push @bind, $class->convert_val_to_sql_format($w->[2]);
+            push @bind, $w->[2];
         }
         elsif( ref $w->[2] eq 'Data::ObjectMapper::SQL::Select' ) {
             my ( $sub_stm, @sub_bind ) = $w->[2]->as_sql('parts');
@@ -366,20 +365,6 @@ sub convert_condition_to_sql {
     }
 
     return ( $stm, @bind );
-}
-
-sub convert_val_to_sql_format {
-    my ( $class, $val ) = @_;
-
-    if( ref $val eq 'REF' and ref $$val eq 'ARRAY' ) {
-        return '{' . join(',', @$$val ) . '}';
-    }
-    elsif( ref $val eq 'ARRAY' ) {
-        return '{' . join(',', @$val ) . '}';
-    }
-    else {
-        return $val;
-    }
 }
 
 sub num_check {

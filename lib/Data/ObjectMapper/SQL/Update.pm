@@ -46,7 +46,7 @@ sub set_as_sql {
         }
         else {
             push @key, $key . ' = ?';
-            push @bind, $self->convert_val_to_sql_format($self->{set}{$key});
+            push @bind, $self->{set}{$key};
         }
     }
     return join( ' , ', @key ), @bind;

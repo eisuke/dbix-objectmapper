@@ -1,28 +1,3 @@
-* Column::Typeの実装
-=== generic ===
-String
-Text
-Integer
-SmallInteger
-BigInteger
-Numeric
-Float
-DateTime
-Date
-Time
-Interval
-Boolean
-Binary
-Storable
-Array
-
-
-==
-AutoIncrement
-URI
-YAML
-
-
 ===
 
 * SQL - exists,any,in support

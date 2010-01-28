@@ -4,6 +4,7 @@ use warnings;
 use Carp::Clan;
 use Try::Tiny;
 use base qw(Data::ObjectMapper::Engine::DBI::Driver);
+use DBD::Pg qw(:pg_types);
 
 sub init {
     my $self = shift;
@@ -89,6 +90,15 @@ sub set_time_zone_query {
     my ( $self ) = @_;
     my $tz = $self->time_zone;
     return "SET timezone TO $tz";
+}
+
+sub escape_binary_func {
+    my $self = shift;
+    my $dbh  = shift;
+    return sub {
+        my $val = shift;
+        return $dbh->quote($val, { pg_type => PG_BYTEA });
+    };
 }
 
 1;

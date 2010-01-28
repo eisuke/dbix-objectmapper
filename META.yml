@@ -26,6 +26,7 @@ no_index:
     - t
     - xt
 recommends:
+  Bit::Vector: 0
   DateTime::Format::MySQL: 0
   DateTime::Format::Pg: 0
 requires:

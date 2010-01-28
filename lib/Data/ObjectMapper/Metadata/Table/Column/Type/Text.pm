@@ -3,4 +3,10 @@ use strict;
 use warnings;
 use base qw(Data::ObjectMapper::Metadata::Table::Column::Type::String);
 
+sub _init {
+    my $self = shift;
+    my @opt = @_;
+    $self->{utf8} = 1 if grep { defined $_ and $_ eq 'utf8' } @opt;
+}
+
 1;

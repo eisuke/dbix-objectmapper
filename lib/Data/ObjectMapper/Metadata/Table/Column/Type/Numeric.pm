@@ -7,27 +7,28 @@ use Scalar::Util qw(looks_like_number);
 
 sub _init {
     my $self = shift;
-    if( @_ ) {
-        my ( $precision, $scale ) = @_;
-        $self->{precision} = $precision || confess "precision not found.";
-        $self->{scale}     = $scale     || 0;
-    }
+    $self->size(@_) if @_;
 }
 
 sub size {
     my $self = shift;
 
     if( @_ ) {
-        my $size = shift;
-        if( $size =~ /,/ ) {
+        if( @_ == 1 and $_[0] =~ /,/ ) {
             # pg's "size" is "$precision,$scale", but mysql is "$precision" ....
-            my ( $precision, $scale ) = split ',', $size;
-            $self->_init($precision, $scale);
+            my ( $precision, $scale ) = split ',', $_[0];
+            $self->{precision} = $precision;
+            $self->{scale}     = $scale     || 0;
+            $self->{size} = "$precision,$scale";
+        }
+        elsif( @_ == 2 ) {
+            my ( $precision, $scale ) = @_;
+            $self->{precision} = $precision;
+            $self->{scale}     = $scale;
             $self->{size} = "$precision,$scale";
         }
         else {
-            $self->_init($size);
-            $self->{size} = $size;
+            $self->{size} = $_[0];
         }
     }
 

@@ -89,7 +89,7 @@ sub _values_as_sql {
             }
             else {
                 push @val, '?';
-                push @bind, $self->convert_val_to_sql_format( $values->{$key} );
+                push @bind, $values->{$key};
             }
         }
 
@@ -113,7 +113,7 @@ sub _values_as_sql {
                     }
                     else {
                         push @val, '?';
-                        push @bind, $self->convert_val_to_sql_format($vv);
+                        push @bind, $vv;
                     }
                 }
 
