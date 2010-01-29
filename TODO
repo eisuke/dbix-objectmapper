@@ -1,8 +1,5 @@
-===
-
 * SQL - exists,any,in support
 * Data::ObjectMapper -> DBIx::ObjectMapper ? DBIx::DataMapper?
-* relation order
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators

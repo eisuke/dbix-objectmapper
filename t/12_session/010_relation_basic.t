@@ -26,9 +26,13 @@ ok $mapper->maps(
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
-            children =>
-                +{ isa => $mapper->relation( has_many => 'Child' ), }
+            children => +{
+                isa => $mapper->relation(
+                    has_many => 'Child',
+                    { order_by => $mapper->metadata->t('child')->c('id')->desc }
+                ),
             }
+        }
     }
 );
 
@@ -49,9 +53,13 @@ ok $mapper->maps(
     my $parent = $session->get( Parent => 1 ); # query_cnt++
 
     is ref($parent->children), 'ARRAY'; # query_cnt++
+
+    my $loop_cnt = 5;
     for my $c ( @{$parent->children} ) {
         is $c->parent_id, $parent->id;
+        is $c->id, $loop_cnt--;
     }
+    is $loop_cnt, 0;
 
     my $child1 = $session->get( Child => 4 );
     is $child1->parent->id, 1;

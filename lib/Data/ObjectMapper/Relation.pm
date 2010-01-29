@@ -48,6 +48,10 @@ sub _init_option {
         }
     }
 
+    if( my $order_by = $self->{option}{order_by} ) {
+        $order_by = [ $order_by ] unless ref $order_by eq 'ARRAY';
+        $self->{order_by} = $order_by;
+    }
 }
 
 {
@@ -102,10 +106,19 @@ sub get_multi {
     my $cond = $mapper->relation_condition->{$name} || return;
 
     my $rel_mapper = $self->mapper;
+
+    my @order_by;
+    if( $self->{order_by} ) {
+        @order_by = @{$self->{order_by}};
+    }
+    else {
+        @order_by = map { $rel_mapper->table->c($_) }
+            @{ $rel_mapper->table->primary_key };
+    }
+
     my @new_val
         = $mapper->unit_of_work->query( $self->rel_class )->where(@$cond)
-        ->order_by( map { $rel_mapper->table->c($_) }
-            @{ $rel_mapper->table->primary_key } )->execute->all;
+        ->order_by(@order_by)->execute->all;
 
     $mapper->instance->{$name} = Data::ObjectMapper::Session::Array->new(
         $name,

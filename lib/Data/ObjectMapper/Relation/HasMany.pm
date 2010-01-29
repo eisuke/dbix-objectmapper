@@ -12,7 +12,7 @@ sub get {
 
 sub foreign_key {
     my ( $self, $class_table, $table ) = @_;
-    return $table->get_foreign_key_by_table( $class_table )
+    return $table->get_foreign_key_by_table( $class_table );
 }
 
 sub relation_condition {
