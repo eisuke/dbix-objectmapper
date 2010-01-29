@@ -167,5 +167,11 @@ sub _sqlite_parse_table {
     return { rels => \@rels, uniqs => \@uniqs, auto_inc => \%auto_inc };
 }
 
+sub escape_binary_func {
+    my $self = shift;
+    my $dbh  = shift;
+    return sub { $_[0] };
+}
+
 1;
 

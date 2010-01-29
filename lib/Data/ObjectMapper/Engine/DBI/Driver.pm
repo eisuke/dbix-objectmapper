@@ -2,7 +2,7 @@ package Data::ObjectMapper::Engine::DBI::Driver;
 use strict;
 use warnings;
 use Data::ObjectMapper::Utils;
-use DBI qw(:sql_types);
+use DBI;
 
 sub new {
     my $class  = shift;
@@ -42,7 +42,10 @@ sub init { }
 
 sub get_primary_key {
     my ( $self, $dbh, $table ) = @_;
-    return $dbh->primary_key( undef, $self->{db_schema}, $table );
+    my @primary_key = $dbh->primary_key( undef, $self->{db_schema}, $table );
+    @primary_key = $dbh->primary_key( undef, undef, $table )
+        unless @primary_key;
+    return @primary_key;
 }
 
 # mostly based on DBIx::Class::Loader::DBI
@@ -210,7 +213,7 @@ sub escape_binary_func {
     my $dbh  = shift;
     return sub {
         my $val = shift;
-        return $dbh->quote($val, SQL_BLOB);
+        return \$dbh->quote($val, DBI::SQL_BLOB);
     };
 }
 

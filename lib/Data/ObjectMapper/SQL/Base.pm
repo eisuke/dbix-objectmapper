@@ -330,7 +330,7 @@ sub convert_condition_to_sql {
         # for array column for pg
         elsif( ref $w->[2] eq 'REF' ) {
             $stm .= ' ' . uc($w->[1]) . ' ?';
-            push @bind, $w->[2];
+            push @bind, ${$w->[2]};
         }
         elsif( ref $w->[2] eq 'Data::ObjectMapper::SQL::Select' ) {
             my ( $sub_stm, @sub_bind ) = $w->[2]->as_sql('parts');

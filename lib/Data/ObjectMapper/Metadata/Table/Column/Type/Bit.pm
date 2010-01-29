@@ -20,6 +20,7 @@ BEGIN {
 
 sub to_storage {
     my ( $self, $val ) = @_;
+
     return $val
         unless $enable_bit_vector
             and ref $val

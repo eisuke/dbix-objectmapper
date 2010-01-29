@@ -14,7 +14,7 @@ sub escape_func { $_[0]->{escape_func} }
 sub to_storage {
     my ( $self, $val ) = @_;
     return $val unless defined $val;
-    return \$self->escape_func->($val);
+    return $self->escape_func->($val);
 }
 
 1;

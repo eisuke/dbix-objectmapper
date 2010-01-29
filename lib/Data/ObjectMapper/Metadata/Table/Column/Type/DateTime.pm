@@ -44,7 +44,7 @@ sub from_storage {
 
 sub to_storage {
     my ( $self, $val ) = @_;
-    return $val unless $val and ref $val;
+    return $val unless $val and ref($val) =~ /^DateTime/;
     my $method = $self->format_method;
     $val->set_time_zone($self->time_zone) if $self->time_zone;
     return $self->datetime_parser->$method($val);

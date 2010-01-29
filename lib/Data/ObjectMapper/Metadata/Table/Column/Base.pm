@@ -79,7 +79,7 @@ sub op {
         if( (ref $val || '') eq 'ARRAY' ) {
             $val = [ map { $self->type->to_storage($_) } @$val ];
         }
-        elsif( $val and !ref($val) ) {
+        else {
             $val = $self->type->to_storage($val);
         }
         return [ $self, $op, $val ];

@@ -97,7 +97,7 @@ sub escape_binary_func {
     my $dbh  = shift;
     return sub {
         my $val = shift;
-        return $dbh->quote($val, { pg_type => PG_BYTEA });
+        return \$dbh->quote($val, { pg_type => PG_BYTEA });
     };
 }
 

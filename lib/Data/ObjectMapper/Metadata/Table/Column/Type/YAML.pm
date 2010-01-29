@@ -13,6 +13,7 @@ sub from_storage {
 sub to_storage {
     my ( $self, $val ) = @_;
     return $val unless defined $val and ref($val);
+    $val = $$val if ref $val eq 'REF';
     return YAML::Dump($val);
 }
 

@@ -8,4 +8,16 @@ sub _init {
     $self->{array_type} = shift || undef;
 }
 
+sub to_storage {
+    my ( $self, $val ) = @_;
+    return $val unless defined $val and ref($val);
+
+    if( ref($val) eq 'ARRAY' ) {
+        return \$val;
+    }
+    else {
+        return $val;
+    }
+}
+
 1;

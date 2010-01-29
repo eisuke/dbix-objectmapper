@@ -87,6 +87,11 @@ sub _values_as_sql {
             if( ref $values->{$key} eq 'SCALAR' ) {
                 push @val, ${$values->{$key}};
             }
+            elsif( ref $values->{$key} eq 'REF' ) {
+                my $val = ${$values->{$key}};
+                push @val, '?';
+                push @bind, $val;
+            }
             else {
                 push @val, '?';
                 push @bind, $values->{$key};
@@ -110,6 +115,11 @@ sub _values_as_sql {
                 for my $vv ( @$v ) {
                     if( ref $vv eq 'SCALAR' ) {
                         push @val, $$vv;
+                    }
+                    elsif( ref $vv eq 'REF' ) {
+                        my $val = $$vv;
+                        push @val, '?';
+                        push @bind, $val;
                     }
                     else {
                         push @val, '?';

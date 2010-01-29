@@ -159,8 +159,13 @@ sub build_pkg($) {
     $obj->set_engine_option($engine);
     ok $obj->from_storage(pack('C', 10));
     my $to_st = $obj->to_storage(pack('C', 10));
-    is ref($to_st), 'SCALAR';
-    is $$to_st, "'\n'";
+
+    # SQLite use normail bind
+    is $to_st, pack('C', 10);
+
+    # other db like below
+    #is ref($to_st), 'SCALAR';
+    #is $$to_st, "'\n'";
 };
 
 {
@@ -218,7 +223,7 @@ if( $dsn && $user ) {
     if( $pg_engine ) {
         $obj->set_engine_option($pg_engine);
         is_deeply $obj->from_storage([1,2,3]), [1,2,3];
-        is_deeply $obj->to_storage([1,2,3]), [1,2,3];
+        is_deeply $obj->to_storage([1,2,3]), \[1,2,3];
     }
 };
 
