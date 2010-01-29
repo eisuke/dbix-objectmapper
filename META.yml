@@ -34,7 +34,7 @@ requires:
   Class::Accessor::Fast: 0.32
   Class::Data::Inheritable: 0
   Class::MOP: 0
-  Clone: 0
+  Clone: 0.31
   DBI: 1.4
   DBIx::Connector: 0
   Data::Page: 2
