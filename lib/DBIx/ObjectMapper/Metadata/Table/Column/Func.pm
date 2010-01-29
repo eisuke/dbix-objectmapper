@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Metadata::Table::Column::Func;
 use strict;
 use warnings;
-use parent qw(DBIx::ObjectMapper::Metadata::Table::Column::Base);
+use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Base);
 
 sub as_string {
     my $self = shift;
