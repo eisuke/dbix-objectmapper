@@ -259,7 +259,10 @@ sub get_val_trigger {
     }
 
     if( $prop->type eq 'relation' ) {
-        $self->load_rel_val($name) unless defined $self->instance->{$name};
+        $self->load_rel_val($name)
+            if !defined $self->instance->{$name}
+                or ( ref $self->instance->{$name} eq 'ARRAY'
+                    and @{ $self->instance->{$name} } == 0 );
     }
     elsif( my %lazy_column = $class_mapper->attributes->lazy_column($name) ) {
         unless ( defined $self->instance->{$name} ) {

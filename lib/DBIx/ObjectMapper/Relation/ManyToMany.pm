@@ -77,7 +77,9 @@ sub cascade_save {
     my $rel_mapper = $self->mapper;
 
     $mapper->unit_of_work->add($instance);
-    $instance->__mapper__->save;
+    if( $instance->__mapper__->status eq 'pending' ) {
+        $instance->__mapper__->save;
+    }
 
     my %values;
     my $fk1 =
