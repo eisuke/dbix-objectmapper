@@ -3,22 +3,22 @@ use warnings;
 use Test::More qw(no_plan);
 use Test::Exception;
 
-use Data::ObjectMapper::Engine;
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Engine;
+use DBIx::ObjectMapper::Engine::DBI;
 use DBI;
 use List::MoreUtils;
-use Data::ObjectMapper::Log;
+use DBIx::ObjectMapper::Log;
 use Try::Tiny;
 
 { # basic
-    check_interface('Data::ObjectMapper::Engine');
-    check_interface('Data::ObjectMapper::Engine::DBI');
+    check_interface('DBIx::ObjectMapper::Engine');
+    check_interface('DBIx::ObjectMapper::Engine::DBI');
 };
 
 { # dbi-sqlite
-    dies_ok{ Data::ObjectMapper::Engine::DBI->new() };
+    dies_ok{ DBIx::ObjectMapper::Engine::DBI->new() };
 
-    ok my $dr = Data::ObjectMapper::Engine::DBI->new(
+    ok my $dr = DBIx::ObjectMapper::Engine::DBI->new(
         [
             'DBI:SQLite:',
             undef,
@@ -34,7 +34,7 @@ use Try::Tiny;
     );
     ok $dr->dbh;
 
-    ok my $dr2 = Data::ObjectMapper::Engine::DBI->new({
+    ok my $dr2 = DBIx::ObjectMapper::Engine::DBI->new({
         dsn => 'DBI:SQLite:',
         username => undef,
         password => undef,
@@ -174,7 +174,7 @@ use Try::Tiny;
 
     # txn_do
     ok my $transaction = $dr->transaction;
-    is ref($transaction), 'Data::ObjectMapper::Engine::DBI::Transaction';
+    is ref($transaction), 'DBIx::ObjectMapper::Engine::DBI::Transaction';
     $transaction = undef;
 
     $dr->transaction(

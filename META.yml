@@ -19,7 +19,7 @@ license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
-name: Data-ObjectMapper
+name: DBIx-ObjectMapper
 no_index:
   directory:
     - inc

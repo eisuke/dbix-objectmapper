@@ -1,7 +1,7 @@
 use Test::Base;
 plan tests => ( 1 * blocks ) + 18;
 
-use Data::ObjectMapper::SQL;
+use DBIx::ObjectMapper::SQL;
 
 sub as_sql {
     my $param = shift;
@@ -41,7 +41,7 @@ run_is;
         having   => [ [ { 'count' => 'order_id' }, '>', '1' ], ],
         driver   => 'Pg',
     };
-    my $sql = Data::ObjectMapper::SQL->select(%$input);
+    my $sql = DBIx::ObjectMapper::SQL->select(%$input);
     $input = { %$sql };
 
     my $clone = $sql->clone;
@@ -61,7 +61,7 @@ run_is;
 __END__
 === SELECT1
 --- input
-Data::ObjectMapper::SQL->select(
+DBIx::ObjectMapper::SQL->select(
    column => [ 'customer_id', [ { count => 'order_id' }, 'cnt' ] ],
    from   => [ ['order_mst' => 'orders'] ],
    join  => [
@@ -96,7 +96,7 @@ SELECT customer_id, COUNT(order_id) AS cnt FROM order_mst AS orders LEFT JOIN or
 
 === SELECT2
 --- input
-my $sql = Data::ObjectMapper::SQL->select()
+my $sql = DBIx::ObjectMapper::SQL->select()
 ->column ( qw(a b c d) )
 ->where(
         [ 'a' , '=', 1 ],
@@ -125,7 +125,7 @@ SELECT a, b, c, d, SUM(d) FROM table WHERE ( a = ? AND SUM(d) > ? AND text @@ ? 
 
 === INSERT
 --- input
-Data::ObjectMapper::SQL->insert(
+DBIx::ObjectMapper::SQL->insert(
     into   => 'hoge',
     values => {
         a => 1,
@@ -139,7 +139,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?) <= 1,2,3,4
 
 === INSERT2
 --- input
-Data::ObjectMapper::SQL->insert(
+DBIx::ObjectMapper::SQL->insert(
     into   => 'hoge',
     values => {
         id => \'nextval(\'hoge_seq\')',
@@ -153,10 +153,10 @@ INSERT INTO hoge ( b, c, d, id ) VALUES (?,?,?,nextval('hoge_seq')) <= 2,3,4
 
 === INSERT SELECT
 --- input
-Data::ObjectMapper::SQL->insert()
+DBIx::ObjectMapper::SQL->insert()
 ->into('hoge')
 ->values(
-    [ qw(a b c d) ] => Data::ObjectMapper::SQL->select
+    [ qw(a b c d) ] => DBIx::ObjectMapper::SQL->select
                     ->from('hoge2')
                     ->where(
                         [ a => 1 ],
@@ -168,10 +168,10 @@ INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <=
 
 === INSERT SELECT add
 --- input
-my $sql = Data::ObjectMapper::SQL->insert();
+my $sql = DBIx::ObjectMapper::SQL->insert();
 $sql->into('hoge');
 $sql->add_values(
-    [ qw(a b c d) ] => Data::ObjectMapper::SQL->select
+    [ qw(a b c d) ] => DBIx::ObjectMapper::SQL->select
                     ->from('hoge2')
                     ->where(
                         [ a => 1 ],
@@ -184,7 +184,7 @@ INSERT INTO hoge ( a, b, c, d ) SELECT * FROM hoge2 WHERE ( a = ? AND b = ? ) <=
 
 === INSERT MULTI ARRAY
 --- input
-Data::ObjectMapper::SQL->insert()
+DBIx::ObjectMapper::SQL->insert()
 ->into('hoge')
 ->values(
     [ qw(a b c d) ],
@@ -197,7 +197,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,
 
 === INSERT MULTI HASH
 --- input
-Data::ObjectMapper::SQL->insert()
+DBIx::ObjectMapper::SQL->insert()
 ->into('hoge')
 ->values(
     { a => 1, b => 2, c => 3, d => 4 },
@@ -210,7 +210,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,
 
 === INSERT MULTI ADD
 --- input
-my $sql = Data::ObjectMapper::SQL->insert();
+my $sql = DBIx::ObjectMapper::SQL->insert();
 $sql->into('hoge');
 $sql->add_values(
     [ qw(a b c d) ],
@@ -224,7 +224,7 @@ INSERT INTO hoge ( a, b, c, d ) VALUES (?,?,?,?), (?,?,?,?), (?,?,?,?) <= 1,2,3,
 
 === INSERT ADD
 --- input
-my $sql = Data::ObjectMapper::SQL->insert();
+my $sql = DBIx::ObjectMapper::SQL->insert();
 $sql->into('foo');
 $sql->values( a => 1, b => 2 );
 $sql->add_values( c => 3 );
@@ -235,7 +235,7 @@ INSERT INTO foo ( a, b, c ) VALUES (?,?,?) <= 1,2,3
 
 === UPDATE
 --- input
-Data::ObjectMapper::SQL->update(
+DBIx::ObjectMapper::SQL->update(
     table => 'foo',
     set   => {
          a => 1,
@@ -250,7 +250,7 @@ UPDATE foo SET a = ? , b = ? WHERE ( c = ? ) <= 1,2,1
 
 === UPDATE ADD
 --- input
-my $sql = Data::ObjectMapper::SQL->update;
+my $sql = DBIx::ObjectMapper::SQL->update;
 $sql->table('foo');
 $sql->set( a => 1 );
 $sql->where( [qw(c 1)] );
@@ -264,20 +264,20 @@ UPDATE foo SET a = ? , b = ? WHERE ( c = ? AND d = ? ) <= 1,2,1,hoge
 
 === UPDATE CHAIN
 --- input
-Data::ObjectMapper::SQL->update->table('foo')->set( a => 1 )->where( [qw(c 1)] );
+DBIx::ObjectMapper::SQL->update->table('foo')->set( a => 1 )->where( [qw(c 1)] );
 --- expected
 UPDATE foo SET a = ? WHERE ( c = ? ) <= 1,1
 
 === UPDATE DIRECT
 --- input
-Data::ObjectMapper::SQL->update->table('foo')->set( a => \'a + 1', b => 1 )->where( [qw(c 1)] );
+DBIx::ObjectMapper::SQL->update->table('foo')->set( a => \'a + 1', b => 1 )->where( [qw(c 1)] );
 --- expected
 UPDATE foo SET a = a + 1 , b = ? WHERE ( c = ? ) <= 1,1
 
 
 === DELETE
 --- input
-Data::ObjectMapper::SQL->delete(
+DBIx::ObjectMapper::SQL->delete(
     table => 'bar',
     where => [
         [ qw(a 1) ],
@@ -289,7 +289,7 @@ DELETE FROM bar WHERE ( a = ? AND b = ? ) <= 1,2
 
 === DELETE ADD
 --- input
-my $sql = Data::ObjectMapper::SQL->delete()->where([ qw(a 1) ]);
+my $sql = DBIx::ObjectMapper::SQL->delete()->where([ qw(a 1) ]);
 $sql->add_table('bar');
 $sql->add_where(
     [ qw(b 2) ],
@@ -299,7 +299,7 @@ DELETE FROM bar WHERE ( a = ? AND b = ? ) <= 1,2
 
 === SELECT JOIN
 --- input
-Data::ObjectMapper::SQL->select(
+DBIx::ObjectMapper::SQL->select(
     from => 'hoge',
     join  => [
        [
@@ -317,20 +317,20 @@ SELECT * FROM hoge LEFT JOIN order_goods ON ( order_goods.order_id = ? ) WHERE (
 
 === UNION
 --- input
-Data::ObjectMapper::SQL->union(
+DBIx::ObjectMapper::SQL->union(
     driver => 'Pg',
     sets => [
-       Data::ObjectMapper::SQL->select(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table1',
          column => [qw(id name)],
          where => [[qw(id 1)]],
        ),
-       Data::ObjectMapper::SQL->select(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table2',
          column => [qw(id name)],
          where => [[qw(id 1)]],
        ),
-       Data::ObjectMapper::SQL->select(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table3',
          column => [qw(id name)],
          where => [[qw(id 1)]],
@@ -346,18 +346,18 @@ Data::ObjectMapper::SQL->union(
 
 === UNION Chain
 --- input
-Data::ObjectMapper::SQL->new('Pg')->union->sets(
-       Data::ObjectMapper::SQL->select(
+DBIx::ObjectMapper::SQL->new('Pg')->union->sets(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table1',
          column => [qw(id name)],
          where => [[qw(id 1)]],
        ),
-       Data::ObjectMapper::SQL->select(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table2',
          column => [qw(id name)],
          where => [[qw(id 1)]],
        ),
-       Data::ObjectMapper::SQL->select(
+       DBIx::ObjectMapper::SQL->select(
          from => 'table3',
          column => [qw(id name)],
          where => [[qw(id 1)]],
@@ -369,10 +369,10 @@ Data::ObjectMapper::SQL->new('Pg')->union->sets(
 
 === SUBQUERY1
 --- input
-my $sql = Data::ObjectMapper::SQL->select->column(qw(id text))->from('parent')->join(
+my $sql = DBIx::ObjectMapper::SQL->select->column(qw(id text))->from('parent')->join(
   [
    [
-    Data::ObjectMapper::SQL->select->from('child')->where( [ 'id', '>', 10 ] ),
+    DBIx::ObjectMapper::SQL->select->from('child')->where( [ 'id', '>', 10 ] ),
     'c',
    ],
     [ [ 'parent.id', \'c.parent_id' ] ],
@@ -385,19 +385,19 @@ SELECT id, text FROM parent LEFT OUTER JOIN ( SELECT * FROM child WHERE ( id > ?
 
 === SUBQUERY2
 --- input
-Data::ObjectMapper::SQL->select->column('col1')->from('tab1')->where(
-    [ { exists => Data::ObjectMapper::SQL->select->column('1')->from('tab2')->where( [ 'col2', \'tab1.col2'] ) } ]
+DBIx::ObjectMapper::SQL->select->column('col1')->from('tab1')->where(
+    [ { exists => DBIx::ObjectMapper::SQL->select->column('1')->from('tab2')->where( [ 'col2', \'tab1.col2'] ) } ]
 );
 --- expected
 SELECT col1 FROM tab1 WHERE ( EXISTS( SELECT 1 FROM tab2 WHERE ( col2 = tab1.col2 ) ) ) <= 
 
 === SUBQUERY3
 --- input
-Data::ObjectMapper::SQL->select->from('testm')->where(
+DBIx::ObjectMapper::SQL->select->from('testm')->where(
     [
        'key',
        '=',
-        [ Data::ObjectMapper::SQL->select->column({distinct => 'code1'})
+        [ DBIx::ObjectMapper::SQL->select->column({distinct => 'code1'})
           ->from('test2m')->where( ['code1', 'like', 'a%']) ]
     ]
 );
@@ -406,11 +406,11 @@ SELECT * FROM testm WHERE ( key IN (( SELECT DISTINCT(code1) FROM test2m WHERE (
 
 === SUBQUERY4
 --- input
-Data::ObjectMapper::SQL->select->from('testm')->where(
+DBIx::ObjectMapper::SQL->select->from('testm')->where(
    [
        'key',
        '>',
-       { any => Data::ObjectMapper::SQL->select->column({distinct => 'code1'})->from('test2m')->where( [ 'code1', 'like', 'a%'] ) }
+       { any => DBIx::ObjectMapper::SQL->select->column({distinct => 'code1'})->from('test2m')->where( [ 'code1', 'like', 'a%'] ) }
    ]
 );
 --- expected
@@ -418,7 +418,7 @@ SELECT * FROM testm WHERE ( key > ANY( SELECT DISTINCT(code1) FROM test2m WHERE 
 
 === DIRECT input
 --- input
-Data::ObjectMapper::SQL->select->from('table')->where( \'id=1', [ 'cd', 1 ] );
+DBIx::ObjectMapper::SQL->select->from('table')->where( \'id=1', [ 'cd', 1 ] );
 
 --- expected
 SELECT * FROM table WHERE ( id=1 AND cd = ? ) <= 1

@@ -2,10 +2,10 @@ use strict;
 use warnings;
 use Test::More;
 
-use Data::ObjectMapper::Session::Array;
+use DBIx::ObjectMapper::Session::Array;
 
 {
-    package Data::ObjectMapper::Session::DummyUOW;
+    package DBIx::ObjectMapper::Session::DummyUOW;
     use Scalar::Util qw(refaddr);
 
     my %INSTANCE;
@@ -40,7 +40,7 @@ use Data::ObjectMapper::Session::Array;
 };
 
 {
-    package Data::ObjectMapper::Session::DummyMapper;
+    package DBIx::ObjectMapper::Session::DummyMapper;
     use Scalar::Util qw(refaddr);
     my %INSTANCE;
 
@@ -86,10 +86,10 @@ use Data::ObjectMapper::Session::Array;
     1;
 };
 
-my $uow = Data::ObjectMapper::Session::DummyUOW->new;
-my $mapper = Data::ObjectMapper::Session::DummyMapper->new;
+my $uow = DBIx::ObjectMapper::Session::DummyUOW->new;
+my $mapper = DBIx::ObjectMapper::Session::DummyMapper->new;
 $mapper->{unit_of_work} = $uow;
-my $array = Data::ObjectMapper::Session::Array->new('name', $mapper, qw(a b c d));
+my $array = DBIx::ObjectMapper::Session::Array->new('name', $mapper, qw(a b c d));
 
 ok tied(@$array);
 is_deeply $array, $uow->{add};

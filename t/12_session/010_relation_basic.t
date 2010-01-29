@@ -2,11 +2,11 @@ use strict;
 use warnings;
 use Test::More;
 
-use Data::ObjectMapper;
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper;
+use DBIx::ObjectMapper::Engine::DBI;
 
-my $mapper = Data::ObjectMapper->new(
-    engine => Data::ObjectMapper::Engine::DBI->new({
+my $mapper = DBIx::ObjectMapper->new(
+    engine => DBIx::ObjectMapper::Engine::DBI->new({
         dsn => 'DBI:SQLite:',
         username => '',
         password => '',

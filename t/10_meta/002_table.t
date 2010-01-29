@@ -1,16 +1,16 @@
 use strict;
 use warnings;
 use Test::More qw(no_plan);
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Engine::DBI;
 
-use Data::ObjectMapper::Metadata::Table;
-use Data::ObjectMapper::Metadata::Sugar qw(:all);
+use DBIx::ObjectMapper::Metadata::Table;
+use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
 {
     my $inflate = sub{ 'inflate' };
     my $deflate = sub{ 'deflate' };
 
-    ok my $meta = Data::ObjectMapper::Metadata::Table->new(
+    ok my $meta = DBIx::ObjectMapper::Metadata::Table->new(
         testmetadata => [
             Col( id      => Int(), PrimaryKey, Readonly ),
             Col( name    => Text('utf8'), NotNull ),
@@ -46,7 +46,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     is_deeply [ map { $_->name } @{ $meta->columns } ],
         [qw(id name cd r created updated)];
     ok my $id = $meta->c('id');
-    is ref($id->type), 'Data::ObjectMapper::Metadata::Table::Column::Type::Int';
+    is ref($id->type), 'DBIx::ObjectMapper::Metadata::Table::Column::Type::Int';
     is_deeply $meta->unique_key('name_uniq'), ['name'];
     is_deeply $meta->unique_key('c_uniq_cd'), ['cd'];
     is_deeply $meta->utf8, [ 'name' ];
@@ -84,7 +84,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
 };
 
 {
-    my $engine = Data::ObjectMapper::Engine::DBI->new({
+    my $engine = DBIx::ObjectMapper::Engine::DBI->new({
         dsn => 'DBI:SQLite:',
         username => '',
         password => '',
@@ -94,7 +94,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
         ],
     });
 
-    ok my $meta = Data::ObjectMapper::Metadata::Table->new(
+    ok my $meta = DBIx::ObjectMapper::Metadata::Table->new(
         testmetadata => [
             Col( name => Text(undef, utf8 => 1) ),
             Col( created => Default { time() } ),
@@ -115,7 +115,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     ok $meta->c('updated');
     is ref($meta->c('updated')->on_update), 'CODE';
 
-    ok my $meta2 = Data::ObjectMapper::Metadata::Table->new(
+    ok my $meta2 = DBIx::ObjectMapper::Metadata::Table->new(
         testfk => 'autoload',
         { engine => $engine }
     );

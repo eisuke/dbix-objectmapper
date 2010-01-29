@@ -4,14 +4,14 @@ use Test::More;
 use Test::Exception;
 use Encode;
 
-use Data::ObjectMapper::Metadata::Table::Column;
-use Data::ObjectMapper::Metadata::Table::Column::Type::Text;
+use DBIx::ObjectMapper::Metadata::Table::Column;
+use DBIx::ObjectMapper::Metadata::Table::Column::Type::Text;
 
-my $c = Data::ObjectMapper::Metadata::Table::Column->new(
+my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
     {   name        => 'type',
         sep         => '.',
         table       => 'b',
-        type => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new( undef, 'utf8' ),
+        type => DBIx::ObjectMapper::Metadata::Table::Column::Type::Text->new( undef, 'utf8' ),
         is_nullable => 1,
         validation  => undef,
         on_update   => sub { '-on_update' },
@@ -54,7 +54,7 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
 };
 
 { # property
-    is ref($c->type), 'Data::ObjectMapper::Metadata::Table::Column::Type::Text', 'property type';
+    is ref($c->type), 'DBIx::ObjectMapper::Metadata::Table::Column::Type::Text', 'property type';
     is $c->is_nullable, 1, 'property is_nullable';
 };
 
@@ -68,11 +68,11 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
 
 { # vaidation
 
-    $c = Data::ObjectMapper::Metadata::Table::Column->new(
+    $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
         {   name        => 'type',
             sep         => '.',
             table       => 'b',
-            type        => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new,
+            type        => DBIx::ObjectMapper::Metadata::Table::Column::Type::Text->new,
             is_nullable => 1,
             validation  => sub { $_[0] =~ /^\d+$/ },
             on_update   => undef,
@@ -91,11 +91,11 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
 };
 
 { # readonly
-    $c = Data::ObjectMapper::Metadata::Table::Column->new(
+    $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
         {   name        => 'type',
             sep         => '.',
             table       => 'b',
-            type        => Data::ObjectMapper::Metadata::Table::Column::Type::Text->new,
+            type        => DBIx::ObjectMapper::Metadata::Table::Column::Type::Text->new,
             is_nullable => 1,
             validation  => undef,
             on_update   => undef,
@@ -114,7 +114,7 @@ my $c = Data::ObjectMapper::Metadata::Table::Column->new(
 
 { # func
     ok my $func = $c->func('substr', 0, 10), 'function';
-    is ref($func), 'Data::ObjectMapper::Metadata::Table::Column::Func', 'function ref';
+    is ref($func), 'DBIx::ObjectMapper::Metadata::Table::Column::Func', 'function ref';
     is $func . q{}, 'SUBSTR(b.type, 0, 10)', 'function as_str';
     my $op = $func == 1;
     is_deeply $op, [ 'SUBSTR(b.type, 0, 10)', '=', 1];

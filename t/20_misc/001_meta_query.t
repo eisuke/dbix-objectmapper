@@ -3,11 +3,11 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper;
-use Data::ObjectMapper::Metadata::Query;
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper;
+use DBIx::ObjectMapper::Metadata::Query;
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     username => '',
     password => '',
@@ -17,7 +17,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $mapper = Data::ObjectMapper->new( engine => $engine );
+my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 my $meta = $mapper->metadata;
 $meta->autoload_all_tables;
 ok my $customer = $meta->t('customer');
@@ -32,7 +32,7 @@ $email->insert( customer_id => 3, email => 'cust3@example.com' )->execute;
     ok my $query = $customer->select->column(@{$customer->columns}, @{$customer->columns})->join([ $email, [ $email->c('customer_id') == $customer->c('id') ] ]);
 
     dies_ok {
-        my $meta_query = Data::ObjectMapper::Metadata::Query->new(
+        my $meta_query = DBIx::ObjectMapper::Metadata::Query->new(
             'customer_and_email' => $query,
             { engine => $engine },
         );
@@ -42,7 +42,7 @@ $email->insert( customer_id => 3, email => 'cust3@example.com' )->execute;
 
 ok my $query = $customer->select->column(@{$customer->columns}, @{$email->columns} )->join([ $email, [ $email->c('customer_id') == $customer->c('id') ] ]);
 
-ok my $meta_query = Data::ObjectMapper::Metadata::Query->new(
+ok my $meta_query = DBIx::ObjectMapper::Metadata::Query->new(
     'customer_and_email' => $query,
     { engine => $engine },
 );

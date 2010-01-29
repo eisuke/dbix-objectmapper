@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use Data::ObjectMapper::Metadata::Sugar qw(:all);
+use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
 {
     ok my $id = Col( 'id', Int(), PrimaryKey );
@@ -10,7 +10,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     is $id->{name}, 'id';
     ok $id->{primary_key};
     is $id->{is_nullable}, 0;
-    is ref($id->{type}), 'Data::ObjectMapper::Metadata::Table::Column::Type::Int';
+    is ref($id->{type}), 'DBIx::ObjectMapper::Metadata::Table::Column::Type::Int';
 };
 
 {
@@ -28,7 +28,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     );
     is ref($col), 'HASH';
     is $col->{name}, 'col';
-    is ref($col->{type}), 'Data::ObjectMapper::Metadata::Table::Column::Type::String';
+    is ref($col->{type}), 'DBIx::ObjectMapper::Metadata::Table::Column::Type::String';
     is $col->{type}->size, 10;
     is $col->{on_update}->(), 'on_update';
     is $col->{default}->(), 'default';

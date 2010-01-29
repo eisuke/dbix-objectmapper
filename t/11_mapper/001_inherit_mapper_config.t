@@ -2,9 +2,9 @@ use strict;
 use warnings;
 use Test::More;
 
-use Data::ObjectMapper::Mapper;
-use Data::ObjectMapper::Metadata;
-use Data::ObjectMapper::Metadata::Sugar qw(:all);
+use DBIx::ObjectMapper::Mapper;
+use DBIx::ObjectMapper::Metadata;
+use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
 {
     package MyTest001::Player;
@@ -44,7 +44,7 @@ use Data::ObjectMapper::Metadata::Sugar qw(:all);
     1;
 };
 
-my $meta = Data::ObjectMapper::Metadata->new;
+my $meta = DBIx::ObjectMapper::Metadata->new;
 my $player = $meta->table(
     'player' => [
         Col( id => Int(), PrimaryKey ),
@@ -53,7 +53,7 @@ my $player = $meta->table(
     ]
 );
 
-ok my $player_mapper = Data::ObjectMapper::Mapper->new(
+ok my $player_mapper = DBIx::ObjectMapper::Mapper->new(
     $player => 'MyTest001::Player',
     constructor => { arg_type => 'ARRAY' },
     attributes => {
@@ -65,7 +65,7 @@ ok my $player_mapper = Data::ObjectMapper::Mapper->new(
     }
 );
 
-ok my $inherit_mapper = Data::ObjectMapper::Mapper->new(
+ok my $inherit_mapper = DBIx::ObjectMapper::Mapper->new(
     $player_mapper    => 'MyTest001::FootballPlayer',
     default_condition => [ $player->c('play') == 'football' ],
     default_value => { $player->c('play') => 'football' },

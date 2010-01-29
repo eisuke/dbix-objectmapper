@@ -4,10 +4,10 @@ use Test::More;
 use Test::Exception;
 
 use Scalar::Util qw(blessed);
-use Data::ObjectMapper::Engine::DBI;
-BEGIN { use_ok('Data::ObjectMapper::Query') }
+use DBIx::ObjectMapper::Engine::DBI;
+BEGIN { use_ok('DBIx::ObjectMapper::Query') }
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     username => '',
     password => '',
@@ -21,15 +21,15 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $query = Data::ObjectMapper::Query->new($engine);
+my $query = DBIx::ObjectMapper::Query->new($engine);
 ok blessed($query->select);
-is ref($query->select), 'Data::ObjectMapper::Query::Select';
+is ref($query->select), 'DBIx::ObjectMapper::Query::Select';
 ok blessed($query->update);
-is ref($query->update), 'Data::ObjectMapper::Query::Update';
+is ref($query->update), 'DBIx::ObjectMapper::Query::Update';
 ok blessed($query->delete);
-is ref($query->delete), 'Data::ObjectMapper::Query::Delete';
+is ref($query->delete), 'DBIx::ObjectMapper::Query::Delete';
 ok blessed($query->insert);
-is ref($query->insert), 'Data::ObjectMapper::Query::Insert';
+is ref($query->insert), 'DBIx::ObjectMapper::Query::Insert';
 
 { # select
     my @artists = @{$query->select->from('artist')->order_by('id')->execute};

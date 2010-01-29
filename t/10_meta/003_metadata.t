@@ -1,12 +1,12 @@
 use strict;
 use warnings;
 use Test::More qw(no_plan);
-use Data::ObjectMapper::Metadata;
-use Data::ObjectMapper::Metadata::Sugar qw(:all);
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Metadata;
+use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
+use DBIx::ObjectMapper::Engine::DBI;
 
 {
-    ok my $metadata = Data::ObjectMapper::Metadata->new;
+    ok my $metadata = DBIx::ObjectMapper::Metadata->new;
 
     ok my $person = $metadata->table(
         'person' => [
@@ -24,7 +24,7 @@ use Data::ObjectMapper::Engine::DBI;
 };
 
 {
-    my $engine = Data::ObjectMapper::Engine::DBI->new({
+    my $engine = DBIx::ObjectMapper::Engine::DBI->new({
         dsn => 'DBI:SQLite:',
         username => '',
         password => '',
@@ -35,7 +35,7 @@ use Data::ObjectMapper::Engine::DBI;
         ],
     });
 
-    my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
+    my $meta = DBIx::ObjectMapper::Metadata->new( engine => $engine );
     my @tables = $meta->autoload_all_tables;
     is_deeply \@tables, [qw(testmetadata testmetadata2 testmetadata3)];
     ok my $test = $meta->t('testmetadata');

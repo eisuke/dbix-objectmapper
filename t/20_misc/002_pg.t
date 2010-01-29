@@ -5,15 +5,15 @@ use MIME::Base64;
 use DateTime;
 use DateTime::Duration;
 use Bit::Vector;
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper;
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper;
 
 my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{MAPPER_TEST_PG_DSN}, _USER and _PASS to run this test' unless ($dsn && $user);
 
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => $dsn,
     username => $user,
     password => $pass,
@@ -35,7 +35,7 @@ CREATE TEMP TABLE test_types (
     ]
 });
 
-my $mapper = Data::ObjectMapper->new( engine => $engine );
+my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 my $table = $mapper->metadata->table( test_types => 'autoload' );
 my $GIF = 'R0lGODlhAQABAJEAAAAAAP///////wAAACH5BAUUAAIALAAAAAABAAEAAAICVAEAOw==
 ';

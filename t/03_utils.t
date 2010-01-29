@@ -4,24 +4,24 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
-use Data::ObjectMapper::Utils;
+use DBIx::ObjectMapper::Utils;
 use DateTime;
 use URI;
 
 # load_class
 {
-    is Data::ObjectMapper::Utils::load_class('Getopt::Long'), 'Getopt::Long';
+    is DBIx::ObjectMapper::Utils::load_class('Getopt::Long'), 'Getopt::Long';
     {
         local $@;
-        eval{ Data::ObjectMapper::Utils::load_class('NOEXSITSCLASS') };
+        eval{ DBIx::ObjectMapper::Utils::load_class('NOEXSITSCLASS') };
         ok $@, $@;
     };
 };
 
 # loaded
 {
-    ok Data::ObjectMapper::Utils::loaded('Getopt::Long');
-    ok not Data::ObjectMapper::Utils::loaded('NOEXSITSCLASS');
+    ok DBIx::ObjectMapper::Utils::loaded('Getopt::Long');
+    ok not DBIx::ObjectMapper::Utils::loaded('NOEXSITSCLASS');
 };
 
 # normalized_hash_to_array
@@ -34,10 +34,10 @@ use URI;
         { title => 'title4', artist => 'artist4' },
     ];
 
-    ok my ($header, $normalized) = Data::ObjectMapper::Utils::normalized_hash_to_array($base);
+    ok my ($header, $normalized) = DBIx::ObjectMapper::Utils::normalized_hash_to_array($base);
 
     dies_ok{
-        Data::ObjectMapper::Utils::normalized_hash_to_array([
+        DBIx::ObjectMapper::Utils::normalized_hash_to_array([
             [qw(a b)],
             [qw(c d)],
             [qw(e f)],
@@ -56,17 +56,17 @@ use URI;
     my @rray;
     push @rray, $header, @$normalized;
 
-    my $array_to_hash = Data::ObjectMapper::Utils::normalized_array_to_hash(\@rray);
+    my $array_to_hash = DBIx::ObjectMapper::Utils::normalized_array_to_hash(\@rray);
     is_deeply $base, $array_to_hash;
 
     dies_ok {
-        Data::ObjectMapper::Utils::normalized_array_to_hash([
+        DBIx::ObjectMapper::Utils::normalized_array_to_hash([
             { a => 1, b => 2},
             { c => 3, d => 4},
         ]);
     };
 
-    dies_ok{ Data::ObjectMapper::Utils::normalized_array_to_hash('a') };
+    dies_ok{ DBIx::ObjectMapper::Utils::normalized_array_to_hash('a') };
 }
 
 { # is_deeply
@@ -128,21 +128,21 @@ use URI;
         [ +[], +[], 1 ],
     );
 
-    is Data::ObjectMapper::Utils::is_deeply($_->[0], $_->[1]), $_->[2] for @sample;
+    is DBIx::ObjectMapper::Utils::is_deeply($_->[0], $_->[1]), $_->[2] for @sample;
 
-    warnings_like { Data::ObjectMapper::Utils::is_deeply(sub{}, sub{}) } qr/CODE is not supported/;
+    warnings_like { DBIx::ObjectMapper::Utils::is_deeply(sub{}, sub{}) } qr/CODE is not supported/;
 
     # DateTime
     my $now = DateTime->now();
-    is Data::ObjectMapper::Utils::is_deeply($now, $now), 1;
+    is DBIx::ObjectMapper::Utils::is_deeply($now, $now), 1;
     my $now2 = DateTime->new( year => 2001 );
-    is Data::ObjectMapper::Utils::is_deeply($now, $now2), undef;
+    is DBIx::ObjectMapper::Utils::is_deeply($now, $now2), undef;
 
     # URI
     my $uri = URI->new( 'http://www.yahoo.co.jp/' );
-    is Data::ObjectMapper::Utils::is_deeply($uri, $uri), 1;
+    is DBIx::ObjectMapper::Utils::is_deeply($uri, $uri), 1;
     my $uri2 = URI->new( 'http://www.google.co.jp/' );
-    is Data::ObjectMapper::Utils::is_deeply($uri, $uri2), undef;
+    is DBIx::ObjectMapper::Utils::is_deeply($uri, $uri2), undef;
 
 };
 
@@ -169,7 +169,7 @@ use URI;
     );
     for( @input ) {
         is_deeply $_->[0],
-            Data::ObjectMapper::Utils::merge_hashref( $_->[1], $_->[2] );
+            DBIx::ObjectMapper::Utils::merge_hashref( $_->[1], $_->[2] );
     }
 
 };

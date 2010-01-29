@@ -3,16 +3,16 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use Data::ObjectMapper::Metadata;
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper::Mapper;
+use DBIx::ObjectMapper::Metadata;
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Mapper;
 
 use Scalar::Util;
 use FindBin;
 use File::Spec;
 use lib File::Spec->catfile( $FindBin::Bin, 'lib' );
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     username => '',
     password => '',
@@ -21,7 +21,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ]
 });
 
-my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
+my $meta = DBIx::ObjectMapper::Metadata->new( engine => $engine );
 my $artist_table = $meta->table( artist => 'autoload' );
 
 sub is_same_addr($$) {
@@ -30,10 +30,10 @@ sub is_same_addr($$) {
 
 { # map defined class
     my $mapped_class = 'MyTest::Basic::Artist';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $artist_table => $mapped_class
     );
-    ok( Data::ObjectMapper::Mapper->is_initialized($mapped_class) );
+    ok( DBIx::ObjectMapper::Mapper->is_initialized($mapped_class) );
     ok $mapped_class->can('__class_mapper__');
     is_same_addr $mapper, $mapped_class->__class_mapper__;
 
@@ -44,13 +44,13 @@ sub is_same_addr($$) {
 
 { # map auto generate class
     my $mapped_class = 'MyTest::Basic::ArtistAuto';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => +{ auto => 1 },
     );
 
-    ok( Data::ObjectMapper::Mapper->is_initialized($mapped_class) );
+    ok( DBIx::ObjectMapper::Mapper->is_initialized($mapped_class) );
     ok $mapped_class->can('firstname');
     ok $mapped_class->can('lastname');
     ok $mapped_class->can('id');
@@ -64,14 +64,14 @@ sub is_same_addr($$) {
 
 { # attribute prefix
     my $mapped_class = 'MyTest::Basic::ArtistAutoPrefix';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => +{ auto => 1 },
         attributes  => +{ prefix => '_' },
     );
 
-    ok (Data::ObjectMapper::Mapper->is_initialized($mapped_class));
+    ok (DBIx::ObjectMapper::Mapper->is_initialized($mapped_class));
     ok $mapped_class->can('_firstname');
     ok $mapped_class->can('_lastname');
     ok $mapped_class->can('_id');
@@ -93,7 +93,7 @@ sub is_same_addr($$) {
 
 { # attribute include option
     my $mapped_class = 'MyTest::Basic::ArtistAutoInclude';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => +{ auto => 1 },
@@ -117,7 +117,7 @@ sub is_same_addr($$) {
 
 { # attribute exclue option
     my $mapped_class = 'MyTest::Basic::ArtistAutoExclude';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => +{ auto => 1 },
@@ -142,7 +142,7 @@ sub is_same_addr($$) {
 
 { # attribute include and exclude  option
     my $mapped_class = 'MyTest::Basic::ArtistAutoIncludeExclude';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => +{ auto => 1 },
@@ -168,7 +168,7 @@ sub is_same_addr($$) {
 { # map not exsits class
     my $mapped_class = 'MyTest::Basic::ArtistAutoNotExists';
     dies_ok {
-        my $mapper = Data::ObjectMapper::Mapper->new(
+        my $mapper = DBIx::ObjectMapper::Mapper->new(
             $meta->t('artist') => $mapped_class,
         );
     };
@@ -176,7 +176,7 @@ sub is_same_addr($$) {
 
 { # accessor only
     my $mapped_class = 'MyTest::AO::Artist';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         constructor => +{ auto => 1 },
     );
@@ -195,7 +195,7 @@ sub is_same_addr($$) {
 
 { # constructor only
     my $mapped_class = 'MyTest::CO::Artist';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         accessors   => +{ auto => 1 },
         constructor => { arg_type => 'ARRAY' },
@@ -213,7 +213,7 @@ sub is_same_addr($$) {
 
 { # array contructor argument
     my $mapped_class = 'MyTest::Basic::ArtistArray';
-    ok my $mapper = Data::ObjectMapper::Mapper->new(
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
         $meta->t('artist') => $mapped_class,
         constructor => { arg_type => 'ARRAY' },
         attributes  => {
@@ -248,7 +248,7 @@ sub is_same_addr($$) {
     my $mapped_class = 'MyTest::Basic::ArtistArray';
 
     dies_ok {
-        ok my $mapper = Data::ObjectMapper::Mapper->new(
+        ok my $mapper = DBIx::ObjectMapper::Mapper->new(
             $meta->t('artist') => $mapped_class,
             constructor => { arg_type => 'ARRAY' },
             attributes  => {

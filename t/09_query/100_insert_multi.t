@@ -1,14 +1,14 @@
 use strict;
 use warnings;
 use Test::More;
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper::Query;
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Query;
 
 my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{MAPPER_TEST_PG_DSN}, _USER and _PASS to run this test' unless ($dsn && $user);
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => $dsn,
     username => $user,
     password => $pass,
@@ -17,7 +17,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $query = Data::ObjectMapper::Query->new($engine);
+my $query = DBIx::ObjectMapper::Query->new($engine);
 
 {
     my @name = qw(a b c d e f g);

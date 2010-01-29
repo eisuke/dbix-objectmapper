@@ -1,10 +1,10 @@
 use strict;
 use warnings;
 use Test::More;
-use Data::ObjectMapper;
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper;
+use DBIx::ObjectMapper::Engine::DBI;
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     username => '',
     password => '',
@@ -14,7 +14,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $mapper = Data::ObjectMapper->new( engine => $engine );
+my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 $mapper->metadata->autoload_all_tables;
 my $emproyee = $mapper->metadata->t('emproyee');
 my $skill  = $mapper->metadata->t('skill');

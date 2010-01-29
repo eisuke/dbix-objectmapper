@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Class::MOP;
-use Data::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Engine::DBI;
 use DateTime::Format::SQLite;
 
 my $CHECK_BIT = 1;
@@ -13,7 +13,7 @@ BEGIN {
 
 sub build_pkg($) {
     my $t = shift;
-    my $pkg = 'Data::ObjectMapper::Metadata::Table::Column::Type::' . $t;
+    my $pkg = 'DBIx::ObjectMapper::Metadata::Table::Column::Type::' . $t;
     Class::MOP::load_class($pkg);
     return $pkg;
 }
@@ -155,7 +155,7 @@ sub build_pkg($) {
     my $pkg = build_pkg $type;
     my $obj = $pkg->new;
     is $obj->type, lc($type);
-    my $engine = Data::ObjectMapper::Engine::DBI->new({ dsn => 'DBI:SQLite:' });
+    my $engine = DBIx::ObjectMapper::Engine::DBI->new({ dsn => 'DBI:SQLite:' });
     $obj->set_engine_option($engine);
     ok $obj->from_storage(pack('C', 10));
     my $to_st = $obj->to_storage(pack('C', 10));
@@ -194,7 +194,7 @@ my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 
 my $pg_engine;
 if( $dsn && $user ) {
-    $pg_engine = Data::ObjectMapper::Engine::DBI->new({
+    $pg_engine = DBIx::ObjectMapper::Engine::DBI->new({
         dsn => $dsn,
         username => $user,
         password => $pass,

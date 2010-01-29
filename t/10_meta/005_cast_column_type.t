@@ -8,15 +8,15 @@ use Bit::Vector;
 use Storable;
 use YAML;
 use URI;
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper;
-use Data::ObjectMapper::Metadata::Sugar qw(Col),
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper;
+use DBIx::ObjectMapper::Metadata::Sugar qw(Col),
     YAML => { -as => 'Yaml' },
     URI  => { -as => 'Uri'},
     Storable => { -as => 'Serialize'}
 ;
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     on_connect_do => [
         q{
@@ -34,7 +34,7 @@ CREATE TABLE test_types (
     ]
 });
 
-my $mapper = Data::ObjectMapper->new( engine => $engine );
+my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 my $table = $mapper->metadata->table(
     test_types => [
         Col( storable => Serialize() ),

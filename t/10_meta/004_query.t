@@ -3,12 +3,12 @@ use warnings;
 use Test::More;
 use DateTime;
 
-use Data::ObjectMapper::Engine::DBI;
-use Data::ObjectMapper::Metadata;
+use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Metadata;
 
 my $now_func = sub { DateTime->now() };
 
-my $engine = Data::ObjectMapper::Engine::DBI->new({
+my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     username => '',
     password => '',
@@ -18,7 +18,7 @@ my $engine = Data::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $meta = Data::ObjectMapper::Metadata->new( engine => $engine );
+my $meta = DBIx::ObjectMapper::Metadata->new( engine => $engine );
 my $person = $meta->table(
     'person' => 'autoload',
     {
