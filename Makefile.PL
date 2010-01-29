@@ -15,7 +15,7 @@ requires 'Class::MOP';
 requires 'Clone';
 requires 'Class::Data::Inheritable';
 requires 'Data::Page' => 2.00;
-requires 'Class::Accessor::Fast';
+requires 'Class::Accessor::Fast' => 0.32;
 requires 'Hash::Merge';
 requires 'Params::Validate';
 requires 'Log::Any';

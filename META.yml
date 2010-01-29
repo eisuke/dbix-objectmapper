@@ -31,7 +31,7 @@ recommends:
   DateTime::Format::Pg: 0
 requires:
   Carp::Clan: 0
-  Class::Accessor::Fast: 0
+  Class::Accessor::Fast: 0.32
   Class::Data::Inheritable: 0
   Class::MOP: 0
   Clone: 0

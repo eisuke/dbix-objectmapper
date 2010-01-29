@@ -67,7 +67,7 @@ sub check {
     is $grandchild->parent->children->[0]->parent->children->[0]->parent->children->[0]->parent->parent->children->[0]->parent->id, 1;
 
     eval "require Test::Memory::Cycle";
-    unless( @$ ) {
+    unless( $@ ) {
         Test::Memory::Cycle::memory_cycle_ok( $first );
     }
 }

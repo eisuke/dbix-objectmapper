@@ -70,7 +70,7 @@ ok $mapper->maps(
     is $session->uow->query_cnt, 4;
 
     eval "require Test::Memory::Cycle";
-    unless( @$ ) {
+    unless( $@ ) {
         Test::Memory::Cycle::memory_cycle_ok( $parent );
     }
 
