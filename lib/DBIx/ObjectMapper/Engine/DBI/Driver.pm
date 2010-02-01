@@ -1,6 +1,7 @@
 package DBIx::ObjectMapper::Engine::DBI::Driver;
 use strict;
 use warnings;
+use Carp::Clan;
 use DBIx::ObjectMapper::Utils;
 use DBI;
 
@@ -216,5 +217,11 @@ sub escape_binary_func {
         return \$dbh->quote($val, DBI::SQL_BLOB);
     };
 }
+
+sub set_savepoint {}
+
+sub release_savepoint {}
+
+sub rollback_savepoint {}
 
 1;

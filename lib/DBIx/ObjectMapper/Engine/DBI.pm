@@ -13,8 +13,6 @@ use DBIx::ObjectMapper::Engine::DBI::Iterator;
 use DBIx::ObjectMapper::Engine::DBI::Driver;
 use DBIx::ObjectMapper::Engine::DBI::Transaction;
 
-use DBIx::ObjectMapper::Engine::DBI::Connector; # subclass of DBIx::Connector
-
 sub _init {
     my $self = shift;
     my $param = shift || confess 'invalid parameter.';
@@ -45,47 +43,19 @@ sub _init {
             : [$connect_do]
         : [];
 
-    push @connect_info,
-      {
+    push @connect_info, {
         AutoCommit => exists $option->{AutoCommit}
         ? delete $option->{AutoCommit}
         : 1,
         RaiseError         => 1,
         PrintError         => 0,
         ShowErrorStatement => 1,
-        ConnectDo          => $self->{connect_do},
         %{ $option || {} }
-      };
+    };
 
     $self->{connect_info} = \@connect_info;
-    my $connector
-        = DBIx::ObjectMapper::Engine::DBI::Connector->new(@connect_info);
-    $self->{connector} = $connector;
-
-    my $type = $connector->driver->{driver} || confess 'Driver Not Found.';
-
-    $self->{query} ||= DBIx::ObjectMapper::SQL->new($type);
-    $self->{driver_type} = $type;
-    $self->{time_zone} = $option->{time_zone} || undef;
-
-    $self->{driver} = DBIx::ObjectMapper::Engine::DBI::Driver->new(
-        $type,
-        $connector->dbh,
-        db_schema       => $self->{db_schema}       || undef,
-        namesep         => $self->{namesep}         || undef,
-        quote           => $self->{quote}           || undef,
-        sql             => $self->query,
-        log             => $self->log,
-        datetime_parser => $self->{datetime_parser} || undef,
-        time_zone       => $self->{time_zone},
-    );
-
-    if ( $self->{time_zone}
-        and my $tzq = $self->{driver}->set_time_zone_query )
-    {
-        push @{ $self->{connect_do} }, $tzq;
-    }
-
+    $self->{driver_type} = undef;
+    $self->{driver}      = undef;
     $self->init_option($option);
 
     return $self;
@@ -102,56 +72,268 @@ sub init_option {
         $self->{$name} = $option->{$name} if exists $option->{$name};
     }
 
-    $self->{connection_mode}
-        = $option->{connection_mode}
-        ? delete $option->{connection_mode}
-        : $self->driver->default_connection_mode;
-
     $self->{iterator} ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
+
+    $self->{time_zone} = $option->{time_zone} || undef;
 
     $self->{cache_target_table} = +{};
 }
 
 
 ### Driver
-sub driver          { $_[0]->{driver} }
-sub driver_type     { $_[0]->{driver_type} }
 sub iterator        { $_[0]->{iterator} }
-sub query           { $_[0]->{query} }
 sub namesep         { $_[0]->driver->namesep }
 sub quote           { $_[0]->driver->quote }
 sub datetime_parser { $_[0]->driver->datetime_parser }
 sub time_zone       { $_[0]->{time_zone} }
 
-### Database Handle
-sub dbh { $_[0]->{connector}->dbh }
-
-sub dbh_do {
+sub driver_type     {
     my $self = shift;
-    return $self->{connector}->run( $self->{connection_mode} => @_ );
+    $self->dbh unless $self->{driver_type};
+    return $self->{driver_type};
 }
 
+sub query {
+    my $self = shift;
+    $self->dbh unless $self->{query};
+    return $self->{query};
+}
+
+sub driver {
+    my $self = shift;
+    $self->connect unless $self->connected;
+    return $self->{driver};
+}
+
+
+### Database Handle
+
+sub DESTROY {
+    my $self = shift;
+    # some databases need this to stop spewing warnings
+    if (my $dbh = $self->{_dbh}) {
+        $self->_verify_pid;
+        local $@;
+        eval { $dbh->disconnect };
+    }
+    $self->{_dbh} = undef;
+}
+
+sub dbh {
+    my $self = shift;
+    $self->connect unless $self->connected;
+    return $self->{_dbh};
+}
+
+sub connected {
+    my $self = shift;
+
+    if ( my $dbh = $self->{_dbh} ) {
+        if( defined $self->{_tid} && $self->{_tid} != threads->tid ) {
+            $self->{_dbh} = undef;
+            return 0;
+        }
+        else {
+            $self->_verify_pid;
+            return 0 if !$self->{_dbh};
+        }
+
+        return ($dbh->{Active} && $dbh->ping);
+    }
+
+    return 0;
+}
+
+sub connect {
+    my $self = shift;
+    $self->{_pid} = $$;
+    $self->{_tid} = threads->tid if $INC{'threads.pm'};
+    $self->{_dbh} = $self->_connect;
+}
+
+sub _verify_pid {
+    my ($self) = @_;
+
+    return if defined $self->{_pid} && $self->{_pid} == $$;
+
+    $self->{_dbh}->{InactiveDestroy} = 1;
+    $self->{_dbh} = undef;
+    return;
+}
+
+sub _connect {
+    my $self = shift;
+
+    my $dbh = do {
+        if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
+            local $DBI::connect_via = 'connect'; # Disable Apache::DBI.
+            DBI->connect( @{ $self->{connect_info} } );
+        } else {
+            DBI->connect( @{ $self->{connect_info} } );
+        }
+    };
+
+    confess DBI->errstr unless $dbh;
+
+    my $driver_type = $dbh->{Driver}{Name}
+        || (DBI->parse_dsn( $self->{connect_info}[0] ))[1];
+
+    $self->{query} ||= DBIx::ObjectMapper::SQL->new($driver_type);
+    $self->{driver_type} = $driver_type;
+
+    $self->{driver} = DBIx::ObjectMapper::Engine::DBI::Driver->new(
+        $driver_type,
+        $dbh,
+        db_schema       => $self->{db_schema}       || undef,
+        namesep         => $self->{namesep}         || undef,
+        quote           => $self->{quote}           || undef,
+        sql             => $self->query,
+        log             => $self->log,
+        datetime_parser => $self->{datetime_parser} || undef,
+        time_zone       => $self->{time_zone},
+    );
+
+    if ( $self->{time_zone}
+        and my $tzq = $self->{driver}->set_time_zone_query )
+    {
+        push @{ $self->{connect_do} }, $tzq;
+    }
+
+    if( $self->{connect_do} ) {
+        $dbh->do($_) for @{$self->{connect_do}};
+    }
+
+    $self->{txn_active} = $dbh->{AutoCommit} ? 0 : 1 ;
+    $self->{_dbh_gen}++;
+
+    return $dbh;
+}
+
+
+#### TRANSACTION & SAVEPOINT
+
+sub txn_begin {
+    my $self = shift;
+
+    my $dbh = $self->dbh;
+    if ( $self->{txn_active} == 0 and $dbh->{AutoCommit} ) {
+        eval { $dbh->begin_work };
+        if ($@) {
+            confess "begin_work failed:" . $@;
+        }
+        else {
+            $self->log->info('BEGIN;');
+        }
+    }
+    elsif ( $self->{txn_active} > 0 ) {
+        cluck "Already in transaction";
+        return;
+    }
+    else {
+        confess 'AutoCommit is true and txn_active is false.';
+    }
+
+    return $self->{txn_active}++;
+}
+
+sub txn_commit {
+    my $self = shift;
+    $self->_txn_end('commit', @_);
+}
+
+sub txn_rollback {
+    my $self = shift;
+    $self->_txn_end('rollback', @_);
+}
+
+sub _txn_end {
+    my $self = shift;
+    my $meth = shift;
+
+    my $dbh = $self->dbh
+        or confess "$meth called without a stored handle--begin_work?";
+
+    if( $self->{txn_active} > 0 and !$dbh->{AutoCommit} ) {
+        eval { $dbh->$meth() };
+        confess "$meth failed for driver $self: $@" if $@;
+        $self->log->info(uc($meth) . ';');
+        $self->{txn_active} = 0;
+    }
+    else {
+        $self->log->warn('no transaction in progress.');
+    }
+
+    return 1;
+}
+
+sub txn_do {
+    my $self = shift;
+    my $code = shift;
+    confess "it must be CODE reference" unless ref $code eq 'CODE';
+
+    return $self->svp_do( $code, @_ ) if $self->{txn_active};
+
+    my @res;
+    eval {
+        $self->txn_begin(@_);
+        @res = $code->();
+        $self->txn_commit(@_);
+    };
+
+    if( my $err = $@ ) {
+        $self->txn_rollback(@_);
+        confess 'Transaction aborted: ' . $err;
+    }
+
+    return wantarray ? @res : $res[0];
+}
+
+sub svp_do {
+    my $self = shift;
+    my $code = shift;
+    confess "it must be CODE reference" unless ref $code eq 'CODE';
+
+    ++$self->{_svp_depth};
+    my $name = "savepoint_$self->{_svp_depth}";
+
+    my $dbh    = $self->dbh;
+    my $driver = $self->driver;
+    my @ret;
+    eval {
+        $self->log->info('SAVEPOINT ' . $name . ';');
+        $driver->set_savepoint($dbh, $name);
+        @ret = $code->();
+        $driver->release_savepoint($dbh, $name);
+        $self->log->info('RELEASE SAVEPOINT ' . $name . ';');
+    };
+    --$self->{_svp_depth};
+
+    if (my $err = $@) {
+        $self->log->info('ROLLBACK TO SAVEPOINT ' . $name . ';');
+        $driver->rollback_savepoint($self->dbh, $name);
+        $driver->release_savepoint($dbh, $name);
+        $self->log->info('RELEASE SAVEPOINT ' . $name . ';');
+        confess $err;
+    }
+
+    return wantarray ? @ret : $ret[0];
+}
+
+
+###################
 sub transaction {
     my $self = shift;
     if (@_) {
         my $code = shift;
         confess "it must be CODE reference"
             unless $code and ref $code eq 'CODE';
-        return $self->{connector}->txn( $self->{connection_mode} => $code );
+        return $self->txn_do($code);
     }
     else {
-        return DBIx::ObjectMapper::Engine::DBI::Transaction->new(
-            $self->dbh, $self->{connector}->driver, $self->log,
-        );
+        return DBIx::ObjectMapper::Engine::DBI::Transaction->new($self);
     }
 }
 
-sub savepoint {
-    my $self = shift;
-    my $code = shift;
-    confess "it must be CODE reference" unless ref $code eq 'CODE';
-    return $self->{connector}->txn( $self->{connection_mode} => $code );
-}
 
 ### Metadata
 sub get_primary_key {
@@ -181,21 +363,27 @@ sub get_tables {
 
 ### Query
 
+sub _prepare {
+    my ( $self, $sql ) = @_;
+    my $dbh = $self->dbh; # for on_connect_do
+    return $self->{disable_prepare_caching}
+        ? $dbh->prepare($sql)
+        : $dbh->prepare_cached( $sql, undef, 3 );
+}
+
 sub select {
     my ( $self, $query, $callback ) = @_;
-    unless ( ref $query eq ref $self->query ) {
+    my $query_class = ref( $self->query ) . '::Select';
+    unless ( ref $query eq $query_class ) {
         $query = $self->_as_query_object( 'select', $query );
     }
     return $self->iterator->new( $query, $self, $callback );
 }
 
 sub select_single {
-    my $self = shift;
-    #return $self->_select('fetchrow_arrayref', @_);
-
-    my ( $query, $callback ) = @_;
-
-    unless ( ref $query eq ref $self->query ) {
+    my ( $self, $query, $callback ) = @_;
+    my $query_class = ref( $self->query ) . '::Select';
+    unless ( ref $query eq $query_class ) {
         $query = $self->_as_query_object('select', $query);
     }
 
@@ -208,40 +396,10 @@ sub select_single {
     else {
         my ( $sql, @bind ) = $query->as_sql;
         $self->stm_debug($sql, @bind);
-        $result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
-    }
-
-    if( $key and !$cache and $result ) {
-        $self->log->info('[QueryCache]Cache Set:' . $key);
-        $self->cache->set( $key => $result );
-    }
-
-    return $callback && ref($callback) eq 'CODE'
-        ? $callback->( $result, $query )
-        : $result;
-}
-
-=pod
-
-sub _select {
-    my ( $self, $meth, $query, $callback ) = @_;
-
-    unless ( ref $query eq ref $self->query ) {
-        $query = $self->_as_query_object('select', $query);
-    }
-
-    my ($key, $cache) = $self->get_cache_id($query);
-
-    my $result;
-    if( $key and $cache ) {
-        $result = $cache;
-    }
-    else {
-        my ( $sql, @bind ) = $query->as_sql;
-        $self->stm_debug($sql, @bind);
+        #$result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
         my $sth = $self->_prepare($sql);
         $sth->execute(@bind) || confess $sth->errstr;
-        $result = $sth->$meth;
+        $result = $sth->fetchrow_arrayref;
         $sth->finish;
     }
 
@@ -255,8 +413,6 @@ sub _select {
         : $result;
 }
 
-=cut
-
 sub _as_query_object {
     my ($self, $action, $query ) = @_;
     return $self->query->$action( %$query );
@@ -265,7 +421,8 @@ sub _as_query_object {
 sub update {
     my ( $self, $query, $callback ) = @_;
 
-    unless ( ref $query eq ref $self->query ) {
+    my $query_class = ref( $self->query ) . '::Update';
+    unless ( ref $query eq $query_class ) {
         $query = $self->_as_query_object('update', $query);
     }
 
@@ -280,18 +437,14 @@ sub update {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->stm_debug($sql, @bind);
-    return $self->dbh_do(
-        sub{
-            my $dbh = $self->dbh; # for on_connect_do
-            $dbh->do($sql, {}, @bind);
-        },
-    );
+    return $self->dbh->do($sql, {}, @bind);
 }
 
 sub insert {
     my ( $self, $query, $callback, $primary_keys ) = @_;
 
-    unless ( ref $query eq ref $self->query ) {
+    my $query_class = ref( $self->query ) . '::Insert';
+    unless ( ref $query eq $query_class ) {
         $query = $self->_as_query_object('insert', $query);
     }
 
@@ -299,7 +452,7 @@ sub insert {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->stm_debug($sql, @bind);
-    $self->dbh_do( sub {  $self->dbh->do( $sql, {}, @bind ) } );
+    $self->dbh->do( $sql, {}, @bind );
 
     my $ret_id = ref($query->values) eq 'HASH' ? $query->values : +{};
 
@@ -321,7 +474,8 @@ sub insert {
 sub delete {
     my ( $self, $query, $callback ) = @_;
 
-    unless ( ref $query eq ref $self->query ) {
+    my $query_class = ref( $self->query ) . '::Delete';
+    unless ( ref $query eq $query_class ) {
         $query = $self->_as_query_object('delete', $query);
     }
 
@@ -336,7 +490,7 @@ sub delete {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->stm_debug($sql, @bind);
-    return $self->dbh_do( sub {  $self->dbh->do( $sql, {}, @bind ) } );
+    return $self->dbh->do( $sql, {}, @bind );
 }
 
 # XXXX TODO CREATE TABLE

@@ -4,12 +4,10 @@ use warnings;
 use Carp::Clan;
 
 sub new {
-    my ( $class, $dbh, $driver, $log ) = @_;
+    my ( $class, $engine ) = @_;
 
     my $self = bless {
-        dbh      => $dbh,
-        driver   => $driver,
-        log      => $log,
+        engine   => $engine,
         complete => 0,
     }, $class;
 
@@ -17,20 +15,14 @@ sub new {
     return $self;
 }
 
-sub log    { $_[0]->{log} }
-sub dbh    { $_[0]->{dbh} }
-sub driver { $_[0]->{driver} }
+sub engine   { $_[0]->{engine} }
+sub log      { $_[0]->engine->{log} }
+sub dbh      { $_[0]->engine->{dbh} }
+sub complete { $_[0]->{complete} }
 
 sub begin {
     my $self = shift;
-    my $dbh  = $self->dbh;
-    eval { $self->driver->begin_work($dbh) };
-    if ($@) {
-        confess "begin_work failed:" . $@;
-    }
-    else {
-        $self->log->info('BEGIN;');
-    }
+    $self->engine->txn_begin;
     return $self;
 }
 
@@ -47,21 +39,8 @@ sub rollback {
 sub _txn_end {
     my $self = shift;
     my $meth = shift;
-
-    my $dbh    = $self->dbh;
-    my $driver = $self->driver;
-    if ( !$dbh->{AutoCommit} ) {
-        eval { $driver->$meth($dbh) };
-        if ($@) {
-            confess "$meth failed for driver $self: $@";
-        }
-        else {
-            $self->log->info( uc($meth) . ';' );
-            return $self->{complete} = 1;
-        }
-    }
-
-    return;
+    $self->engine->_txn_end($meth);
+    return $self->{complete} = 1;
 }
 
 sub DESTROY {

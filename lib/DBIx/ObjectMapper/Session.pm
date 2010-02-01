@@ -51,6 +51,7 @@ sub new {
 sub autoflush   { $_[0]->{autoflush} }
 sub autocommit  { $_[0]->{autocommit} }
 sub uow         { $_[0]->{unit_of_work} }
+sub engine      { $_[0]->{engine} }
 
 sub query {
     my $self = shift;
@@ -91,28 +92,38 @@ sub delete {
     return $obj;
 }
 
+sub transaction {
+    my $self = shift;
+    return $self->{transaction}
+        if $self->{transaction} and !$self->{transaction}->complete;
+    return $self->{transaction} = $self->engine->transaction;
+}
+
 sub commit {
     my $self = shift;
     $self->flush;
-    unless( $self->autocommit ) {
-        $self->{transaction}->commit;
-        $self->{transaction} = $self->{engine}->transaction;
-    }
+    $self->transaction->commit unless $self->autocommit;
+    $self->transaction;
 }
 
 sub rollback {
     my $self = shift;
-
     cluck "Can't rollback. autocommit is TRUE this session."
         if $self->autocommit;
-    $self->{transaction}->rollback;
+    $self->transaction->rollback;
 }
 
 sub txn {
     my $self = shift;
     my $code = shift;
     confess "it must be CODE reference" unless $code and ref $code eq 'CODE';
-    return $self->{engine}->transaction( $code, @_ );
+    $self->flush;
+    return $self->{engine}->transaction(
+        sub {
+            local $self->{autoflush} = 1;
+            $code->();
+        },
+    );
 }
 
 sub detach {

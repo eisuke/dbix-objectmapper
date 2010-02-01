@@ -9,10 +9,8 @@ requires 'Scalar::Util';
 requires 'Carp::Clan'       => 0;
 requires 'DBI'              => 1.40;
 
-requires 'DBIx::Connector';
 requires 'Try::Tiny';
 requires 'Class::MOP';
-requires 'Clone' => 0.31;
 requires 'Class::Data::Inheritable';
 requires 'Data::Page' => 2.00;
 requires 'Class::Accessor::Fast' => 0.32;

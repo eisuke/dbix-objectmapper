@@ -15,7 +15,6 @@ use overload
 use Params::Validate qw(:all);
 use Scalar::Util;
 use List::MoreUtils;
-use Clone;
 
 use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Metadata::Table::Column;
@@ -735,13 +734,21 @@ sub clone {
     my $self = shift;
     my $alias = shift;
 
-    my $clone = Clone::clone($self);
-    $clone->{table_name} = [ $clone->table_name, $alias ];
-    for my $c ( @{$clone->columns} ) {
-        $c->{table} = $alias;
+    my %data = %$self;
+    my $obj = bless \%data, ref $self;
+
+    if( $alias ) {
+        $obj->{table_name} = [ $obj->table_name, $alias ];
+        my @columns;
+        for my $c ( @{$obj->columns} ) {
+            my $new_col = $c->clone;
+            $new_col->{table} = $alias;
+            push @columns, $new_col;
+        }
+        $obj->{columns} = \@columns;
     }
 
-    return $clone;
+    return $obj;
 }
 
 =head2 is_clone

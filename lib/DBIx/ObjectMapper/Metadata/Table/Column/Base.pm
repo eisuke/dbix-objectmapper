@@ -2,7 +2,6 @@ package DBIx::ObjectMapper::Metadata::Table::Column::Base;
 use strict;
 use warnings;
 use Carp::Clan;
-use base qw(Clone);
 use Encode;
 use Scalar::Util;
 use Params::Validate qw(:all);
@@ -122,6 +121,12 @@ sub as_alias {
     my $clone = $self->clone;
     $clone->{table} = $name;
     return $clone;
+}
+
+sub clone {
+    my $self = shift;
+    my %data = %$self;
+    bless \%data, ref $self;
 }
 
 sub to_storage {

@@ -25,6 +25,9 @@ sub init {
     } catch {
         confess "Couldn't load DateTime::Format::SQLite: $_";
     };
+
+    my ($x, $y, $z) = split /[.]/ => $DBD::SQLite::sqlite_version || 0;
+    $self->{support_savepoint} = 1 if $x >= 3 && $y >= 6 && $z >= 8;
 }
 
 sub default_connection_mode { 'no_ping' }
@@ -171,6 +174,33 @@ sub escape_binary_func {
     my $self = shift;
     my $dbh  = shift;
     return sub { $_[0] };
+}
+
+sub set_savepoint {
+    my ($self, $dbh, $name) = @_;
+    unless( $self->{support_savepoint} ) {
+        $self->log->warn('SAVEPOINT is not supported');
+        return;
+    }
+    $dbh->do("SAVEPOINT $name");
+}
+
+sub release_savepoint {
+    my ($self, $dbh, $name) = @_;
+    unless( $self->{support_savepoint} ) {
+        $self->log->warn('SAVEPOINT is not supported');
+        return;
+    }
+    $dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub rollback_savepoint {
+    my ($self, $dbh, $name) = @_;
+    unless( $self->{support_savepoint} ) {
+        $self->log->warn('SAVEPOINT is not supported');
+        return;
+    }
+    $dbh->do("ROLLBACK TO SAVEPOINT $name");
 }
 
 1;

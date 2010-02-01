@@ -2,7 +2,6 @@ package DBIx::ObjectMapper::Mapper;
 use strict;
 use warnings;
 use Carp::Clan;
-use Clone;
 use List::MoreUtils;
 use Scalar::Util qw(blessed weaken);
 use Digest::MD5 qw(md5_hex);
@@ -74,10 +73,11 @@ sub new {
     if( ref $_[0] eq $class ) {
         my $orig_mapper = shift;
         my $mapped_class = shift;
-        my $orig_option = Clone::clone($orig_mapper->{input_option});
+        my $orig_option = DBIx::ObjectMapper::Utils::clone(
+            $orig_mapper->{input_option} );
         my %input_option = @_;
         my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-            Clone::clone($orig_mapper->{input_option}),
+            $orig_option,
             \%input_option,
         );
         return $class->new( $orig_mapper->table => $mapped_class, %$option );

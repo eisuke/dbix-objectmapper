@@ -60,6 +60,7 @@ sub count {
 sub _count_builder {
     my $self = shift;
     my $builder = $self->builder->clone;
+
     $builder->column({ count => '*' });
     $builder->order_by(undef);
     $builder->group_by(undef);

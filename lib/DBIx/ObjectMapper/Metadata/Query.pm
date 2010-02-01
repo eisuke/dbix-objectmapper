@@ -7,7 +7,6 @@ use base qw(DBIx::ObjectMapper::Metadata::Table);
 use Params::Validate qw(:all);
 use Scalar::Util;
 use List::MoreUtils;
-use Clone;
 
 sub new {
     my $class = shift;
@@ -47,7 +46,6 @@ sub new {
 =cut
 
 sub table_name { $_[0]->{table_name} }
-
 
 sub clone {
     my $self = shift;

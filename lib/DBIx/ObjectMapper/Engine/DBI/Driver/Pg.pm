@@ -101,4 +101,19 @@ sub escape_binary_func {
     };
 }
 
+sub set_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->pg_savepoint($name);
+}
+
+sub release_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->pg_release($name);
+}
+
+sub rollback_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->pg_rollback_to($name);
+}
+
 1;

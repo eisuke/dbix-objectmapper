@@ -4,7 +4,7 @@ use warnings;
 
 use overload
     '@{}' => sub { [ $_[0]->all ] },
-    '0+'  => sub { $_[0]->size },
+#    '0+'  => sub { $_[0]->size },
     fallback => 1,
     ;
 

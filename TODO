@@ -1,5 +1,5 @@
 * SQL - exists,any,in support
-* autocommit => 0 のときに最後なのに、BEGINがはじまるところをfix
+* test share_object
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators

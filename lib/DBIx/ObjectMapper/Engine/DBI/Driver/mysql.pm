@@ -108,4 +108,20 @@ sub set_time_zone_query {
     return "SET timezone = $tz";
 }
 
+sub set_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->do("SAVEPOINT $name");
+}
+
+sub release_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub rollback_savepoint {
+    my ($self, $dbh, $name) = @_;
+    $dbh->do("ROLLBACK TO SAVEPOINT $name");
+}
+
+
 1;

@@ -40,7 +40,7 @@ my $address = $meta->table( address => 'autoload' );
 };
 
 { # select
-    my @it = @{$person->select->execute()};
+    my @it = @{$person->select->order_by($person->c('id'))->execute()};
     is $it[0]->{name}, 'person1';
     is $it[1]->{name}, 'person2';
     is $it[0]->{id}, 1;

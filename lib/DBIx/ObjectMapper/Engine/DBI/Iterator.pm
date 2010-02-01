@@ -29,20 +29,12 @@ sub new {
     return $self;
 }
 
-sub _prepare {
-    my ( $self, $sql ) = @_;
-    my $dbh = $self->_dbh; # for on_connect_do
-    return $self->engine->{disable_prepare_caching}
-        ? $dbh->prepare($sql)
-        : $dbh->prepare_cached( $sql, undef, 3 );
-}
-
 sub sth {
     my $self = shift;
 
-    unless( $self->_sth ) {
+    unless( $self->{_sth} ) {
         my ( $sql, @bind ) = $self->query->as_sql;
-        my $sth = $self->_prepare($sql);
+        my $sth = $self->engine->_prepare($sql);
         $sth->execute(@bind) or confess $sth->errstr;
         $self->engine->stm_debug($sql, @bind);
         my $size = $sth->rows;
@@ -50,24 +42,11 @@ sub sth {
         unless( $size ) {
             # FIX ME
             my $count_query = $self->query->clone;
+            #my $count_query = $self->query;
             $count_query->column({ count => '*' });
             $count_query->order_by(undef);
-
-            my ( $count_sql, @count_bind ) = $count_query->as_sql;
-            $self->engine->stm_debug($count_sql, @bind);
-            my $cnt = $self->_dbh->selectrow_arrayref( $count_sql, +{},
-                @count_bind );
-            #my $cnt = $self->engine->select_single($count_query);
-            if( $cnt ) {
-                $size = $cnt->[0];
-            }
-            #    else {
-            #        $size = 2**48; # fuck.
-            #        if( $self->{cache_key} ) {
-            #            delete $self->{cache_key};
-            #            delete $self->{cache_stack};
-            #        }
-            #    }
+            my $cnt = $self->engine->select_single($count_query);
+            $size = $cnt->[0] if $cnt;
         }
         $self->{_size} = $size;
         $self->{_sth} = $sth;
@@ -84,7 +63,6 @@ sub size {
 
 sub next {
     my $self = shift;
-
     if( my @r = $self->sth->fetchrow_array ) {
         $self->{cursor}++;
         push @{$self->{cache_stack}}, \@r if $self->{cache_key};
@@ -106,7 +84,7 @@ sub reset {
 sub _reset {
     my $self = shift;
 
-    if( $self->_sth ) {
+    if( $self->{_sth} ) {
         if( $self->_sth->{Active} ) {
             if( $self->{cache_key} ) {
                 while( my @r = $self->_sth->fetchrow_array ) {
@@ -115,9 +93,8 @@ sub _reset {
                 $self->_set_cache($self->{cache_stack});
                 $self->{cache_stack} = [];
             }
-            $self->_sth->finish;
         }
-
+        $self->_sth->finish;
         $self->{_sth} = undef;
     }
 
@@ -158,6 +135,7 @@ sub _set_cache {
 
 sub DESTROY {
     my $self = shift;
+    warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
     $self->_reset;
 }
 

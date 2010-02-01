@@ -2,8 +2,7 @@ package DBIx::ObjectMapper::SQL::Base;
 use strict;
 use warnings;
 use Carp::Clan;
-
-use Clone;
+use DBIx::ObjectMapper::Utils;
 use base qw(Class::Data::Inheritable);
 
 __PACKAGE__->mk_classdata( initdata => {} );
@@ -83,7 +82,7 @@ sub _as_sql_accessor {
 
 sub new {
     my $class = shift;
-    my $initdata = Clone::clone($class->initdata);
+    my $initdata = DBIx::ObjectMapper::Utils::clone($class->initdata);
     my $self = bless $initdata, $class;
     $self->_init(@_) if @_;
     return $self;
@@ -405,8 +404,8 @@ sub limit_xy {
 
 sub clone {
     my $self = shift;
-    my $clone_data = Clone::clone($self);
-    return bless $clone_data, ref($self);
+    my $data = DBIx::ObjectMapper::Utils::clone({ %$self });
+    return bless $data, ref $self;
 }
 
 sub DESTROY {

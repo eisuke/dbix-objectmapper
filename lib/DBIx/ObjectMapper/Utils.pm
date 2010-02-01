@@ -120,4 +120,46 @@ sub normalized_array_to_hash {
     return \@normalized;
 }
 
+sub clone {
+    my $data = shift;
+
+    return $data if Scalar::Util::blessed $data;
+
+    my $reftype = ref($data) || '';
+    if( $reftype eq 'HASH' ) {
+        return _clone_hashref($data);
+    }
+    elsif( $reftype eq 'ARRAY' ) {
+        return _clone_arrayref($data);
+    }
+    elsif( $reftype eq 'SCALAR' ) {
+        my $r = clone($$data);
+        return \$r;
+    }
+    else {
+        return $data;
+    }
+}
+
+sub _clone_hashref {
+    my $hashref = shift;
+    my %clone;
+    for my $key ( keys %$hashref ) {
+        $clone{$key} = clone($hashref->{$key});
+    }
+    return \%clone;
+}
+
+sub _clone_arrayref {
+    my $arrayref = shift;
+
+    my @clone;
+    for my $data ( @$arrayref ) {
+        push @clone, clone($data);
+    }
+
+    return \@clone;
+}
+
+
 1;
