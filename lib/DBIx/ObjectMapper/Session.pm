@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::Session;
 use strict;
 use warnings;
 use Carp::Clan;
+use Params::Validate qw(:all);
 use Scalar::Util qw(refaddr blessed);
 use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Session::Cache;
@@ -11,25 +12,40 @@ my $DEFAULT_QUERY_CLASS = 'DBIx::ObjectMapper::Session::Query';
 
 sub new {
     my $class = shift;
-    my %attr = @_;
 
-    my $cache = $attr{cache} || DBIx::ObjectMapper::Session::Cache->new();
-    my $query_class = $attr{query_class} || $DEFAULT_QUERY_CLASS;
+    my %attr = validate(
+        @_,
+        {   engine => { type => OBJECT, isa => 'DBIx::ObjectMapper::Engine' },
+            autocommit   => { type => BOOLEAN, default => 1 },
+            autoflush    => { type => BOOLEAN, default => 0 },
+            share_object => { type => BOOLEAN, default => 0 },
+            no_cache     => { type => BOOLEAN, default => 0 },
+            cache        => {
+                type      => OBJECT,
+                callbacks => {
+                    'ducktype' => sub {
+                        ( grep { $_[0]->can($_) } qw(get set remove clear) )
+                            == 4;
+                        }
+                },
+                default => DBIx::ObjectMapper::Session::Cache->new()
+            },
+            query_class =>
+                { type => SCALAR, default => $DEFAULT_QUERY_CLASS },
 
-    my $self = bless {
-        engine => $attr{engine} || undef,
-        autoflush  => exists $attr{autoflush}  ? $attr{autoflush}  : 0,
-        autocommit => exists $attr{autocommit} ? $attr{autocommit} : 1,
-        cache      => $cache,
-        unit_of_work => DBIx::ObjectMapper::Session::UnitOfWork->new(
-            $cache, $query_class
-        ),
-        transaction => undef,
-    }, $class;
-    $self->{transaction} = $attr{engine}->transaction
-        unless $self->autocommit;
+        }
+    );
 
-    return $self;
+    $attr{transaction}
+        = $attr{autocommit} ? undef : $attr{engine}->transaction;
+    $attr{unit_of_work}
+        = DBIx::ObjectMapper::Session::UnitOfWork->new(
+        ( $attr{no_cache} ? undef : $attr{cache} ),
+        $attr{query_class},
+        { share_object => $attr{share_object} },
+    );
+
+    return bless \%attr, $class;
 }
 
 sub autoflush   { $_[0]->{autoflush} }
@@ -38,11 +54,13 @@ sub uow         { $_[0]->{unit_of_work} }
 
 sub query {
     my $self = shift;
+    $self->flush;
     return $self->uow->query(@_);
 }
 
 sub get {
     my $self = shift;
+    $self->flush;
     $self->uow->get(@_);
 }
 

@@ -18,7 +18,7 @@ sub new {
     my $self = bless {
         query_cnt   => 0,
         query       => $query,
-        cache       => $cache,
+        cache       => $cache || undef,
         objects     => +[],
         map_objects => +{},
         del_objects => +{},
@@ -38,7 +38,6 @@ sub get {
     my ( $self, $t_class, $id, $option ) = @_;
     my $class_mapper = $t_class->__class_mapper__;
 
-    $self->flush;
     my ( $key, @cond ) = $class_mapper->get_unique_condition($id);
 
     if( my $eagerload = $option->{eagerload} ) {
@@ -136,11 +135,15 @@ sub flush {
 
 sub _get_cache {
     my ( $self, $key ) = @_;
+    return unless $self->cache; # no_cache
     return $self->cache->get($key);
 }
 
 sub _set_cache {
     my ( $self, $mapper ) = @_;
+
+    return unless $self->cache; # no_cache
+
     #my $result = $mapper->reducing;
     for my $key ( $mapper->cache_keys ) {
         $log->info("{UnitOfWork} Cache Set: $key");
@@ -150,6 +153,8 @@ sub _set_cache {
 
 sub _clear_cache {
     my ( $self, $mapper ) = @_;
+    return unless $self->cache; # no_cache
+
     for my $key ( $mapper->cache_keys ) {
         $log->info("{UnitOfWork} Cache Remove: $key ");
         $self->cache->remove( $key );
