@@ -100,4 +100,6 @@ $product->insert( prodkey => 'ABC-4', title => 'title4', price => 400 )->execute
     is $cart->shipping_charge, 100;
 };
 
+is $product->count->execute, 4;
+
 done_testing;
