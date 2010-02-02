@@ -1,5 +1,6 @@
 * SQL - exists,any,in support
 * test share_object
+* query cache Engine::DBI
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators

@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan;
 use base qw(DBIx::ObjectMapper::Iterator::Base);
+use DBIx::ObjectMapper::Iterator;
 
 sub engine   { $_[0]->{engine} }
 sub query    { $_[0]->{query} }
@@ -18,6 +19,7 @@ sub new {
     $self->{_dbh}   = $engine->dbh;
 
     my ($key, $cache) = $self->engine->get_cache_id($query);
+
     if( $key and $cache ) {
         return DBIx::ObjectMapper::Iterator->new( $cache, $query, $callback );
     }
@@ -36,17 +38,20 @@ sub sth {
         my ( $sql, @bind ) = $self->query->as_sql;
         my $sth = $self->engine->_prepare($sql);
         $sth->execute(@bind) or confess $sth->errstr;
-        $self->engine->stm_debug($sql, @bind);
+        $self->engine->{sql_cnt}++;
+        $self->engine->log_sql($sql, @bind);
         my $size = $sth->rows;
 
         unless( $size ) {
             # FIX ME
             my $count_query = $self->query->clone;
-            #my $count_query = $self->query;
             $count_query->column({ count => '*' });
             $count_query->order_by(undef);
-            my $cnt = $self->engine->select_single($count_query);
-            $size = $cnt->[0] if $cnt;
+            my ( $cnt_sql, @cnt_bind ) = $count_query->as_sql;
+            my $cnt_sth = $self->engine->_prepare($cnt_sql);
+            $cnt_sth->execute(@cnt_bind);
+            $size = $cnt_sth->fetchrow_array;
+            $cnt_sth->finish;
         }
         $self->{_size} = $size;
         $self->{_sth} = $sth;
@@ -90,10 +95,10 @@ sub _reset {
                 while( my @r = $self->_sth->fetchrow_array ) {
                     push @{$self->{cache_stack}}, \@r;
                 }
-                $self->_set_cache($self->{cache_stack});
-                $self->{cache_stack} = [];
             }
         }
+        $self->_set_cache($self->{cache_stack});
+        $self->{cache_stack} = [];
         $self->_sth->finish;
         $self->{_sth} = undef;
     }
@@ -121,14 +126,8 @@ sub all {
 sub _set_cache {
     my ( $self, $cache ) = @_;
 
-    my $dr_cache_table =
-      $self->engine->{cache_target_table}{ $self->query->from };
-
-    if ( $self->{cache_key}
-        and grep { $self->{cache_key} eq $_ } @$dr_cache_table )
-    {
-        $self->engine->log->info(
-            '{QueryCache} Cache Set:' . $self->{cache_key} );
+    if ( $self->{cache_key} ) {
+        $self->engine->log_cache( 'Cache Set:' . $self->{cache_key} );
         $self->engine->cache->set( $self->{cache_key} => $cache )
     }
 }

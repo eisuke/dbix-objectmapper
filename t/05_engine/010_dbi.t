@@ -232,6 +232,12 @@ use Try::Tiny;
         where => [ [ 'id', 1 ] ],
     });
 
+
+    # disconnect
+    is $dr->{_dbh_gen}, 1;
+    $dr->disconnect;
+    ok $dr->dbh;
+    is $dr->{_dbh_gen}, 2;
 };
 
 sub check_interface {
@@ -254,7 +260,6 @@ sub check_interface {
         'update',
         'insert',
         'delete',
-        'stm_debug',
         'log',
     ) {
         ok $pkg->can($_), "$pkg can $_";

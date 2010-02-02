@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::Engine::DBI;
 use strict;
 use warnings;
 use Carp::Clan;
+use Scalar::Util qw(refaddr);
 use DBI;
 use Data::Dumper;
 use Digest::MD5;
@@ -19,17 +20,20 @@ sub _init {
 
     my @connect_info;
     my $connect_do;
+    my $disconnect_do;
     my $option;
 
     if( ref $param eq 'ARRAY' ){
         @connect_info = @$param[0..2];
         $option = $param->[3] if $param->[3];
         $connect_do = $param->[4] if $param->[4];
+        $disconnect_do = $param->[5] if $param->[5];
     }
     elsif( ref $param eq 'HASH' ) {
         @connect_info =
           ( $param->{dsn}, $param->{username}, $param->{password} );
         $connect_do = $param->{on_connect_do} if exists $param->{on_connect_do};
+        $disconnect_do = $param->{on_disconnect_do} if exists $param->{on_disconnect_do};
         $option = $param->{option};
     }
     else {
@@ -41,6 +45,13 @@ sub _init {
         ? ref $connect_do eq 'ARRAY'
             ? $connect_do
             : [$connect_do]
+        : [];
+
+    $self->{disconnect_do}
+        = $disconnect_do
+        ? ref $disconnect_do eq 'ARRAY'
+            ? $disconnect_do
+            : [$disconnect_do]
         : [];
 
     push @connect_info, {
@@ -115,6 +126,7 @@ sub DESTROY {
         $self->_verify_pid;
         local $@;
         eval { $dbh->disconnect };
+        $self->log_connect('DISCONNECT');
     }
     $self->{_dbh} = undef;
 }
@@ -174,7 +186,7 @@ sub _connect {
     };
 
     confess DBI->errstr unless $dbh;
-
+    $self->log_connect('CONNECT');
     my $driver_type = $dbh->{Driver}{Name}
         || (DBI->parse_dsn( $self->{connect_info}[0] ))[1];
 
@@ -199,9 +211,7 @@ sub _connect {
         push @{ $self->{connect_do} }, $tzq;
     }
 
-    if( $self->{connect_do} ) {
-        $dbh->do($_) for @{$self->{connect_do}};
-    }
+    $self->dbh_do( $dbh, $self->{connect_do} );
 
     $self->{txn_active} = $dbh->{AutoCommit} ? 0 : 1 ;
     $self->{_dbh_gen}++;
@@ -209,6 +219,16 @@ sub _connect {
     return $dbh;
 }
 
+sub disconnect {
+    my ($self) = @_;
+    if( my $dbh = $self->{_dbh} ) {
+        $self->dbh_do( $dbh, $self->{disconnect_do} );
+        $self->_txn_rollback unless $dbh->{AutoCommit};
+        $dbh->disconnect;
+        $self->log_connect('DISCONNECT');
+        $self->{_dbh} = undef;
+    }
+}
 
 #### TRANSACTION & SAVEPOINT
 
@@ -222,7 +242,7 @@ sub txn_begin {
             confess "begin_work failed:" . $@;
         }
         else {
-            $self->log->info('BEGIN;');
+            $self->log_sql('BEGIN');
         }
     }
     elsif ( $self->{txn_active} > 0 ) {
@@ -256,7 +276,7 @@ sub _txn_end {
     if( $self->{txn_active} > 0 and !$dbh->{AutoCommit} ) {
         eval { $dbh->$meth() };
         confess "$meth failed for driver $self: $@" if $@;
-        $self->log->info(uc($meth) . ';');
+        $self->log_sql( uc($meth) );
         $self->{txn_active} = 0;
     }
     else {
@@ -300,25 +320,42 @@ sub svp_do {
     my $driver = $self->driver;
     my @ret;
     eval {
-        $self->log->info('SAVEPOINT ' . $name . ';');
+        $self->log_sql('SAVEPOINT ' . $name );
         $driver->set_savepoint($dbh, $name);
         @ret = $code->();
         $driver->release_savepoint($dbh, $name);
-        $self->log->info('RELEASE SAVEPOINT ' . $name . ';');
+        $self->log_sql( 'RELEASE SAVEPOINT ' . $name );
     };
     --$self->{_svp_depth};
 
     if (my $err = $@) {
-        $self->log->info('ROLLBACK TO SAVEPOINT ' . $name . ';');
+        $self->log_sql( 'ROLLBACK TO SAVEPOINT ' . $name );
         $driver->rollback_savepoint($self->dbh, $name);
         $driver->release_savepoint($dbh, $name);
-        $self->log->info('RELEASE SAVEPOINT ' . $name . ';');
+        $self->log_sql( 'RELEASE SAVEPOINT ' . $name );
         confess $err;
     }
 
     return wantarray ? @ret : $ret[0];
 }
 
+sub dbh_do {
+    my ( $self, $dbh, $code ) = @_;
+
+    if( ( ref $code || '' ) eq 'CODE' ) {
+        $code->($dbh);
+    }
+    elsif( ( ref $code || '' ) eq 'ARRAY' ) {
+        for my $c ( @$code ) {
+            $self->dbh_do($dbh, $c);
+        }
+    }
+    else {
+        $self->log_sql($code);
+        $dbh->do($code) or confess $self->dbh->errstr;
+        $self->{sql_cnt}++;
+    }
+}
 
 ###################
 sub transaction {
@@ -387,24 +424,24 @@ sub select_single {
         $query = $self->_as_query_object('select', $query);
     }
 
+    my ( $sql, @bind ) = $query->as_sql;
+    $self->log_sql($sql, @bind);
     my ($key, $cache) = $self->get_cache_id($query);
-
     my $result;
     if( $key and $cache ) {
         $result = $cache;
     }
     else {
-        my ( $sql, @bind ) = $query->as_sql;
-        $self->stm_debug($sql, @bind);
         #$result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
         my $sth = $self->_prepare($sql);
         $sth->execute(@bind) || confess $sth->errstr;
         $result = $sth->fetchrow_arrayref;
         $sth->finish;
+        $self->{sql_cnt}++;
     }
 
     if( $key and !$cache and $result ) {
-        $self->log->info('[QueryCache]Cache Set:' . $key);
+        $self->log_cache( 'Cache Set:' . $key );
         $self->cache->set( $key => $result );
     }
 
@@ -430,14 +467,15 @@ sub update {
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];
-        $self->log->info(
-            '{QueryCache} Cache Remove : ' . join( ', ', @$keys ) );
+        $self->log_cache( 'Cache Remove : ' . join( ', ', @$keys ) );
         $self->cache->remove( $_ ) for @$keys;
     }
 
     my ( $sql, @bind ) = $query->as_sql;
-    $self->stm_debug($sql, @bind);
-    return $self->dbh->do($sql, {}, @bind);
+    $self->log_sql($sql, @bind);
+    my $ret = $self->dbh->do($sql, {}, @bind);
+    $self->{sql_cnt}++;
+    return $ret;
 }
 
 sub insert {
@@ -451,8 +489,9 @@ sub insert {
     $callback->($query) if $callback and ref($callback) eq 'CODE';
 
     my ( $sql, @bind ) = $query->as_sql;
-    $self->stm_debug($sql, @bind);
+    $self->log_sql($sql, @bind);
     $self->dbh->do( $sql, {}, @bind );
+    $self->{sql_cnt}++;
 
     my $ret_id = ref($query->values) eq 'HASH' ? $query->values : +{};
 
@@ -483,28 +522,54 @@ sub delete {
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];
-        $self->log->info(
-            '{QueryCache} Cache Remove : ' . join( ', ', @$keys ) );
+        $self->log_cache( 'Cache Remove : ' . join( ', ', @$keys ) );
         $self->cache->remove( $_ ) for @$keys;
     }
 
     my ( $sql, @bind ) = $query->as_sql;
-    $self->stm_debug($sql, @bind);
-    return $self->dbh->do( $sql, {}, @bind );
+    $self->log_sql($sql, @bind);
+    my $ret = $self->dbh->do( $sql, {}, @bind );
+    $self->{sql_cnt}++;
+    return $ret;
 }
 
 # XXXX TODO CREATE TABLE
 sub create {  }
 
-sub stm_debug {
+sub log_sql {
     my ( $self, $sql, @bind ) = @_;
-
     if( $self->log->is_info ) {
-        my $string = $sql . ': (';
-        $string .= join( ', ', map { defined $_ ? $_ : 'undef' } @bind )
-          if @bind;
+        $self->log->info( '{SQL}{'
+                . refaddr($self) . '} '
+                . _format_output_sql( $sql, @bind ) );
+    }
+}
+
+sub _format_output_sql {
+    my ( $sql, @bind ) = @_;
+    my $string = $sql;
+    if( @bind ) {
+        $string .= ': (';
+        $string .= join( ', ', map { defined $_ ? $_ : 'undef' } @bind );
         $string .= ')';
-        $self->log->info( '{SQL} ' . $string);
+    }
+    return $string;
+}
+
+sub log_connect {
+    my ( $self, $meth ) = @_;
+    if ( $self->log->is_info ) {
+        $self->log->info( '{'
+                . uc($meth) . '}{'
+                . refaddr($self) . '} '
+                . $self->{connect_info}[0] );
+    }
+}
+
+sub log_cache {
+    my ( $self, $comment ) = @_;
+    if ( $self->log->is_info ) {
+        $self->log->info( '{QueryCache}{' . refaddr($self) . '} ' . $comment );
     }
 }
 
@@ -517,13 +582,16 @@ sub get_cache_id {
             or ( $query->limit and !$query->order_by );
 
     my @target_tables = $self->__get_table_name($query->from);
-    push @target_tables, $self->__get_table_name( $query->{joins} )
-        if @{$query->{joins}};
+
+    push @target_tables, $self->__get_table_name( $query->{join} )
+        if @{$query->{join}};
 
     local $Data::Dumper::Sortkeys = 1;
     my $key = Digest::MD5::md5_hex(ref($self) . Data::Dumper::Dumper($query));
     if( my $cache = $self->cache->get($key) ) {
-        $self->log->info( '{QueryCache} Cache Hit : ' . $key );
+        $self->log_cache( 'Cache Hit : '
+                . $key . ' => '
+                . _format_output_sql( $query->as_sql ) );
         return ($key, $cache);
     }
 

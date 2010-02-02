@@ -43,6 +43,5 @@ sub create                   { }
 sub delete                   { }
 sub set_time_zone            { }
 sub iterator                 { }
-sub stm_debug                { }
 
 1;

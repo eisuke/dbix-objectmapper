@@ -16,7 +16,6 @@ sub new {
 }
 
 sub engine   { $_[0]->{engine} }
-sub log      { $_[0]->engine->{log} }
 sub dbh      { $_[0]->engine->{dbh} }
 sub complete { $_[0]->{complete} }
 
