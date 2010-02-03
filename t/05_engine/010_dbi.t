@@ -137,6 +137,7 @@ use Try::Tiny;
         where => [ [ 'id', 1 ] ],
     });
     is_deeply [qw(1 texttext 2 2)], $it->next;
+    $it = undef;
 
     # delele
     ok $dr->delete({ table => 'test1', where => [ [ 'id', 1 ]] });
