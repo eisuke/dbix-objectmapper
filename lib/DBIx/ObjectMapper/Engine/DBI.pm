@@ -17,79 +17,54 @@ use DBIx::ObjectMapper::Engine::DBI::Transaction;
 sub _init {
     my $self = shift;
     my $param = shift || confess 'invalid parameter.';
+    $param = [ $param, @_ ] unless ref $param;
 
     my @connect_info;
-    my $connect_do;
-    my $disconnect_do;
     my $option;
-
-    if( ref $param eq 'ARRAY' ){
-        @connect_info = @$param[0..2];
+    if ( ref $param eq 'ARRAY' ) {
+        @connect_info = @$param[ 0 .. 2 ];
         $option = $param->[3] if $param->[3];
-        $connect_do = $param->[4] if $param->[4];
-        $disconnect_do = $param->[5] if $param->[5];
     }
-    elsif( ref $param eq 'HASH' ) {
-        @connect_info =
-          ( $param->{dsn}, $param->{username}, $param->{password} );
-        $connect_do = $param->{on_connect_do} if exists $param->{on_connect_do};
-        $disconnect_do = $param->{on_disconnect_do} if exists $param->{on_disconnect_do};
-        $option = $param->{option};
+    elsif ( ref $param eq 'HASH' ) {
+        @connect_info = (
+            delete $param->{dsn},
+            delete $param->{username},
+            delete $param->{password},
+        );
+        $option = $param;
     }
     else {
         confess 'invalid parameter.';
     }
 
+    my $connect_do    = delete $option->{on_connect_do}    || [];
+    my $disconnect_do = delete $option->{on_disconnect_do} || [];
     $self->{connect_do}
-        = $connect_do
-        ? ref $connect_do eq 'ARRAY'
-            ? $connect_do
-            : [$connect_do]
-        : [];
-
+        = ref $connect_do eq 'ARRAY' ? $connect_do : [$connect_do];
     $self->{disconnect_do}
-        = $disconnect_do
-        ? ref $disconnect_do eq 'ARRAY'
-            ? $disconnect_do
-            : [$disconnect_do]
-        : [];
+        = ref $disconnect_do eq 'ARRAY' ? $disconnect_do : [$disconnect_do];
 
-    push @connect_info, {
-        AutoCommit => exists $option->{AutoCommit}
-        ? delete $option->{AutoCommit}
-        : 1,
+    for my $name ( qw(db_schema namesep quote datetime_parser iterator
+                      time_zone disable_prepare_caching cache) ) {
+        $self->{$name} = delete $option->{$name} || undef;
+    }
+
+    push @connect_info,  {
+        AutoCommit         => 1,
         RaiseError         => 1,
         PrintError         => 0,
         ShowErrorStatement => 1,
         %{ $option || {} }
     };
 
-    $self->{connect_info} = \@connect_info;
-    $self->{driver_type} = undef;
-    $self->{driver}      = undef;
-    $self->init_option($option);
+    $self->{connect_info}       = \@connect_info;
+    $self->{driver_type}        = undef;
+    $self->{driver}             = undef;
+    $self->{cache_target_table} = +{};
+    $self->{iterator} ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
 
     return $self;
 }
-
-sub init_option {
-    my ( $self, $option) = @_;
-
-    if( delete $option->{disable_prepare_caching} ){
-        $self->{disable_prepare_caching} = 1;
-    }
-
-    for my $name ( qw(db_schema namesep quote datetime_parser) ) {
-        $self->{$name} = $option->{$name} if exists $option->{$name};
-    }
-
-    $self->{iterator} ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
-
-    $self->{time_zone} = $option->{time_zone} || undef;
-
-    $self->{cache_target_table} = +{};
-}
-
 
 ### Driver
 sub iterator        { $_[0]->{iterator} }
@@ -97,6 +72,7 @@ sub namesep         { $_[0]->driver->namesep }
 sub quote           { $_[0]->driver->quote }
 sub datetime_parser { $_[0]->driver->datetime_parser }
 sub time_zone       { $_[0]->{time_zone} }
+sub cache           { $_[0]->{cache} }
 
 sub driver_type     {
     my $self = shift;
@@ -125,8 +101,7 @@ sub DESTROY {
     if (my $dbh = $self->{_dbh}) {
         $self->_verify_pid;
         local $@;
-        eval { $dbh->disconnect };
-        $self->log_connect('DISCONNECT');
+        eval { $self->disconnect };
     }
     $self->{_dbh} = undef;
 }
@@ -206,7 +181,7 @@ sub _connect {
     );
 
     if ( $self->{time_zone}
-        and my $tzq = $self->{driver}->set_time_zone_query )
+        and my $tzq = $self->{driver}->set_time_zone_query($dbh) )
     {
         push @{ $self->{connect_do} }, $tzq;
     }
@@ -500,7 +475,7 @@ sub insert {
             unless ( defined $query->{values}->{$pk} ) {
                 $ret_id->{$pk} = $self->driver->last_insert_id(
                     $self->dbh,
-                    $query->into,
+                    ($self->__get_table_name($query->into))[0],
                     $pk
                 );
             }

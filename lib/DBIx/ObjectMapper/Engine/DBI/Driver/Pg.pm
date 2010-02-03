@@ -8,7 +8,19 @@ use DBD::Pg qw(:pg_types);
 
 sub init {
     my $self = shift;
+    my $dbh  = shift;
+
+    if( my $schema = $self->{db_schema} ) {
+        my @search_path = split ',', $dbh->selectrow_array('SHOW search_path');
+        unless( grep { $_ eq $schema } @search_path ) {
+            unshift @search_path, $schema;
+            my $stm = q{SET search_path TO } . join(', ', @search_path);
+            $self->log->info( '{SQL} ' . $stm );
+            $dbh->do($stm);
+        }
+    }
     $self->{db_schema} ||= 'public';
+
     try {
         require DateTime::Format::Pg;
         DateTime::Format::Pg->import;
@@ -87,9 +99,9 @@ sub last_insert_id {
 }
 
 sub set_time_zone_query {
-    my ( $self ) = @_;
-    my $tz = $self->time_zone;
-    return "SET timezone TO $tz";
+    my ( $self, $dbh ) = @_;
+    my $tz = $self->time_zone || return;
+    return "SET timezone TO " . $dbh->quote($tz);
 }
 
 sub escape_binary_func {

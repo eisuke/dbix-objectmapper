@@ -390,12 +390,13 @@ sub limit_offset {
 sub limit_xy {
     my $self = shift;
 
-    my $stm = ' LIMIT ';
+    my $stm;
     if( my $offset = $self->offset_as_sql ) {
-        $stm .= $offset . ', ';
+        $stm .= ' LIMIT ' . $offset . ', ';
     }
 
     if( my $limit = $self->limit_as_sql ) {
+        $stm ||= ' LIMIT ';
         $stm .= $limit;
     }
 

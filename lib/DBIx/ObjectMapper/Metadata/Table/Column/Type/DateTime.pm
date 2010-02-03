@@ -36,9 +36,13 @@ sub format_method { 'format_' . $_[0]->datetime_type() }
 sub from_storage {
     my ( $self, $val ) = @_;
     return $val unless length($val) > 0;
+    return undef if $val eq '0000-00-00 00:00:00';
+
     my $method = $self->parse_method;
     my $dt = $self->datetime_parser->$method($val);
-    $dt->set_time_zone($self->time_zone) if $self->time_zone;
+    if( ref($dt) eq 'DateTime' and $self->time_zone ) {
+        $dt->set_time_zone($self->time_zone);
+    }
     return $dt;
 }
 
@@ -46,7 +50,11 @@ sub to_storage {
     my ( $self, $val ) = @_;
     return $val unless $val and ref($val) =~ /^DateTime/;
     my $method = $self->format_method;
-    $val->set_time_zone($self->time_zone) if $self->time_zone;
+
+    if( ref($val) eq 'DateTime' and $self->time_zone ) {
+        $val->set_time_zone( $self->time_zone );
+    }
+
     return $self->datetime_parser->$method($val);
 }
 

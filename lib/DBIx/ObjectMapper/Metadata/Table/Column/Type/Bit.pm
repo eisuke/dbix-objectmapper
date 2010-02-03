@@ -57,9 +57,9 @@ sub from_storage {
         return Bit::Vector->new_Bin( $size || length $val, $val );
     }
     else {
-        confess "Could not parse bitfield value '$val'";
-        return undef;
-        #return Bit::Vector->new_Bin($size || length($val), $val);
+        #warn "Could not parse bitfield value '$val'";
+        #return $val;
+        return Bit::Vector->new_Bin($size || length($val), unpack("B*", $val) );
     }
 }
 

@@ -60,8 +60,9 @@ our $map = {
     'money'            => 'Numeric',
 
     # Blob
-    'blob'  => 'Binary',
-    'bytea' => 'Binary',
+    'blob'     => 'Binary',
+    'bytea'    => 'Binary',
+    'longblob' => 'Binary',
 
     # Bit
     'bit'         => 'Bit',

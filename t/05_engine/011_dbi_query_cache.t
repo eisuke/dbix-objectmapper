@@ -13,14 +13,13 @@ ok my $engine = DBIx::ObjectMapper::Engine::DBI->new(
         'DBI:SQLite:',
         undef,
         undef,
-        {},
-        [
-            q{CREATE TABLE test1 (id integer primary key, name text)},
-        ]
+        {
+            on_connect_do => [
+                q{CREATE TABLE test1 (id integer primary key, name text)},
+            ],
+            cache => DBIx::ObjectMapper::Session::Cache->new,
+        },
     ],
-    {
-        cache => DBIx::ObjectMapper::Session::Cache->new,
-    }
 );
 
 ok $engine->cache;

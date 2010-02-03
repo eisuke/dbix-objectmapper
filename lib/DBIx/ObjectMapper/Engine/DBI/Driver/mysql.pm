@@ -8,11 +8,11 @@ use base qw(DBIx::ObjectMapper::Engine::DBI::Driver);
 sub init {
     my $self = shift;
     try {
-        require DateTime::Format::MySQL;
-        DateTime::Format::MySQL->import;
-        $self->{datetime_parser} ||= 'DateTime::Format::MySQL';
+        require DateTime::Format::DBIMAPPER_MySQL;
+        DateTime::Format::DBIMAPPER_MySQL->import;
+        $self->{datetime_parser} ||= 'DateTime::Format::DBIMAPPER_MySQL';
     } catch {
-        confess "Couldn't load DateTime::Format::MySQL: $_";
+        confess "Couldn't load DateTime::Format::DBIMAPPER_MySQL: $_";
     };
 }
 
@@ -103,9 +103,9 @@ sub get_tables {
 }
 
 sub set_time_zone_query {
-    my ( $self ) = @_;
-    my $tz = $self->{time_zone};
-    return "SET timezone = $tz";
+    my ( $self, $dbh ) = @_;
+    my $tz = $self->time_zone || return;
+    return "SET time_zone = " . $dbh->quote($tz);
 }
 
 sub set_savepoint {

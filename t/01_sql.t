@@ -367,6 +367,43 @@ DBIx::ObjectMapper::SQL->new('Pg')->union->sets(
 --- expected
 ( SELECT id, name FROM table1 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table2 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table3 WHERE ( id = ? ) ) GROUP BY id ORDER BY id LIMIT 10 OFFSET 100 <= 1,1,1
 
+=== INTERSECT
+--- input
+DBIx::ObjectMapper::SQL->new('Pg')->intersect->sets(
+       DBIx::ObjectMapper::SQL->select(
+         from => 'table1',
+         column => [qw(id name)],
+         where => [[qw(id 1)]],
+       ),
+       DBIx::ObjectMapper::SQL->select(
+         from => 'table2',
+         column => [qw(id name)],
+         where => [[qw(id 1)]],
+       ),
+)->order_by('id')->group_by('id')->limit(10)->offset(100);
+
+--- expected
+( SELECT id, name FROM table1 WHERE ( id = ? ) ) INTERSECT ( SELECT id, name FROM table2 WHERE ( id = ? ) ) GROUP BY id ORDER BY id LIMIT 10 OFFSET 100 <= 1,1
+
+=== EXCEPT
+--- input
+DBIx::ObjectMapper::SQL->new('Pg')->except->sets(
+       DBIx::ObjectMapper::SQL->select(
+         from => 'table1',
+         column => [qw(id name)],
+         where => [[qw(id 1)]],
+       ),
+       DBIx::ObjectMapper::SQL->select(
+         from => 'table2',
+         column => [qw(id name)],
+         where => [[qw(id 1)]],
+       ),
+)->order_by('id')->group_by('id')->limit(10)->offset(100);
+
+--- expected
+( SELECT id, name FROM table1 WHERE ( id = ? ) ) EXCEPT ( SELECT id, name FROM table2 WHERE ( id = ? ) ) GROUP BY id ORDER BY id LIMIT 10 OFFSET 100 <= 1,1
+
+
 === SUBQUERY1
 --- input
 my $sql = DBIx::ObjectMapper::SQL->select->column(qw(id text))->from('parent')->join(

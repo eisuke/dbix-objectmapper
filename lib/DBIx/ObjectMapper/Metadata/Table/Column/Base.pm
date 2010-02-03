@@ -152,9 +152,9 @@ sub to_storage {
             if( my $default = $self->default ) {
                 $val = $default->();
             }
-            elsif( my $server_default = $self->server_default ) {
-                $val = \$server_default;
-            }
+            #elsif( my $server_default = $self->server_default ) {
+            #    $val = \$server_default;
+            #}
         }
     }
 

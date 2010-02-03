@@ -18,18 +18,37 @@ use Try::Tiny;
 { # dbi-sqlite
     dies_ok{ DBIx::ObjectMapper::Engine::DBI->new() };
 
+    dies_ok{
+        DBIx::ObjectMapper::Engine::DBI->new(
+            'DBI:SQLite:', undef, undef,
+            {
+                on_connect_do => q{SOIAFOEOAWPFEWAPFEAW}
+            }
+        )->connect;
+    };
+
+    dies_ok{
+        DBIx::ObjectMapper::Engine::DBI->new(
+            'DBI:SQLite', undef, undef,
+            {
+                on_connect_do => q{SOIAFOEOAWPFEWAPFEAW}
+            }
+        )->connect;
+    };
+
     ok my $dr = DBIx::ObjectMapper::Engine::DBI->new(
         [
             'DBI:SQLite:',
             undef,
             undef,
-            {},
-            [
-                q{CREATE TABLE test1 (id integer primary key, t text, key1 interger, key2 integer, UNIQUE(key1, key2) )},
-                q{CREATE TABLE test2 (id integer primary key )},
-                q{CREATE TABLE test3 (id integer primary key, test2_id integer REFERENCES test2(id) ) },
-                q{CREATE TABLE test4 (id integer primary key, test3_id integer, test3_test2_id integer, FOREIGN KEY(test3_id,test3_test2_id) REFERENCES test3(id,test2_id) )},
-            ]
+            {
+                on_connect_do => [
+                    q{CREATE TABLE test1 (id integer primary key, t text, key1 interger, key2 integer, UNIQUE(key1, key2) )},
+                    q{CREATE TABLE test2 (id integer primary key )},
+                    q{CREATE TABLE test3 (id integer primary key, test2_id integer REFERENCES test2(id) ) },
+                    q{CREATE TABLE test4 (id integer primary key, test3_id integer, test3_test2_id integer, FOREIGN KEY(test3_id,test3_test2_id) REFERENCES test3(id,test2_id) )},
+                ]
+            },
         ]
     );
     ok $dr->dbh;
@@ -232,12 +251,27 @@ use Try::Tiny;
         where => [ [ 'id', 1 ] ],
     });
 
-
     # disconnect
     is $dr->{_dbh_gen}, 1;
     $dr->disconnect;
     ok $dr->dbh;
     is $dr->{_dbh_gen}, 2;
+
+
+    dies_ok{
+        $dr->select_single({
+            from => 'test_hogefuag',
+            where => [ [ 'id', 1 ] ],
+        });
+    };
+
+    dies_ok {
+        $dr->select_single({
+            from => 'test1',
+            where => [ [ 'foo', 1 ] ],
+        });
+    };
+
 };
 
 sub check_interface {
