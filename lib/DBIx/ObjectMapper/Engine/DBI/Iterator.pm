@@ -17,7 +17,7 @@ sub new {
     $self->{_size} = undef;
     $self->{engine} = $engine;
     $self->{_dbh}   = $engine->dbh;
-
+    $self->{_tid} = threads->tid if $INC{'threads.pm'};
     my ($key, $cache) = $self->engine->get_cache_id($query);
 
     if( $key and $cache ) {
@@ -34,7 +34,9 @@ sub new {
 sub sth {
     my $self = shift;
 
-    unless( $self->{_sth} ) {
+    if ( !$self->{_sth}
+        or ( exists $self->{_tid} and $self->{_tid} != threads->tid ) )
+    {
         my ( $sql, @bind ) = $self->query->as_sql;
         my $sth = $self->engine->_prepare($sql);
         $sth->execute(@bind) or confess $sth->errstr;

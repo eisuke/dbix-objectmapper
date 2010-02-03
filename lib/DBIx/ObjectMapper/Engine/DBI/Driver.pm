@@ -25,7 +25,7 @@ sub new {
     DBIx::ObjectMapper::Utils::load_class($klass);
 
     my $self = bless \%attr, $klass;
-    $self->init();
+    $self->init($dbh);
 
     return $self;
 }
@@ -43,7 +43,7 @@ sub init { }
 
 sub get_primary_key {
     my ( $self, $dbh, $table ) = @_;
-    my @primary_key = $dbh->primary_key( undef, $self->{db_schema}, $table );
+    my @primary_key = $dbh->primary_key( undef, $self->db_schema, $table );
     @primary_key = $dbh->primary_key( undef, undef, $table )
         unless @primary_key;
     return @primary_key;
@@ -76,7 +76,7 @@ sub get_column_info {
     }
 
     if ( $self->db_schema ) {
-        $table = $self->db_schema . $self->{namesep} . $table;
+        $table = $self->db_schema . $self->namesep . $table;
     }
 
     my @result;
@@ -139,13 +139,12 @@ sub get_table_uniq_info {
 
     my @uniq_info;
     for my $name ( keys %uniq_info ) {
-        push @uniq_info,
-            [
+        push @uniq_info,  [
             $name => [
                 map { $uniq_info{$name}->{$_} }
                 sort keys %{ $uniq_info{$name} }
             ]
-            ];
+        ];
     }
 
     return \@uniq_info;

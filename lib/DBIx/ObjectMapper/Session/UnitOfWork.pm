@@ -113,6 +113,7 @@ sub detach {
 sub flush {
     my ( $self ) = @_;
     for my $obj (@{$self->{objects}}) {
+        next unless $obj;
         my $mapper = $obj->__mapper__;
         my $id = refaddr($obj);
         if( $mapper->is_pending ) {
@@ -164,7 +165,10 @@ sub _clear_cache {
 sub demolish {
     my $self = shift;
     $self->flush;
-    $_->__mapper__->demolish for @{ $self->{objects} };
+    for my $obj ( @{ $self->{objects} } ) {
+        next unless $obj;
+        $obj->__mapper__->demolish;
+    }
     $self->{objects}     = +[];
     $self->{map_objects} = +{};
     $self->{del_objects} = +{};
