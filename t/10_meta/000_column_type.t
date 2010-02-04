@@ -181,6 +181,11 @@ sub build_pkg($) {
         is $obj->to_storage($bit), 100000;
         ok my $rbit = $obj->from_storage(32);
         ok $bit->equal($rbit);
+        ok $bit->equal($obj->from_storage($bit->to_Bin)),
+            'to bin:' . $bit->to_Bin;
+        ok $bit->equal($obj->from_storage(32)), 'to dec: 32';
+        ok $bit->equal($obj->from_storage(0x20)), 'to hex: 0x20';
+        ok $bit->equal($obj->from_storage("B'100000'")), 'to bin';
     }
 };
 

@@ -35,8 +35,6 @@ sub reset {
 
 sub all {}
 
-sub has_next { $_[0]->size > $_[0]->cursor }
-
 sub first {
     my $self = shift;
     $self->reset if $self->cursor > 0;

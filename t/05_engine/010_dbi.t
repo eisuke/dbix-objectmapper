@@ -43,7 +43,7 @@ use Try::Tiny;
             undef,
             {
                 on_connect_do => [
-                    q{CREATE TABLE test1 (id integer primary key, t text, key1 interger, key2 integer, UNIQUE(key1, key2) )},
+                    q{CREATE TABLE test1 (id integer primary key, t text, key1 integer, key2 integer, UNIQUE(key1, key2) )},
                     q{CREATE TABLE test2 (id integer primary key )},
                     q{CREATE TABLE test3 (id integer primary key, test2_id integer REFERENCES test2(id) ) },
                     q{CREATE TABLE test4 (id integer primary key, test3_id integer, test3_test2_id integer, FOREIGN KEY(test3_id,test3_test2_id) REFERENCES test3(id,test2_id) )},

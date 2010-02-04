@@ -25,13 +25,11 @@ sub get_column_info          { }
 sub get_unique_key           { }
 sub get_tables               { }
 sub select                   { }
-sub select_from_query_object { }
 sub select_single            { }
 sub update                   { }
 sub insert                   { }
 sub create                   { }
 sub delete                   { }
-sub set_time_zone            { }
 sub iterator                 { }
 
 1;

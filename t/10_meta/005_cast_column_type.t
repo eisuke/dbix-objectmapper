@@ -4,7 +4,6 @@ use Test::More;
 use MIME::Base64;
 use DateTime;
 use DateTime::Duration;
-use Bit::Vector;
 use Storable;
 use YAML;
 use URI;

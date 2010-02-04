@@ -36,7 +36,7 @@ sub format_method { 'format_' . $_[0]->datetime_type() }
 sub from_storage {
     my ( $self, $val ) = @_;
     return $val unless length($val) > 0;
-    return undef if $val eq '0000-00-00 00:00:00';
+    return if $val eq '0000-00-00 00:00:00';
 
     my $method = $self->parse_method;
     my $dt = $self->datetime_parser->$method($val);

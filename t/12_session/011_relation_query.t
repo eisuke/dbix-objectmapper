@@ -76,6 +76,7 @@ my $mapper = MyTest11->mapper;
         }
     }
     is $loop_cnt, 1;
+    is $it->size, 1;
 };
 
 { # add eager_join
@@ -93,7 +94,7 @@ my $mapper = MyTest11->mapper;
     ok my $it = $query->execute;
     my $loop_cnt = 0;
     my $cd_id = 4;
-    while( my $a = $it->next ) {
+    for my $a ( @$it ) {
         $loop_cnt++;
         is $a->id, 1;
         is $a->name, 'Led Zeppelin';
@@ -102,7 +103,7 @@ my $mapper = MyTest11->mapper;
         }
     }
     is $loop_cnt, 1;
-
+    is $it->size, 1;
 };
 
 { # has_many is one record

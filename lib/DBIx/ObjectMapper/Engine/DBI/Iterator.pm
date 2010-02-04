@@ -42,17 +42,17 @@ sub sth {
         $self->engine->log_sql($sql, @bind);
         my $size = $sth->rows;
 
-        unless( $size ) {
-            # FIX ME
-            my $count_query = $self->query->clone;
-            $count_query->column({ count => '*' });
-            $count_query->order_by(undef);
-            my ( $cnt_sql, @cnt_bind ) = $count_query->as_sql;
-            my $cnt_sth = $self->engine->_prepare($cnt_sql);
-            $cnt_sth->execute(@cnt_bind);
-            $size = $cnt_sth->fetchrow_array;
-            $cnt_sth->finish;
-        }
+#        unless( $size ) {
+#            # FIX ME
+#            my $count_query = $self->query->clone;
+#            $count_query->column({ count => '*' });
+#            $count_query->order_by(undef);
+#            my ( $cnt_sql, @cnt_bind ) = $count_query->as_sql;
+#            my $cnt_sth = $self->engine->_prepare($cnt_sql);
+#            $cnt_sth->execute(@cnt_bind);
+#            $size = $cnt_sth->fetchrow_array;
+#            $cnt_sth->finish;
+#        }
         $self->{_size} = $size;
         $self->{_sth} = $sth;
     }

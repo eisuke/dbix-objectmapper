@@ -13,7 +13,7 @@ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
         q{CREATE TABLE artist( id integer primary key, name text )},
         q{CREATE TABLE cd( id integer primary key, title text, artist_id integer)},
         q{CREATE TABLE track( id integer primary key, cd_id integer not null, track_no int, title text)},
-        q{CREATE TABLE linernote ( id interger primary key, note text )},
+        q{CREATE TABLE linernote ( id integer primary key, note text )},
     ],
 });
 

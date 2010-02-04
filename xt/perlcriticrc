@@ -1,6 +1,9 @@
 # for mkdir $dir, 0777
 #[-ValuesAndExpressions::ProhibitLeadingZeros]
 
+# use subroutine prototypes
+[-Subroutines::ProhibitSubroutinePrototypes]
+
 # we do eval a lot
 [-BuiltinFunctions::ProhibitStringyEval]
 

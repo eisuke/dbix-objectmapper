@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 use Try::Tiny;
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
@@ -43,6 +44,7 @@ $mapper->maps(
         );
     };
     is $session->autoflush, 0;
+    warning_like { $session->rollback } qr/Can't rollback/;
 };
 
 {

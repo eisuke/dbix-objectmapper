@@ -4,9 +4,13 @@ use Test::More;
 use MIME::Base64;
 use DateTime;
 use DateTime::Duration;
-use Bit::Vector;
 use DBIx::ObjectMapper::Engine::DBI;
 use DBIx::ObjectMapper;
+
+BEGIN {
+    eval "use Bit::Vector";
+    plan skip_all => 'need Bit::Vector this test' if $@;
+};
 
 my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 

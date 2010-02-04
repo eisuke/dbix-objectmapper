@@ -98,7 +98,7 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
         password => '',
         on_connect_do => [
             q{ CREATE TABLE testmetadata (id integer primary key, name text, created timestamp, updated timestamp)},
-            q{ CREATE TABLE testfk (id interger primary key, pid integer references testmetadata(id))},
+            q{ CREATE TABLE testfk (id integer primary key, pid integer references testmetadata(id))},
         ],
     });
 
