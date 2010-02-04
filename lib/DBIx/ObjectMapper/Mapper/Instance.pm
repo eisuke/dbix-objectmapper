@@ -294,11 +294,9 @@ sub set_val_trigger {
 
     my $class_mapper = $self->instance->__class_mapper__;
     my $prop = $class_mapper->attributes->property($name);
-    if ( my $meth = $prop->validation_method ) {
-        $self->instance->${meth}($val);
-    }
-    elsif ( my $code = $prop->validation ) {
-        unless ( $code->(@_) ) {
+
+    if ( my $code = $prop->validation ) {
+        unless ( $code->($val) ) {
             confess "parameter $name is invalid.";
         }
     }
@@ -329,8 +327,9 @@ sub update {
     my $class_mapper = $self->instance->__class_mapper__;
 
     my $result;
+    my $new_val;
+
     try {
-        my $new_val;
         if( keys %$modified_data ) {
             $result = $class_mapper->table->update->set(%$modified_data)
                 ->where(@$uniq_cond)->execute();
@@ -369,12 +368,13 @@ sub update {
         }
 
         $self->modify($new_val) if $new_val;
-        $self->{is_modified} = 0;
-        $self->{modified_data} = +{};
     } catch {
         $self->change_status('detached');
-        confess @_;
+        confess $_[0];
     };
+
+    $self->{is_modified} = 0;
+    $self->{modified_data} = +{};
 
     $self->change_status('expired'); # cascade expire if cascade_reflesh_expire
     return !$result || $self->instance;
@@ -397,18 +397,19 @@ sub save {
         for my $prop_name ( $class_mapper->attributes->property_names ) {
             my $prop = $class_mapper->attributes->property($prop_name);
             next unless $prop->type eq 'relation';
-
             if( $prop->{isa}->is_cascade_save_update() ) {
                 if( my $instance = $self->instance->{$prop_name} ) {
-                    for ( ref $instance eq 'ARRAY' ? @$instance : $instance ) {
-                        $prop->{isa}->cascade_save($prop_name, $self, $_ );
+                    my @instances
+                        = ref $instance eq 'ARRAY' ? @$instance : ( $instance );
+                    for my $i (@instances) {
+                        $prop->{isa}->cascade_save( $prop_name, $self, $i );
                     }
                 }
             }
         }
     } catch {
         $self->change_status('detached');
-        confess @_;
+        confess $_[0];
     };
 
     $self->change_status('expired');
@@ -439,7 +440,7 @@ sub delete {
         $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
     } catch {
         $self->change_status('detached');
-        confess @_;
+        confess $_[0];
     };
 
     $self->change_status('detached');
@@ -507,7 +508,8 @@ sub demolish {
 
 sub DESTROY {
     my $self = shift;
-    $self->demolish;
+    eval{ $self->demolish };
+    warn $@ if $@;
     warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
 }
 

@@ -37,8 +37,6 @@ sub namesep   { $_[0]->{namesep} }
 sub quote     { $_[0]->{quote} }
 sub time_zone { $_[0]->{time_zone} }
 
-sub default_connection_mode { 'fixup' }
-
 sub init { }
 
 sub get_primary_key {
@@ -158,6 +156,7 @@ sub get_table_fk_info {
     return [] if !$sth;
 
     my %rels;
+    my $quote = $self->quote;
 
     my $i = 1;    # for unnamed rels, which hopefully have only 1 column ...
     while ( my $raw_rel = $sth->fetchrow_arrayref ) {
@@ -165,10 +164,10 @@ sub get_table_fk_info {
         my $uk_col = lc $raw_rel->[3];
         my $fk_col = lc $raw_rel->[7];
         my $relid  = ( $raw_rel->[11] || ( "__dcsld__" . $i++ ) );
-        $uk_tbl =~ s/\Q$self->{quote}\E//g;
-        $uk_col =~ s/\Q$self->{quote}\E//g;
-        $fk_col =~ s/\Q$self->{quote}\E//g;
-        $relid  =~ s/\Q$self->{quote}\E//g;
+        $uk_tbl =~ s/\Q$quote\E//g;
+        $uk_col =~ s/\Q$quote\E//g;
+        $fk_col =~ s/\Q$quote\E//g;
+        $relid  =~ s/\Q$quote\E//g;
         $rels{$relid}->{tbl} = $uk_tbl;
         $rels{$relid}->{cols}->{$uk_col} = $fk_col;
     }
@@ -190,10 +189,17 @@ sub get_table_fk_info {
 
 sub get_tables {
     my ( $self, $dbh ) = @_;
-    my @tables = $dbh->tables(undef, $self->db_schema, '%', '%');
-    s/\Q$self->{quote}\E//g for @tables;
-    s/^.*\Q$self->{namesep}\E// for @tables;
-    return @tables;
+    $self->_truncate_quote_and_sep(
+        $dbh->tables(undef, $self->db_schema, '%', '%') );
+}
+
+sub _truncate_quote_and_sep {
+    my ( $self, @str ) = @_;
+    my $quote   = $self->quote;
+    my $namesep = $self->namesep;
+    s/\Q$quote\E//g for @str;
+    s/^.*\Q$namesep\E// for @str;
+    return @str;
 }
 
 sub last_insert_id { }

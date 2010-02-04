@@ -33,4 +33,16 @@ sub relation_condition {
     return @cond;
 }
 
+sub validation {
+    my $self = shift;
+    my $rel_class = $self->rel_class;
+    return sub {
+        my ( $val ) = @_;
+        if( ref $val eq 'ARRAY' ) {
+            return ( grep{ $rel_class eq ( ref($_) || '' ) } @$val ) == @$val;
+        }
+        return 0;
+    };
+}
+
 1;

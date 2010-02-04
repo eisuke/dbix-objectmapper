@@ -78,6 +78,33 @@ my $mapper = MyTest11->mapper;
     is $loop_cnt, 1;
 };
 
+{ # add eager_join
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+
+    my $query = $session->query(
+        'MyTest11::Artist',
+     )
+     ->where( $cd->c('title')->like('Led Zeppelin%') )
+     ->order_by( $cd->c('id')->desc );
+
+    $query->add_eager_join('cds');
+    ok my $it = $query->execute;
+    my $loop_cnt = 0;
+    my $cd_id = 4;
+    while( my $a = $it->next ) {
+        $loop_cnt++;
+        is $a->id, 1;
+        is $a->name, 'Led Zeppelin';
+        for my $cd ( @{$a->cds} ) {
+            is $cd->id, $cd_id--;
+        }
+    }
+    is $loop_cnt, 1;
+
+};
+
 { # has_many is one record
     my $session = $mapper->begin_session;
     my $artist = $mapper->metadata->t('artist');

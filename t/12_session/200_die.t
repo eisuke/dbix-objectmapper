@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
@@ -38,5 +39,18 @@ eval {
     my $session = $mapper->begin_session;
     is $session->query('MyTest17::Player')->count, 0;
 };
+
+warnings_like {
+    { ## can't die in DESTROY method....
+        my $session = $mapper->begin_session();
+        $session->add( MyTest17::Player->new( id => 'a' ) );
+    };
+} qr/datatype mismatch/;
+
+{
+    my $session = $mapper->begin_session;
+    is $session->query('MyTest17::Player')->count, 0;
+};
+
 
 done_testing;

@@ -135,8 +135,6 @@ sub primary_key {
     $self->__array_accessor('primary_key', @_);
 }
 
-sub primary_key_map { $_[0]->{primary_key_map} }
-
 =head2 unique_key
 
 =cut

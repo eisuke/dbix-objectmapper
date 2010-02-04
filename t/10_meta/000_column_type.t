@@ -101,6 +101,7 @@ sub build_pkg($) {
     my $pkg = build_pkg $type;
     my $obj = $pkg->new( realtype => 'datetime' );
     is $obj->type, lc($type);
+    is $obj->default_type, 'datetime';
     $obj->{datetime_parser} = 'DateTime::Format::SQLite';
     my $from_dt = $obj->from_storage('2010-01-01 18:00:09');
     is $from_dt->year, 2010;
@@ -117,6 +118,7 @@ sub build_pkg($) {
     my $pkg = build_pkg $type;
     my $obj = $pkg->new();
     is $obj->type, lc($type);
+    is $obj->default_type, 'date';
     $obj->{datetime_parser} = 'DateTime::Format::SQLite';
     my $from_dt = $obj->from_storage('2010-01-03');
     is $from_dt->year, 2010;
@@ -133,6 +135,7 @@ sub build_pkg($) {
     my $pkg = build_pkg $type;
     my $obj = $pkg->new;
     is $obj->type, lc($type);
+    is $obj->default_type, 'time';
     $obj->{datetime_parser} = 'DateTime::Format::SQLite';
     my $from_dt = $obj->from_storage('10:56:30');
     is $from_dt->hour, 10;

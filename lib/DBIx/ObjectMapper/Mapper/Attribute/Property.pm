@@ -22,10 +22,6 @@ sub new {
             },
             lazy       => +{ type => BOOLEAN, default => 0 },
             validation => +{ type => BOOLEAN, default => 0 },
-            validation_method => +{
-                type    => CODEREF,
-                default => sub { }
-            },
             getter => +{ type => SCALAR },
             setter => +{ type => SCALAR },
         }
@@ -34,10 +30,9 @@ sub new {
     bless \%prop, $class;
 }
 
-sub lazy              { $_[0]->{lazy} }
-sub validation_method { $_[0]->{validation_method} }
-sub getter            { $_[0]->{getter} }
-sub setter            { $_[0]->{setter} }
+sub lazy   { $_[0]->{lazy} }
+sub getter { $_[0]->{getter} }
+sub setter { $_[0]->{setter} }
 
 ## proxy
 
@@ -73,15 +68,6 @@ sub get {
     my $self = shift;
     if( $self->type eq 'relation' ) {
         return $self->{isa}->get(@_);
-    }
-
-    return;
-}
-
-sub mapping {
-    my $self = shift;
-    if( $self->type eq 'relation' ) {
-        return $self->{isa}->mapping(@_);
     }
 
     return;

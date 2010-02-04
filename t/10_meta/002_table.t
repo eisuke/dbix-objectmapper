@@ -13,9 +13,9 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
     ok my $meta = DBIx::ObjectMapper::Metadata::Table->new(
         testmetadata => [
             Col( id      => Int(), PrimaryKey, Readonly ),
-            Col( name    => Text('utf8'), NotNull ),
+            Col( name    => Text('utf8'), NotNull, ForeignKey( test => 'id')),
             Col( cd      => String(3), NotNull, Unique ),
-            Col( r       => SmallInt(), NotNull, ForeignKey( 'refs' => 'col') ),
+            Col( r       => SmallInt(), NotNull,  ),
             Col( created => DateTime(), Default{ time() }, Validation{ 1 } ),
             Col( updated => DateTime(), OnUpdate{ time() } ),
         ],
@@ -23,10 +23,10 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
             unique_key      => [ 'name_uniq' => ['name'] ],
             foreign_key     => [
                 {
-                    keys  => ['name'],
-                    table => 'test',
-                    refs  => ['id']
-                }
+                    keys => ['cd','r'],
+                    table => 'ref_table',
+                    refs => [ 'cd', 'r' ],
+                },
             ],
             readonly => ['id'],
             utf8     => ['name'],
@@ -63,15 +63,15 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
     is_deeply $meta->foreign_key, [
         {
+            keys => ['cd','r'],
+            table => 'ref_table',
+            refs => [ 'cd', 'r' ],
+        },
+        {
             keys  => ['name'],
             table => 'test',
             refs  => ['id']
         },
-        {
-            keys => ['r'],
-            table => 'refs',
-            refs => ['col'],
-        }
     ];
 
     is_deeply $meta->get_foreign_key_by_col('name'), [
@@ -79,6 +79,14 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
             keys  => ['name'],
             table => 'test',
             refs  => ['id']
+        },
+    ];
+
+    is_deeply $meta->get_foreign_key_by_col(['cd', 'r']), [
+        {
+            keys => ['cd','r'],
+            table => 'ref_table',
+            refs => [ 'cd', 'r' ],
         },
     ];
 };

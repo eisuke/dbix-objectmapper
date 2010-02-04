@@ -40,7 +40,9 @@ CREATE TABLE test.test_types (
 });
 
 my $mapper = DBIx::ObjectMapper->new( engine => $engine );
-my $table = $mapper->metadata->table( test_types => 'autoload' );
+$mapper->metadata->autoload_all_tables;
+my $table = $mapper->metadata->t( 'test_types' );
+
 my $GIF = 'R0lGODlhAQABAJEAAAAAAP///////wAAACH5BAUUAAIALAAAAAABAAEAAAICVAEAOw==
 ';
 my $now = DateTime->now( time_zone => 'UTC' );

@@ -317,7 +317,7 @@ SELECT * FROM hoge LEFT JOIN order_goods ON ( order_goods.order_id = ? ) WHERE (
 
 === UNION
 --- input
-DBIx::ObjectMapper::SQL->union(
+my $q = DBIx::ObjectMapper::SQL->union(
     driver => 'Pg',
     sets => [
        DBIx::ObjectMapper::SQL->select(
@@ -330,17 +330,20 @@ DBIx::ObjectMapper::SQL->union(
          column => [qw(id name)],
          where => [[qw(id 1)]],
        ),
-       DBIx::ObjectMapper::SQL->select(
-         from => 'table3',
-         column => [qw(id name)],
-         where => [[qw(id 1)]],
-       ),
     ],
     order_by => [qw(id)],
     group_by => [qw(id)],
     limit    => 10,
     offset   => 100,
 );
+$q->add_sets(
+       DBIx::ObjectMapper::SQL->select(
+         from => 'table3',
+         column => [qw(id name)],
+         where => [[qw(id 1)]],
+       ),
+);
+return $q;
 --- expected
 ( SELECT id, name FROM table1 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table2 WHERE ( id = ? ) ) UNION ( SELECT id, name FROM table3 WHERE ( id = ? ) ) GROUP BY id ORDER BY id LIMIT 10 OFFSET 100 <= 1,1,1
 

@@ -94,6 +94,16 @@ my $address = $meta->table( address => 'autoload' );
     }
 
     ok !$it->next;
+
+    $it->reset;
+    for ( 1 .. 4 ) {
+        ok my $r = $it->next;
+        is ref($r->{address}), 'HASH';
+        is $r->{id}, $r->{address}{person};
+        is $r->{id}, $r->{address}{person_id};
+    }
+    ok !$it->next, 'reset';
+
 }
 
 { # count, join
@@ -108,14 +118,27 @@ my $address = $meta->table( address => 'autoload' );
     )->group_by( $address->c('person') )->order_by( $address->c('person'))
         ->execute;
 
-    my $p1 = $it->next;
-    is $p1->{person}, 1;
-    is $p1->{count}, 3;
+    {
+        my $p1 = $it->next;
+        is $p1->{person}, 1;
+        is $p1->{count}, 3;
 
-    my $p2 = $it->next;
-    is $p2->{person}, 2;
-    is $p2->{count}, 1;
+        my $p2 = $it->next;
+        is $p2->{person}, 2;
+        is $p2->{count}, 1;
+    };
+    ok !$it->next;
 
+    $it->reset;
+    {
+        my $p1 = $it->next;
+        is $p1->{person}, 1;
+        is $p1->{count}, 3;
+
+        my $p2 = $it->next;
+        is $p2->{person}, 2;
+        is $p2->{count}, 1;
+    };
     ok !$it->next;
 };
 

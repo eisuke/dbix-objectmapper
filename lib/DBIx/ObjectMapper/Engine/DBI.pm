@@ -69,7 +69,6 @@ sub _init {
 ### Driver
 sub iterator        { $_[0]->{iterator} }
 sub namesep         { $_[0]->driver->namesep }
-sub quote           { $_[0]->driver->quote }
 sub datetime_parser { $_[0]->driver->datetime_parser }
 sub time_zone       { $_[0]->{time_zone} }
 sub cache           { $_[0]->{cache} }
@@ -174,7 +173,7 @@ sub _connect {
         db_schema       => $self->{db_schema}       || undef,
         namesep         => $self->{namesep}         || undef,
         quote           => $self->{quote}           || undef,
-        sql             => $self->query,
+        query           => $self->query,
         log             => $self->log,
         datetime_parser => $self->{datetime_parser} || undef,
         time_zone       => $self->{time_zone},
@@ -509,7 +508,7 @@ sub delete {
 }
 
 # XXXX TODO CREATE TABLE
-sub create {  }
+# sub create {  }
 
 sub log_sql {
     my ( $self, $sql, @bind ) = @_;

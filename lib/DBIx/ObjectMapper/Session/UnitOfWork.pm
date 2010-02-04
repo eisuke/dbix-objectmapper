@@ -5,13 +5,6 @@ use Carp::Clan;
 use Scalar::Util qw(refaddr blessed);
 use Log::Any qw($log);
 
-my %INSTANCE;
-
-sub instance {
-    my ( $class, $addr ) = @_;
-    return $INSTANCE{$addr};
-}
-
 sub new {
     my ( $class, $cache, $query, $option ) = @_;
 
@@ -25,7 +18,7 @@ sub new {
         option      => $option || +{},
     }, $class;
 
-    return $INSTANCE{refaddr($self)} = $self;
+    return $self;
 }
 
 sub query_cnt { $_[0]->{query_cnt} }
@@ -175,7 +168,6 @@ sub demolish {
 
     #$self->cache->clear;
     $self->{cache} = undef;
-    delete $INSTANCE{refaddr($self)};
 }
 
 sub DESTROY {

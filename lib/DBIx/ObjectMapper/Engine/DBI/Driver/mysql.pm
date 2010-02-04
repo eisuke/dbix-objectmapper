@@ -23,7 +23,8 @@ sub last_insert_id {
 
 sub get_primary_key {
     my $self = shift;
-    return @{$self->_mysql_table_get_keys(@_)->{PRIMARY}};
+    my $primary = $self->_mysql_table_get_keys(@_)->{PRIMARY} || return;
+    return @$primary;
 }
 
 sub get_table_uniq_info {
@@ -96,10 +97,8 @@ sub get_table_fk_info {
 
 sub get_tables {
     my ( $self, $dbh ) = @_;
-    my @tables = $dbh->tables(undef, $self->db_schema, undef, undef);
-    s/\Q$self->{quote}\E//g for @tables;
-    s/^.*\Q$self->{namesep}\E// for @tables;
-    return @tables;
+    return $self->_truncate_quote_and_sep(
+        $dbh->tables(undef, $self->db_schema, undef, undef) );
 }
 
 sub set_time_zone_query {

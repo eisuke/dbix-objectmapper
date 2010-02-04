@@ -158,4 +158,16 @@ sub many_to_many_remove {
     $self->assc_table->delete->where(@cond)->execute;
 }
 
+sub validation {
+    my $self = shift;
+    my $rel_class = $self->rel_class;
+    return sub {
+        my ( $val ) = @_;
+        if( ref $val eq 'ARRAY' ) {
+            return ( grep{ $rel_class eq ( ref($_) || '' ) } @$val ) == @$val;
+        }
+        return 0;
+    };
+}
+
 1;

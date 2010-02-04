@@ -3,6 +3,7 @@ use warnings;
 use Test::More;
 
 use DBIx::ObjectMapper;
+use DBIx::ObjectMapper::Session::Cache;
 use DBIx::ObjectMapper::Engine::DBI;
 
 my $mapper = DBIx::ObjectMapper->new(
@@ -27,7 +28,7 @@ $mapper->maps(
 );
 
 { # all
-    my $session = $mapper->begin_session;
+    my $session = $mapper->begin_session( cache => DBIx::ObjectMapper::Session::Cache->new );
     my $query
         = $session->query('MyTest11::Artist')->order_by( $artist->c('id') );
     my $it = $query->execute();

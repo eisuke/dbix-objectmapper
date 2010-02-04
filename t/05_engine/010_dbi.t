@@ -52,6 +52,7 @@ use Try::Tiny;
         ]
     );
     ok $dr->dbh;
+    is $dr->driver_type, 'SQLite';
 
     ok my $dr2 = DBIx::ObjectMapper::Engine::DBI->new({
         dsn => 'DBI:SQLite:',
@@ -62,6 +63,7 @@ use Try::Tiny;
         ],
     });
     ok $dr2->dbh;
+    is $dr2->driver_type, 'SQLite';
 
     # get_primary_key
     is_deeply [ $dr->get_primary_key('test1') ], [ 'id' ];

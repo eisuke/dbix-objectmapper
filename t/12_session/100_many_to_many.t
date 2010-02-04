@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
@@ -32,8 +33,9 @@ ok $mapper->maps(
             children => {
                 isa => $mapper->relation(
                     'many_to_many' => $association => 'MyTest14::Child',
-                    { cascade => 'all' }
-                )
+                    { cascade => 'all'}
+                ),
+                validation => 1,
             }
         }
     }
@@ -59,9 +61,12 @@ subtest 'cascade_save' => sub {
     my $session = $mapper->begin_session( autocommit => 0 );
     ok my $parent = MyTest14::Parent->new( id => 1 );
 
-    for( 1 .. 5 ) {
-        push @{$parent->children}, MyTest14::Child->new( id => $_  );
-    }
+    dies_ok{ $parent->children('hoge') } 'validation fail';
+    dies_ok{ $parent->children([qw(a b c)]) } 'validation fail';
+
+    my @children = map { MyTest14::Child->new( id => $_  ) } ( 1 .. 5 );
+    ok $parent->children(\@children);
+
     $session->add($parent);
 
     $session->flush;

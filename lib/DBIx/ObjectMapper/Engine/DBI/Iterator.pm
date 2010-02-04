@@ -7,7 +7,6 @@ use DBIx::ObjectMapper::Iterator;
 
 sub engine   { $_[0]->{engine} }
 sub query    { $_[0]->{query} }
-sub _dbh     { $_[0]->{_dbh} }
 sub _sth     { $_[0]->{_sth} }
 sub _size    { $_[0]->{_size} }
 
@@ -16,7 +15,6 @@ sub new {
     my $self = $class->SUPER::new( $query, $callback );
     $self->{_size} = undef;
     $self->{engine} = $engine;
-    $self->{_dbh}   = $engine->dbh;
     $self->{_tid} = threads->tid if $INC{'threads.pm'};
     my ($key, $cache) = $self->engine->get_cache_id($query);
 
@@ -84,8 +82,6 @@ sub next {
 sub reset {
     my $self = shift;
     $self->_reset;
-    my $class = ref($self);
-    return $class->new( $self->query, $self->engine, $self->{callback} );
 }
 
 sub _reset {

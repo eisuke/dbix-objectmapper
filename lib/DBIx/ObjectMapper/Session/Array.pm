@@ -62,7 +62,7 @@ sub FETCH {
     return $self->{value}->[$index];
 }
 
-sub STORESIZE {}
+#sub STORESIZE {}
 
 sub STORE {
     my ( $self, $index, $value ) = @_;

@@ -2,8 +2,7 @@ package DBIx::ObjectMapper::Session;
 use strict;
 use warnings;
 use Carp::Clan;
-use Params::Validate qw(:all);
-use Scalar::Util qw(refaddr blessed);
+use Params::Validate qw(validate OBJECT BOOLEAN SCALAR);
 use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Session::Cache;
 use DBIx::ObjectMapper::Session::Query;
@@ -139,10 +138,16 @@ sub detach {
 
 sub DESTROY {
     my $self = shift;
-    $self->rollback unless $self->autocommit;
-    $self->uow->demolish; ## dissolve cycle reference
+    local $@;
+    eval {
+        $self->rollback unless $self->autocommit;
+        $self->uow->demolish;
+    };
+    warn $@ if $@; ## can't die in DESTROY...
+
     $self->{unit_of_work} = undef;
     warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
+    return;
 }
 
 1;

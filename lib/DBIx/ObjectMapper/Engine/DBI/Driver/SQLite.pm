@@ -30,8 +30,6 @@ sub init {
     $self->{support_savepoint} = 1 if $x >= 3 && $y >= 6 && $z >= 8;
 }
 
-sub default_connection_mode { 'no_ping' }
-
 sub get_table_uniq_info {
     my ($self, $dbh, $table) = @_;
 
@@ -76,10 +74,16 @@ sub _sqlite_parse_table {
     my @uniqs;
     my %auto_inc;
 
-    my $sth = $self->{_cache}->{sqlite_master}
-        ||= $dbh->prepare(q{SELECT sql FROM sqlite_master WHERE tbl_name = ?});
+    my ( $stm, @stm_bind ) = $self->query->select(
+        from  => 'sqlite_master',
+        column => ['sql'],
+        where => [ [ 'tbl_name', $table ] ],
+    )->as_sql;
 
-    $sth->execute($table);
+    my $sth = $self->{_cache}->{sqlite_master}
+        ||= $dbh->prepare($stm);
+    $sth->execute(@stm_bind);
+
     my ($sql) = $sth->fetchrow_array;
     return { rels => +[], uniqs => +[], auto_inc => +{} } unless $sql;
 

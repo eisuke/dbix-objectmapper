@@ -404,7 +404,6 @@ DBIx::ObjectMapper::Mapper
              isa               => undef,
              lazy              => 0,
              validation        => 0,
-             validation_method => undef,
          }
      },
      accessors => +{
@@ -459,10 +458,6 @@ B<<Options>>
 =item validation
 
         => 0,
-
-=item validation_method
-
- => undef,
 
 =item getter
 

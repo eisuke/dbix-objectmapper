@@ -8,17 +8,9 @@ use DBIx::ObjectMapper::Session::Array;
     package DBIx::ObjectMapper::Session::DummyUOW;
     use Scalar::Util qw(refaddr);
 
-    my %INSTANCE;
-
-    sub instance {
-        my ($class, $addr) = @_;
-        $INSTANCE{$addr};
-    }
-
     sub new {
         my $self = bless +{ add => [], delete => [] }, $_[0];
-        $INSTANCE{refaddr($self)} = $self;
-        $self;
+        return $self;
     }
 
     sub add {
@@ -33,7 +25,6 @@ use DBIx::ObjectMapper::Session::Array;
 
     sub DESTROY {
         my $self = shift;
-        delete $INSTANCE{refaddr($self)};
     }
 
     1;
@@ -131,5 +122,8 @@ is_deeply $uow->{add}, [qw(a b c d e 0 1 2 f)];
 is_deeply $uow->{delete}, [qw(0 e 1 c d)];
 
 is join(',', @$array), '2,a,b,f';
+
+@$array = ();
+is_deeply $uow->{delete}, [qw(0 e 1 c d 2 a b f)];
 
 done_testing;

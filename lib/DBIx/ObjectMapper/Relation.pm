@@ -20,7 +20,7 @@ sub new {
     my $self = bless +{
         name      => undef,
         rel_class => $rel_class,
-        option    => $option,
+        option    => $option || {},
         type      => 'rel',
         cascade   => +{},
         is_multi  => $is_multi,
@@ -35,7 +35,7 @@ sub is_multi { $_[0]->{is_multi} }
 sub _init_option {
     my $self = shift;
 
-    if( my $cascade_option = $self->{option}{cascade} ) {
+    if( my $cascade_option = $self->option->{cascade} ) {
         $cascade_option =~ s/\s//g;
         my %cascade = map { $_ => 1 } split ',', $cascade_option;
         if( $cascade{all} ) {
@@ -48,7 +48,7 @@ sub _init_option {
         }
     }
 
-    if( my $order_by = $self->{option}{order_by} ) {
+    if( my $order_by = $self->option->{order_by} ) {
         $order_by = [ $order_by ] unless ref $order_by eq 'ARRAY';
         $self->{order_by} = $order_by;
     }
@@ -85,8 +85,6 @@ sub name {
 }
 
 sub foreign_key {}
-
-sub validation {}
 
 sub get_one {
     my $self = shift;
@@ -172,18 +170,6 @@ sub get_multi_cond {
     return @cond;
 }
 
-sub mapping {
-    my $self = shift;
-    my $data = shift;
-    return $self->mapper->mapping($data);
-}
-
-sub is_self_reference {
-    my $self = shift;
-    my $refs_table = shift;
-    return $refs_table eq $self->table;
-}
-
 sub cascade_delete {
     my $self = shift;
     my $mapper = shift;
@@ -238,7 +224,17 @@ sub cascade_save {
     }
 
     $mapper->unit_of_work->add($instance);
+
     $instance->__mapper__->save;
+}
+
+sub validation {
+    my $self = shift;
+    my $rel_class = $self->rel_class;
+    return sub {
+        my ( $val ) = @_;
+        return $rel_class eq ( ref($val) || '' );
+    };
 }
 
 sub DESTROY {
