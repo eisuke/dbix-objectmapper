@@ -1,6 +1,4 @@
 * SQL - exists,any,in support
-* Mapper::dissolveのmutableあたり
-* coverageをあげる
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators
