@@ -9,11 +9,13 @@ requires 'Scalar::Util';
 requires 'Carp::Clan'       => 0;
 requires 'DBI'              => 1.40;
 
+requires 'DBD::SQLite'         => 1.14;
+requires 'DateTime::Format::SQLite';
+
 requires 'Try::Tiny';
 requires 'Class::MOP';
 requires 'Class::Data::Inheritable';
 requires 'Data::Page' => 2.00;
-requires 'Class::Accessor::Fast' => 0.32;
 requires 'Hash::Merge';
 requires 'Params::Validate';
 requires 'Log::Any';
@@ -24,8 +26,6 @@ requires 'DateTime';
 requires 'Sub::Exporter';
 
 build_requires 'Test::More', 0.88;
-test_requires 'DBD::SQLite'         => 1.14;
-test_requires 'DateTime::Format::SQLite';
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Exception'     => 0;
 test_requires 'Test::Base';

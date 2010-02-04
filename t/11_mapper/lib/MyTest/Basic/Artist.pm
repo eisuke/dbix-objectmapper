@@ -1,15 +1,30 @@
 package MyTest::Basic::Artist;
 use strict;
 use warnings;
-use base qw(Class::Accessor::Fast);
-
-__PACKAGE__->mk_accessors(qw(id firstname lastname));
 
 sub new {
     my $class = shift;
     my %attr = @_;
 
     bless \%attr, $class;
+}
+
+sub id {
+    my $self = shift;
+    $self->{id} = shift if @_;
+    return $self->{id};
+}
+
+sub firstname {
+    my $self = shift;
+    $self->{firstname} = shift if @_;
+    return $self->{firstname};
+}
+
+sub lastname {
+    my $self = shift;
+    $self->{lastname} = shift if @_;
+    return $self->{lastname};
 }
 
 sub fullname {
