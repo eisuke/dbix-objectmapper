@@ -43,8 +43,6 @@ sub create {
     return $self;
 }
 
-sub instances { %INSTANCES }
-
 sub initialize {
     my $self = shift;
     $self->init_identity_condition;

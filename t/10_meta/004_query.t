@@ -30,7 +30,7 @@ my $person = $meta->table(
 my $address = $meta->table( address => 'autoload' );
 
 { #insert
-    ok $person->insert->values(
+    ok $meta->insert->into('person')->values(
         $person->c('name')->is('person1'),
     )->execute;
 
@@ -40,11 +40,25 @@ my $address = $meta->table( address => 'autoload' );
 };
 
 { # select
+    my @it = @{$meta->select->from('person')->order_by('id')->execute()};
+    is $it[0]->[0], 1;
+    is $it[1]->[0], 2;
+    is $it[0]->[1], 'person1';
+    is $it[1]->[1], 'person2';
+};
+
+{ # select2
     my @it = @{$person->select->order_by($person->c('id'))->execute()};
     is $it[0]->{name}, 'person1';
     is $it[1]->{name}, 'person2';
     is $it[0]->{id}, 1;
     is $it[1]->{id}, 2;
+};
+
+{ # update
+    ok $meta->update->table('person')->set( $person->c('name')->is('person21') )->where( $person->c('id') == 1 )->execute;
+    my $it = $meta->select->from('person')->where( $person->c('id') == 1 )->execute;
+    is $it->first->[1], 'person21';
 };
 
 { # update
@@ -77,6 +91,7 @@ my $address = $meta->table( address => 'autoload' );
     )->execute;
 
     is $address->count->execute, 4;
+    is $meta->select->from('address')->count, 4;
 };
 
 { # join
@@ -186,7 +201,7 @@ my $address = $meta->table( address => 'autoload' );
 
 
 {# delete
-    ok $person->delete->where( $person->c('id') == 1 )->execute;
+    ok $meta->delete->table('person')->where( $person->c('id') == 1 )->execute;
     is $person->count->execute, 1;
     ok $person->delete->where( $person->c('id') == 2 )->execute;
     is $person->count->execute, 0;

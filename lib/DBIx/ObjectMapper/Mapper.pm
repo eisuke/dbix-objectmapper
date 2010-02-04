@@ -34,14 +34,6 @@ use DBIx::ObjectMapper::Metadata::Query;
     sub dissolve {
         my $self = shift;
         delete $INITIALIZED_CLASSES{$self->mapped_class};
-        my $meta = $self->mapped_class->meta;
-        $meta->make_mutable if $meta->is_immutable;
-        $meta->remove_method('__class_mapper__');
-        $meta->remove_method('__mapper__');
-        $meta->make_immutable(
-            inline_constructor => 0,
-            inline_accessors   => 0,
-        );
     }
 
     sub DESTROY {
@@ -149,26 +141,28 @@ sub _init_attributes_config {
 sub _initialize {
     my $self = shift;
 
-    unless ($self->accessors->auto and $self->constructor->auto ) {
-        Class::MOP::load_class( $self->mapped_class );
+    unless( DBIx::ObjectMapper::Utils::loaded($self->mapped_class) ) {
+        eval{ DBIx::ObjectMapper::Utils::load_class($self->mapped_class) };
     }
 
     my $meta;
-    my %immutable_options;
+    my %immutable_options = (
+        inline_constructor => 0,
+        inline_accessors   => 0,
+        inline_destructor  => 0,
+    );
 
     ## Mo[ou]se Class
-    if( $meta = Class::MOP::get_metaclass_by_name($self->mapped_class) ) {
-        %immutable_options = $meta->immutable_options;
+    if( my $exmeta = Class::MOP::get_metaclass_by_name($self->mapped_class) ) {
+        $meta = $exmeta;
+        if( my %ex_immutable_options = $meta->immutable_options ) {
+            %immutable_options = %ex_immutable_options;
+        }
         $meta->make_mutable if $meta->is_immutable;
     }
     ## Plain Perl Class
     else {
         $meta = Class::MOP::Class->create($self->mapped_class);
-        %immutable_options = (
-            inline_constructor => 0,
-            inline_accessors   => 0,
-            inline_destructor  => 0,
-        );
     };
 
     $meta->add_method( '__class_mapper__' => sub { $self } );
@@ -246,6 +240,8 @@ sub _initialize {
     }
 
     if( $self->constructor->auto ) {
+        confess "constructor method 'new' already exists."
+            if $meta->find_all_methods_by_name('new');
         $self->constructor->set_arg_type('HASHREF');
         $self->constructor->set_name('new');
         $meta->add_method(
@@ -277,8 +273,8 @@ sub _initialize {
     }
     $immutable_options{inline_destructor} = 0;
 
+    $self->{immutable_options} = \%immutable_options;
     $meta->make_immutable(%immutable_options);
-
     $self->_set_initialized_class;
 }
 

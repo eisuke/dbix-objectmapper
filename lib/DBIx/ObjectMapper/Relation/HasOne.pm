@@ -11,11 +11,12 @@ sub get {
 }
 
 sub foreign_key {
-    my ( $self, $class_table, $table ) = @_;
+    my ( $self, $my_table, $ref_table ) = @_;
+
     return {
-        keys  => $table->primary_key,
-        refs  => $class_table->primary_key,
-        table => $class_table->table_name,
+        keys  => $my_table->primary_key,
+        refs  => $ref_table->primary_key,
+        table => $ref_table->table_name,
     };
 }
 
