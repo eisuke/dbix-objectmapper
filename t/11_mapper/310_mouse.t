@@ -3,8 +3,8 @@ use warnings;
 use Test::More;
 
 BEGIN {
-    eval "use Mouse";
-    plan skip_all => 'Mouse required this test' if $@;
+    eval "require Mouse";
+    plan skip_all => 'Mouse required this test' if $@ || $Mouse::VERSION < 0.42;
 };
 
 use DBIx::ObjectMapper;

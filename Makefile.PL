@@ -35,6 +35,12 @@ recommends 'DateTime::Format::Pg';
 recommends 'DateTime::Format::MySQL';
 recommends 'Bit::Vector';
 
+eval "require Mouse";
+unless($@ and $Mouse::VERSION < 0.42 ) {
+    recommends 'Mouse' => 0.42;
+}
+
+
 tests "t/*.t t/*/*.t";
 author_tests 'xt';
 

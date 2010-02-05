@@ -3,7 +3,7 @@ use warnings;
 use Test::More;
 
 BEGIN {
-    eval "use Moose";
+    eval "require Moose";
     plan skip_all => 'Moose required this test' if $@;
 };
 

@@ -1,8 +1,5 @@
 Changes
 DBIx-ObjectMapper-0.1001.tar.gz
-Debian_CPANTS.txt
-inc/DateTime/Format/SQLite.pm
-inc/DBD/SQLite.pm
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AuthorTests.pm
@@ -102,6 +99,7 @@ lib/DBIx/ObjectMapper/SQL/Update.pm
 lib/DBIx/ObjectMapper/Utils.pm
 Makefile.PL
 MANIFEST			This list of files
+MANIFEST.SKIP
 META.yml
 README
 t/00_compile.t
@@ -154,7 +152,6 @@ t/20_misc/005_thread.t
 t/21_example/lib/MapperExample/Product.pm
 t/21_example/lib/MapperExample/ShoppingCart.pm
 t/21_example/shopping_cart.t
-TODO
 xt/01_pod.t
 xt/02_podcoverage.t
 xt/03_kwalitee.t

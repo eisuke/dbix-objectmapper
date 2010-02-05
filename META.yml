@@ -27,6 +27,7 @@ recommends:
   Bit::Vector: 0
   DateTime::Format::MySQL: 0
   DateTime::Format::Pg: 0
+  Mouse: 0.42
 requires:
   Carp::Clan: 0
   Class::Data::Inheritable: 0
