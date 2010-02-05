@@ -55,6 +55,17 @@ my $address = $meta->table( address => 'autoload' );
     is $it[1]->{id}, 2;
 };
 
+{ # select3
+    my @it = @{$person->select->column( $person->c('id')->func('count') )->execute};
+    is $it[0]->{count}, 2;
+};
+
+{ # select4
+    my @it = @{$person->select->column( $person->c('id')->func('count')->as('cnt') )->execute};
+    is $it[0]->{cnt}, 2;
+};
+
+
 { # update
     ok $meta->update->table('person')->set( $person->c('name')->is('person21') )->where( $person->c('id') == 1 )->execute;
     my $it = $meta->select->from('person')->where( $person->c('id') == 1 )->execute;
@@ -119,6 +130,25 @@ my $address = $meta->table( address => 'autoload' );
     }
     ok !$it->next, 'reset';
 
+}
+
+{ # join alias
+    my $hoge = $person->as('hoge');
+    my $fuga = $address->as('fuga');
+
+    my $it = $hoge->select->join(
+        [ $fuga => [ $fuga->c('person') == $hoge->c('id') ] ]
+    )->add_column(
+        @{$fuga->columns}, $fuga->c('person')->as('person_id')
+    )->order_by( $hoge->c('id'), $fuga->c('id') )->execute;
+
+    for ( 1 .. 4 ) {
+        ok my $r = $it->next;
+        is ref($r->{fuga}), 'HASH';
+        is $r->{id}, $r->{fuga}{person};
+        is $r->{id}, $r->{fuga}{person_id};
+    }
+    ok !$it->next;
 }
 
 { # count, join
@@ -197,6 +227,31 @@ my $address = $meta->table( address => 'autoload' );
         address => 'address1',
     };
 
+};
+
+{ # sub query
+    ok my $it = $person->select->where(
+        $person->c('id')->in( $person->select->column( $person->c('id') ) )
+    )->execute;
+};
+
+{ # sub query2
+    my $it = $person->select->join(
+        [
+            [
+                $person->select->where( $person->c('id') == 1 ),
+                'subperson'
+            ],
+            [ $person->c('id')->as_alias('subperson') == $person->c('id') ],
+        ]
+    )->execute;
+
+    my $loop_cnt = 0;
+    while( my $p = $it->next ) {
+        is $p->{id}, ++$loop_cnt;
+    }
+
+    is $loop_cnt,2;
 };
 
 

@@ -532,10 +532,15 @@ sub _select_query_callback {
 
         for my $i ( 0 .. $#{$column} ) {
             next unless defined $result->[$i];
-            my $col_obj = $self->_get_column_object_from_query( $column->[$i] );
             if( ref $column->[$i] eq 'ARRAY' ) { # AS(alias)
+                my $col_obj
+                    = $self->_get_column_object_from_query( $column->[$i] );
                 if( $col_obj ) {
-                    if ( $col_obj->table eq $self->table_name ) {
+                    if ($col_obj->table eq $self->table_name
+                        or (    $self->alias_name
+                            and $col_obj->table eq $self->alias_name )
+                        )
+                    {
                         $result{ $column->[$i][1] }
                             = $col_obj->from_storage( $result->[$i] );
                     }
@@ -551,8 +556,19 @@ sub _select_query_callback {
             elsif( ref $column->[$i] eq 'HASH' ) { # Function
                 $result{( keys %{ $column->[$i] } )[0]} = $result->[$i];
             }
+            # Function 2
+            elsif( ref $column->[$i] eq $self->{column_metaclass} . '::Func' ){
+                my @funcs = @{$column->[$i]{func}};
+                $result{$funcs[$#funcs]} = $result->[$i];
+            }
             else {
-                if ( $col_obj->table eq $self->table_name ) {
+                my $col_obj
+                    = $self->_get_column_object_from_query( $column->[$i] );
+                if ($col_obj->table eq $self->table_name
+                    or (    $self->alias_name
+                        and $col_obj->table eq $self->alias_name )
+                    )
+                {
                     $result{ $col_obj->name }
                         = $col_obj->from_storage( $result->[$i] );
                 }
@@ -748,6 +764,8 @@ sub clone {
 
     return $obj;
 }
+
+*as =\&clone;
 
 =head2 is_clone
 

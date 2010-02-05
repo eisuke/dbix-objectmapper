@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::SQL::Insert;
 use strict;
 use warnings;
 use Carp::Clan;
+use Scalar::Util qw(blessed);
 use base qw(DBIx::ObjectMapper::SQL::Base);
 
 __PACKAGE__->initdata({
@@ -133,7 +134,7 @@ sub _values_as_sql {
             $stm .= join(', ', @multi_stm );
             return $stm, @bind_val;
         }
-        elsif( ref $values->[1] eq 'DBIx::ObjectMapper::SQL::Select' ) {
+        elsif( blessed $values->[1] and $values->[1]->can('as_sql') ) {
             my ( $stm, @bind ) = $values->[1]->as_sql;
             return sprintf( " ( %s ) %s",
                 join( ', ', @{ $values->[0] } ), $stm ),

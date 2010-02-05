@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::SQL::Base;
 use strict;
 use warnings;
 use Carp::Clan;
+use Scalar::Util qw(blessed);
 use DBIx::ObjectMapper::Utils;
 use base qw(Class::Data::Inheritable);
 
@@ -183,7 +184,7 @@ sub convert_table_to_sql {
 
         push @bind, @t_bind if @t_bind;
     }
-    elsif( ref $table eq 'DBIx::ObjectMapper::SQL::Select' ) {
+    elsif( blessed $table and $table->can('as_sql') ) {
         ( $stm, @bind ) = $table->as_sql('parts');
     }
     elsif( ref $table eq 'SCALAR' ) {
@@ -292,7 +293,7 @@ sub convert_condition_to_sql {
                 $stm .= ' IN (';
                 my @stm_in;
                 for my $v ( @{$w->[2]} ) {
-                    if( ref $v eq 'DBIx::ObjectMapper::SQL::Select' ) {
+                    if( blessed $v and $v->can('as_sql') ) {
                         my ( $sub_stm, @sub_bind ) = $v->as_sql('parts');
                         push @stm_in, $sub_stm;
                         push @bind, @sub_bind;
@@ -331,7 +332,7 @@ sub convert_condition_to_sql {
             $stm .= ' ' . uc($w->[1]) . ' ?';
             push @bind, ${$w->[2]};
         }
-        elsif( ref $w->[2] eq 'DBIx::ObjectMapper::SQL::Select' ) {
+        elsif( blessed $w->[2] and $w->[2]->can('as_sql') ) {
             my ( $sub_stm, @sub_bind ) = $w->[2]->as_sql('parts');
             $stm .= ' ' . uc($w->[1]) . ' ' . $sub_stm;
             push @bind, @sub_bind;
@@ -350,7 +351,7 @@ sub convert_condition_to_sql {
     elsif( @$w == 1 and ref $w->[0] eq 'HASH' ) {
         my $key = ( keys %{$w->[0]} )[0];
         my $val = $w->[0]->{$key};
-        if( ref($val) eq 'DBIx::ObjectMapper::SQL::Select' ) {
+        if( blessed $val and $val->can('as_sql') ) {
             my ( $sub_stm, @sub_bind ) = $val->as_sql('parts');
             $stm = q{}; #reset;
             $stm .= uc($key) . $sub_stm;

@@ -81,7 +81,7 @@ subtest 'basic' => sub {
 
 subtest 'query' => sub {
     my $session = $mapper->begin_session;
-    my $it = $session->query('MyTest12::BBS')->execute;
+    my $it = $session->query('MyTest12::BBS')->order_by($bbs->c('id'))->execute;
     check($it->[0]);
     is $session->uow->query_cnt, 8;
     done_testing;

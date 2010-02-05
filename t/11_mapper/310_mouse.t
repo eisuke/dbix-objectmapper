@@ -4,7 +4,7 @@ use Test::More;
 
 BEGIN {
     eval "require Mouse";
-    plan skip_all => 'Mouse required this test' if $@ || $Mouse::VERSION < 0.42;
+    plan skip_all => 'Mouse >= 0.42 required this test' if $@ || $Mouse::VERSION < 0.42;
 };
 
 use DBIx::ObjectMapper;

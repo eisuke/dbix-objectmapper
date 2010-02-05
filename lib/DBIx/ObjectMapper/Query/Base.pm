@@ -21,6 +21,11 @@ sub builder {
 
 sub execute { die "Abstract Method" }
 
+sub as_sql {
+    my $self = shift;
+    return $self->builder->as_sql(@_);
+}
+
 sub DESTROY {
     my $self = shift;
     warn "DESTROY $self" if $ENV{MAPPER_DEBUG};

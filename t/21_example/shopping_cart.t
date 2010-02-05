@@ -40,7 +40,7 @@ $mapper->maps(
                 isa => $mapper->relation(
                     many_to_many => $shopping_cart_item
                         => 'MapperExample::Product',
-                   { cascade => 'all' },
+                   { cascade => 'save_update,delete' },
                 ),
             }
         }
