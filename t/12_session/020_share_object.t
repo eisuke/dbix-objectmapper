@@ -40,7 +40,8 @@ $mapper->metadata->t('child')->insert->values({parent_id => 1})->execute() for 1
 
     sub children {
         my $self = shift;
-        $self->{children};
+        $self->{children} = shift if @_;
+        return $self->{children};
     }
 
     1;

@@ -207,7 +207,10 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
-                    if( my $mapper = $instance->__mapper__ ) {
+                    my $caller = caller(2);
+                    if ( my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
                         if( @_ ) {
                             $mapper->set_val_trigger( $prop_name, @_ );
                         }
@@ -222,7 +225,10 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
-                    if( my $mapper = $instance->__mapper__ ) {
+                    my $caller = caller(2);
+                    if ( my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
                         $mapper->get_val_trigger( $prop_name );
                     }
                 }
@@ -231,7 +237,10 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $setter => sub {
                     my $instance = shift;
-                    if( my $mapper = $instance->__mapper__ ) {
+                    my $caller = caller(2);
+                    if ( my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
                         $mapper->set_val_trigger( $prop_name, @_ );
                     }
                 }

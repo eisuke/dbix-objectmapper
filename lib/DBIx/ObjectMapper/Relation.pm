@@ -91,10 +91,8 @@ sub get_one {
     my $name = shift;
     my $mapper = shift;
     my $cond = $mapper->relation_condition->{$name} || return;
-
-    $mapper->instance->{$name} = $mapper->unit_of_work->get(
-        $self->rel_class => $cond
-    );
+    $mapper->set_val(
+        $name => $mapper->unit_of_work->get( $self->rel_class => $cond ) );
 }
 
 sub get_multi {
@@ -118,10 +116,12 @@ sub get_multi {
         = $mapper->unit_of_work->query( $self->rel_class )->where(@$cond)
         ->order_by(@order_by)->execute->all;
 
-    $mapper->instance->{$name} = DBIx::ObjectMapper::Session::Array->new(
-        $name,
-        $mapper,
-        @new_val
+    $mapper->set_val(
+        $name => DBIx::ObjectMapper::Session::Array->new(
+            $name,
+            $mapper,
+            @new_val
+        )
     );
 }
 
@@ -146,7 +146,7 @@ sub get_one_cond {
 
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
-        my $val = $mapper->instance->{$fk->{keys}->[$i]};
+        my $val = $mapper->get_val($fk->{keys}->[$i]);
         next unless defined $val;
         push @cond, $rel_mapper->table->c( $fk->{refs}->[$i] ) == $val;
     }
@@ -163,7 +163,7 @@ sub get_multi_cond {
 
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
-        my $val = $mapper->instance->{$fk->{refs}->[$i]};
+        my $val = $mapper->get_val($fk->{refs}->[$i]);
         push @cond, $rel_mapper->table->c( $fk->{keys}->[$i] ) == $val;
     }
 
@@ -219,8 +219,9 @@ sub cascade_save {
     my %sets;
     my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
     for my $i ( 0 .. $#{$fk->{keys}} ) {
-        $instance->{ $fk->{keys}->[$i] }
-            = $mapper->instance->{ $fk->{refs}->[$i] };
+        $instance->__mapper__->set_val(
+            $fk->{keys}->[$i] => $mapper->get_val( $fk->{refs}->[$i] )
+        );
     }
 
     $mapper->unit_of_work->add($instance);

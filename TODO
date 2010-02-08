@@ -1,5 +1,9 @@
+* 値の取り方をgetter,setter経由で。(callerでcheck)
+* getter,setterがget('name'),set('name' => 'value')のときの対応
+* Relation has_oneでunique_keyでのhas_oneを実現させる
+* accessorのexclueとattributesのinclude,excludeの関係test
 * SQL - exists,any,in support
-* 値がオブジェクトだった場合の変更点をどうやって検知するか
+
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators

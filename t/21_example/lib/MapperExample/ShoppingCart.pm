@@ -17,6 +17,7 @@ sub new {
 
 sub items {
     my $self = shift;
+    $self->{items} = shift if @_;
     return $self->{items};
 }
 

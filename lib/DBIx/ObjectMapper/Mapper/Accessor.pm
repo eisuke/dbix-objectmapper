@@ -15,6 +15,8 @@ sub new {
                 { type => ARRAYREF, default => +[], depends => 'auto' },
             do_replace =>
                 { type => BOOLEAN, default => 0, depends => 'auto' },
+            generic_getter => { type => 'SCALAR', default => q{} },
+            generic_setter => { type => 'SCALAR', default => q{} },
         }
     );
 
@@ -31,8 +33,10 @@ sub new {
     return bless \%option, $class;
 }
 
-sub auto       { $_[0]->{auto} }
-sub exclude    { $_[0]->{exclude} }
-sub do_replace { $_[0]->{do_replace} }
+sub auto           { $_[0]->{auto} }
+sub exclude        { $_[0]->{exclude} }
+sub do_replace     { $_[0]->{do_replace} }
+sub generic_setter { $_[0]->{generic_setter} }
+sub generic_getter { $_[0]->{generic_getter} }
 
 1;

@@ -24,7 +24,7 @@ sub identity_condition {
         $self->assc_table->get_foreign_key_by_table( $class_mapper->table );
     my @cond;
     for my $i ( 0 .. $#{$fk->{keys}} ) {
-        my $val = $mapper->instance->{$fk->{refs}->[$i]};
+        my $val = $mapper->get_val($fk->{refs}->[$i]);
         next unless defined $val;
         push @cond, $self->assc_table->c( $fk->{keys}->[$i] ) == $val;
     }
@@ -58,10 +58,12 @@ sub get {
         ->order_by( map { $rel_mapper->table->c($_) }
             @{ $rel_mapper->table->primary_key } )->execute->all;
 
-    $mapper->instance->{$name} = DBIx::ObjectMapper::Session::Array->new(
-        $name,
-        $mapper,
-        @val
+    $mapper->set_val(
+        $name => DBIx::ObjectMapper::Session::Array->new(
+            $name,
+            $mapper,
+            @val
+        )
     );
 }
 
@@ -85,14 +87,14 @@ sub cascade_save {
     my $fk1 =
         $self->assc_table->get_foreign_key_by_table( $rel_mapper->table );
     for my $i ( 0 .. $#{$fk1->{keys}} ) {
-        $values{ $fk1->{keys}->[$i] } = $instance->{$fk1->{refs}->[$i]};
+        $values{ $fk1->{keys}->[$i] }
+            = $instance->__mapper__->get_val( $fk1->{refs}->[$i] );
     }
 
     my $fk2 =
         $self->assc_table->get_foreign_key_by_table( $class_mapper->table );
     for my $i ( 0 .. $#{$fk2->{keys}} ) {
-        $values{ $fk2->{keys}->[$i] }
-            = $mapper->instance->{ $fk2->{refs}->[$i] };
+        $values{ $fk2->{keys}->[$i] } = $mapper->get_val( $fk2->{refs}->[$i] );
     }
 
     $self->assc_table->insert->values(\%values)->execute;
@@ -152,7 +154,7 @@ sub many_to_many_remove {
     for my $i ( 0 .. $#{$fk1->{keys}} ) {
         push @cond,
             $self->assc_table->c( $fk1->{keys}->[$i] )
-                == $instance->{$fk1->{refs}->[$i]};
+                == $instance->__mapper__->get_val($fk1->{refs}->[$i]);
     }
 
     $self->assc_table->delete->where(@cond)->execute;
