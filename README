@@ -1,0 +1,21 @@
+NAME
+    DBIx::ObjectMapper - object-relational mapper and database toolkit.
+
+DESCRIPTION
+    DBIx::ObjectMapper is a object-relational mapper of "Data Mapper
+    Pattern", like Python's SQLAlchemy, and simple interface for database
+    access.
+
+    More information of "Data Mapper Pattern" is
+    <http://martinfowler.com/eaaCatalog/dataMapper.html>.
+
+AUTHOR
+    Eisuke Oishi
+
+COPYRIGHT
+    Copyright 2009 Eisuke Oishi
+
+LICENSE
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+

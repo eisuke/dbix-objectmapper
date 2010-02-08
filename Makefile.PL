@@ -3,6 +3,8 @@ use inc::Module::Install;
 name 'DBIx-ObjectMapper';
 perl_version '5.008001';
 all_from 'lib/DBIx/ObjectMapper.pm';
+readme_pod_from 'lib/DBIx/ObjectMapper.pm';
+
 license 'perl';
 
 requires 'Scalar::Util';
