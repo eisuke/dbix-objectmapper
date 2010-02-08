@@ -6,26 +6,23 @@ use Scalar::Util qw(refaddr blessed);
 use Log::Any qw($log);
 
 sub new {
-    my ( $class, $cache, $query, $option ) = @_;
-
-    my $self = bless {
-        query_cnt   => 0,
-        query       => $query,
-        cache       => $cache || undef,
-        objects     => +[],
-        map_objects => +{},
-        del_objects => +{},
-        option      => $option || +{},
+    my ( $class, $cache, $query, $change_checker, $option ) = @_;
+    bless {
+        query_cnt      => 0,
+        query          => $query,
+        cache          => $cache || undef,
+        change_checker => $change_checker,
+        objects        => +[],
+        map_objects    => +{},
+        del_objects    => +{},
+        option         => $option || +{},
     }, $class;
-
-    return $self;
 }
 
-sub query_cnt { $_[0]->{query_cnt} }
-
-sub query { $_[0]->{query}->new( @_ ) }
-
-sub cache { $_[0]->{cache} }
+sub query_cnt      { $_[0]->{query_cnt} }
+sub query          { $_[0]->{query}->new(@_) }
+sub cache          { $_[0]->{cache} }
+sub change_checker { $_[0]->{change_checker} }
 
 sub get {
     my ( $self, $t_class, $id, $option ) = @_;
@@ -46,12 +43,16 @@ sub get {
         }
         else {
             my $result = $cached_obj->__mapper__->reducing;
-            my $obj = $cached_obj->__class_mapper__->mapping( $result );
+            my $obj = $cached_obj->__class_mapper__->mapping(
+                $result,
+                $self->change_checker,
+            );
             return $self->add_storage_object($obj);
         }
     }
     else {
-        my $obj = $class_mapper->find(@cond) || return;
+        my $obj = $class_mapper->find( \@cond, $self->change_checker )
+            || return;
         $self->{query_cnt}++;
         return $self->add_storage_object($obj);
     }

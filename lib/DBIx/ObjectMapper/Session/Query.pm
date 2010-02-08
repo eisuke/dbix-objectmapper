@@ -72,7 +72,11 @@ sub reset_column {
 
             local $self->_query->{callback} = sub {
                 return $uow->add_storage_object(
-                    $mapper->mapping( $orig_callback->(@_), $uow ) );
+                    $mapper->mapping(
+                        $orig_callback->(@_),
+                        $uow->change_checker,
+                    )
+                );
             };
             $self->_query->$meth(@_);
         };
@@ -285,7 +289,11 @@ sub execute {
         return DBIx::ObjectMapper::Iterator->new(
             $result,
             $self->_query,
-            sub { $uow->add_storage_object( $mapper->mapping(@_) ) }
+            sub {
+                $uow->add_storage_object(
+                    $mapper->mapping( $_[0], $uow->change_checker )
+                )
+            }
         );
     }
     else {
@@ -294,7 +302,7 @@ sub execute {
             my $result = $orig_callback->(@_);
             $self->_join_result_to_object($result);
             return $uow->add_storage_object(
-                $mapper->mapping( $result, $uow )
+                $mapper->mapping( $result, $uow->change_checker )
             );
         };
         return $self->_query->execute;
@@ -311,7 +319,7 @@ sub _join_result_to_object {
         next unless exists $r->{$key};
         if( my $prop = $mapper->attributes->property($key) ) {
             my $obj = $uow->add_storage_object(
-                $prop->mapper->mapping($r->{$key})
+                $prop->mapper->mapping($r->{$key}, $uow->change_checker )
             );
             if( $prop->is_multi ) {
                 $r->{$key} = [ $obj ];

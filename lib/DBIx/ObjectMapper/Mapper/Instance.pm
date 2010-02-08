@@ -312,7 +312,26 @@ sub set_val_trigger {
     return;
 }
 
-sub is_modified   { $_[0]->{is_modified} }
+sub is_modified   {
+    my $self = shift;
+
+    my $is_modified = $self->{is_modified};
+    my $class_mapper = $self->instance->__class_mapper__;
+    my $modified_data = $self->modified_data;
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $prop = $class_mapper->attributes->property($prop_name);
+        my $col = $prop->name || $prop_name;
+        my $obj = $self->instance;
+        next unless $prop->type eq 'column' and ref $obj->{$col};
+        if( $self->unit_of_work->change_checker->is_changed( $obj->{$col} ) ) {
+            $modified_data->{$col} = $obj->{$col};
+            $is_modified = 1;
+        }
+    }
+
+    return $is_modified;
+}
+
 sub modified_data { $_[0]->{modified_data} }
 
 sub update {

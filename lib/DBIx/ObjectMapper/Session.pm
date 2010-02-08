@@ -7,6 +7,7 @@ use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Session::Cache;
 use DBIx::ObjectMapper::Session::Query;
 use DBIx::ObjectMapper::Session::UnitOfWork;
+use DBIx::ObjectMapper::Session::ObjectChangeChecker;
 my $DEFAULT_QUERY_CLASS = 'DBIx::ObjectMapper::Session::Query';
 
 sub new {
@@ -31,7 +32,11 @@ sub new {
             },
             query_class =>
                 { type => SCALAR, default => $DEFAULT_QUERY_CLASS },
-
+            change_checker => {
+                type => OBJECT,
+                default =>
+                    DBIx::ObjectMapper::Session::ObjectChangeChecker->new(),
+                },
         }
     );
 
@@ -41,6 +46,7 @@ sub new {
         = DBIx::ObjectMapper::Session::UnitOfWork->new(
         ( $attr{no_cache} ? undef : $attr{cache} ),
         $attr{query_class},
+        $attr{change_checker},
         { share_object => $attr{share_object} },
     );
 

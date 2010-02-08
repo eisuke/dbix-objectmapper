@@ -279,7 +279,7 @@ sub _initialize {
 }
 
 sub mapping {
-    my ( $self, $hashref_data ) = @_;
+    my ( $self, $hashref_data, $change_checker ) = @_;
 
     return unless $hashref_data;
 
@@ -299,6 +299,8 @@ sub mapping {
             $param ||= +[];
             push @$param, $val;
         }
+
+        $change_checker->regist($val) if ref $val;
     }
 
     return $self->mapped_class->${constructor}(
@@ -311,7 +313,9 @@ sub mapping {
 
 sub find {
     my $self = shift;
-    my @where = @_;
+    my $where = shift;
+    my @where = @$where;
+
     my @column;
     for my $prop_name ( $self->attributes->property_names ) {
         my $prop = $self->attributes->property($prop_name);
@@ -322,7 +326,7 @@ sub find {
     push @where, @{$self->default_condition};
     my $it = $self->table->select->column(@column)->where(@where)->execute;
     return unless $it;
-    return $self->mapping($it->next);
+    return $self->mapping($it->next || undef, @_);
 }
 
 sub get_unique_condition {
