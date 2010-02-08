@@ -10,6 +10,7 @@ inc/Module/Install/Fetch.pm
 inc/Module/Install/Include.pm
 inc/Module/Install/Makefile.pm
 inc/Module/Install/Metadata.pm
+inc/Module/Install/ReadmePodFromPod.pm
 inc/Module/Install/TestBase.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
@@ -87,6 +88,7 @@ lib/DBIx/ObjectMapper/Relation/ManyToMany.pm
 lib/DBIx/ObjectMapper/Session.pm
 lib/DBIx/ObjectMapper/Session/Array.pm
 lib/DBIx/ObjectMapper/Session/Cache.pm
+lib/DBIx/ObjectMapper/Session/ObjectChangeChecker.pm
 lib/DBIx/ObjectMapper/Session/Query.pm
 lib/DBIx/ObjectMapper/Session/UnitOfWork.pm
 lib/DBIx/ObjectMapper/SQL.pm
@@ -102,6 +104,7 @@ MANIFEST			This list of files
 MANIFEST.SKIP
 META.yml
 README
+README.pod
 t/00_compile.t
 t/01_sql.t
 t/03_utils.t
@@ -141,6 +144,7 @@ t/12_session/018_no_cache.t
 t/12_session/019_transaction.t
 t/12_session/020_share_object.t
 t/12_session/021_validation.t
+t/12_session/022_change_checker.t
 t/12_session/100_many_to_many.t
 t/12_session/200_die.t
 t/12_session/lib/MyTest11.pm
