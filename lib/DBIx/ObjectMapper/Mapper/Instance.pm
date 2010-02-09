@@ -314,17 +314,12 @@ sub get_val {
     my ( $self, $name ) = @_;
     return unless $self->instance; ## maybe in global destruction.
 
-    unless( $name ) {
-        warn caller(0);
-    }
-
     my $class_mapper = $self->instance->__class_mapper__;
     if( my $getter = $class_mapper->accessors->generic_getter ) {
         return $self->instance->$getter($name);
     }
     else {
         my $prop = $class_mapper->attributes->property($name);
-
         if( my $getter = $prop->getter ) {
             return $self->instance->$getter();
         }
@@ -366,7 +361,7 @@ sub is_modified   {
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $prop = $class_mapper->attributes->property($prop_name);
         my $col = $prop->name || $prop_name;
-        my $val = $self->get_val($col);
+        my $val = $self->get_val($prop_name);
         next unless $prop->type eq 'column' and ref $val;
         if( $self->unit_of_work->change_checker->is_changed( $val ) ) {
             $modified_data->{$col} = $val;
@@ -491,7 +486,7 @@ sub delete {
             next unless $prop->type eq 'relation';
             my $name = $prop->name || $prop_name;
             if( $prop->{isa}->is_cascade_delete() ) {
-                if( my $instance = $self->get_val($name) ) {
+                if( my $instance = $self->get_val($prop_name) ) {
                     my @instance
                         = ref $instance eq 'ARRAY' ? @$instance : ($instance);
                     $self->unit_of_work->detach($_) for @instance;

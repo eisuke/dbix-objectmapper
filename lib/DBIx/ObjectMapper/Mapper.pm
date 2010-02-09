@@ -2,7 +2,6 @@ package DBIx::ObjectMapper::Mapper;
 use strict;
 use warnings;
 use Carp::Clan;
-use Class::Inspector;
 use List::MoreUtils;
 use Scalar::Util qw(blessed weaken);
 use Digest::MD5 qw(md5_hex);
@@ -144,7 +143,7 @@ sub _initialize {
 
     my $mapped_class = $self->mapped_class;
     unless( DBIx::ObjectMapper::Utils::loaded($mapped_class) ) {
-        if( Class::Inspector->installed($mapped_class) ) {
+        if( DBIx::ObjectMapper::Utils::installed($mapped_class) ) {
             DBIx::ObjectMapper::Utils::load_class($mapped_class);
         }
         elsif( $self->accessors->auto and $self->constructor->auto ) {

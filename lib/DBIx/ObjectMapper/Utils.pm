@@ -6,6 +6,9 @@ use Try::Tiny;
 use Class::MOP;
 use Scalar::Util;
 use Hash::Merge;
+use Class::Inspector;
+
+sub installed { Class::Inspector->installed($_[0]) }
 
 sub load_class {
     my $class_name = shift;
