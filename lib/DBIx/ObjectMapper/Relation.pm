@@ -133,47 +133,7 @@ sub get_multi {
 
 sub relation_condition {}
 
-sub identity_condition {
-    my $self = shift;
-    my $mapper = shift;
-    return $self->is_multi
-        ? $self->get_multi_cond($mapper)
-        : $self->get_one_cond($mapper);
-}
-
-sub get_one_cond {
-    my $self = shift;
-    my $mapper = shift;
-    my $class_mapper = $mapper->instance->__class_mapper__;
-    my $rel_mapper = $self->mapper;
-
-    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
-
-    my @cond;
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        my $val = $mapper->get_val($fk->{keys}->[$i]);
-        next unless defined $val;
-        push @cond, $rel_mapper->table->c( $fk->{refs}->[$i] ) == $val;
-    }
-
-    return @cond;
-}
-
-sub get_multi_cond {
-    my $self = shift;
-    my $mapper = shift;
-    my $class_mapper = $mapper->instance->__class_mapper__;
-    my $rel_mapper = $self->mapper;
-    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
-
-    my @cond;
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        my $val = $mapper->get_val($fk->{refs}->[$i]);
-        push @cond, $rel_mapper->table->c( $fk->{keys}->[$i] ) == $val;
-    }
-
-    return @cond;
-}
+sub identity_condition {}
 
 sub cascade_delete {
     my $self = shift;

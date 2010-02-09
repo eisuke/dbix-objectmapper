@@ -1,7 +1,6 @@
-* Relation has_oneでunique_keyでのhas_oneを実現させる
-* SQL - exists,any,in support
 * Class::Inspectorをutilsに
 * prop->nameは属性名だが、そこをちゃんと把握してないコードがあるのでcheck
+* SQL - exists,any,in support
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators
