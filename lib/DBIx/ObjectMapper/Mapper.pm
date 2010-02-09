@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::Mapper;
 use strict;
 use warnings;
 use Carp::Clan;
+use Class::Inspector;
 use List::MoreUtils;
 use Scalar::Util qw(blessed weaken);
 use Digest::MD5 qw(md5_hex);
@@ -141,8 +142,18 @@ sub _init_attributes_config {
 sub _initialize {
     my $self = shift;
 
-    unless( DBIx::ObjectMapper::Utils::loaded($self->mapped_class) ) {
-        eval{ DBIx::ObjectMapper::Utils::load_class($self->mapped_class) };
+    my $mapped_class = $self->mapped_class;
+    unless( DBIx::ObjectMapper::Utils::loaded($mapped_class) ) {
+        if( Class::Inspector->installed($mapped_class) ) {
+            DBIx::ObjectMapper::Utils::load_class($mapped_class);
+        }
+        elsif( $self->accessors->auto and $self->constructor->auto ) {
+            # nothing
+        }
+        else {
+            # die
+            confess "\n====================================================\n$mapped_class is not installed.\nIf you want auto generate this class, Please set true the constructor->{auto} options and the accessors->{auto} options.\nIf this message is adverse, the $mapped_class has errors or you get typos.\n====================================================\n";
+        }
     }
 
     my $meta;
@@ -176,6 +187,56 @@ sub _initialize {
         }
     );
 
+    my $generic_getter = $self->accessors->generic_getter;
+    my $generic_setter = $self->accessors->generic_setter;
+    if ( $generic_getter and $generic_setter ) {
+        if( $generic_getter eq $generic_setter ) {
+            $meta->add_before_method_modifier(
+                $generic_getter => sub {
+                    my $instance = shift;
+                    my $caller   = caller(2);
+                    if ( my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
+                        if( @_ == 1 ) {
+                            $mapper->get_val_trigger(@_);
+                        }
+                        elsif( @_ == 2 ) {
+                            $mapper->set_val_trigger(@_);
+                        }
+                    }
+                }
+            );
+        }
+        else {
+            $meta->add_before_method_modifier(
+                $generic_getter => sub {
+                    my $instance = shift;
+                    my $caller   = caller(2);
+                    if (    @_ == 1
+                        and my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
+                        $mapper->get_val_trigger(@_);
+                    }
+                }
+            );
+
+            $meta->add_before_method_modifier(
+                $generic_setter => sub {
+                    my $instance = shift;
+                    my $caller   = caller(2);
+                    if (    @_ == 2
+                        and my $mapper = $instance->__mapper__
+                        and $caller !~ /^DBIx::ObjectMapper::/ )
+                    {
+                        $mapper->set_val_trigger(@_);
+                    }
+                }
+            );
+        }
+    }
+
     for my $prop_name ( $self->attributes->property_names ) {
         next if $self->accessors->exclude->{$prop_name};
         my $property = $self->attributes->property($prop_name);
@@ -183,9 +244,7 @@ sub _initialize {
             if ( $meta->find_all_methods_by_name($prop_name)
                 and !$self->accessors->do_replace )
             {
-                # TODO fix english ....
-                confess "the $prop_name method already exists."
-                    . "use do_replace option or exclude option.";
+                confess "the method '$prop_name' is already exists.\nPlease use the accessors->{do_replace} option, or accessors->{exclude} option.";
             }
             else {
                 $meta->add_method (
@@ -204,6 +263,9 @@ sub _initialize {
         my $getter = $property->getter || $prop_name;
         my $setter = $property->setter || $prop_name;
         if( $getter eq $setter ) {
+            next if $generic_getter and $generic_setter
+                and !$mapped_class->can($getter);
+
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;

@@ -57,11 +57,7 @@ sub validation {
 
 sub name {
     my $self = shift;
-
-    if( $self->type eq 'column' ) {
-        return $self->{isa}->name;
-    }
-
+    return $self->{isa}->name;
 }
 
 sub get {

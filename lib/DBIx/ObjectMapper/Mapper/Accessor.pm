@@ -15,8 +15,8 @@ sub new {
                 { type => ARRAYREF, default => +[], depends => 'auto' },
             do_replace =>
                 { type => BOOLEAN, default => 0, depends => 'auto' },
-            generic_getter => { type => 'SCALAR', default => q{} },
-            generic_setter => { type => 'SCALAR', default => q{} },
+            generic_getter => { type => SCALAR, default => q{} },
+            generic_setter => { type => SCALAR, default => q{} },
         }
     );
 

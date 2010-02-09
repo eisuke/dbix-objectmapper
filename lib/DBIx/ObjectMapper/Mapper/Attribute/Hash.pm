@@ -57,58 +57,6 @@ sub init {
     $self->{properties} = \%properties;
 }
 
-sub _init_attributes {
-    my $self = shift;
-    my $table = $self->table;
-    my %primary_key_map = map { $_ => $table->c($_) } @{ $table->primary_key };
-
-    my @attributes;
-    if ( my @include = @{ $self->include } ) {
-        my $ex_primary_key = 0;
-        for my $p ( @include ) {
-            if ( $p and ref $p eq $table->column_metaclass ) {
-                $ex_primary_key = 1 if $primary_key_map{ $p->name };
-                push @attributes, $p;
-            }
-            elsif ( !ref($p) and my $meta_col = $table->c($p) ) {
-                $ex_primary_key = 1
-                    if $primary_key_map{ $meta_col->name };
-                push @attributes, $meta_col;
-            }
-            else {
-                confess "$p is not exists metadata at include_property";
-            }
-        }
-
-        unless ($ex_primary_key) {
-            push( @attributes, $_ ) for values %primary_key_map;
-        }
-    }
-    else {    # default all
-        @attributes = @{ $table->columns };
-    }
-
-    if ( @{$self->exclude} ) {
-        my %exclude = map {
-            ( ref($_) eq $table->column_metaclass )
-          ? ( $_->name => 1 )
-          : ( $_ => 1 );
-        } grep {
-            if ($_) {
-                if ( ref($_) eq $table->column_metaclass ) {
-                    !$primary_key_map{ $_->name };
-                }
-                else {
-                    !$primary_key_map{$_};
-                }
-            }
-        } @{ $self->exclude };
-        @attributes = grep { !$exclude{ $_->name } } @attributes;
-    }
-
-    return @attributes;
-}
-
 sub property_names { keys %{ $_[0]->{properties} } }
 sub property       { $_[0]->{properties}->{ $_[1] } }
 

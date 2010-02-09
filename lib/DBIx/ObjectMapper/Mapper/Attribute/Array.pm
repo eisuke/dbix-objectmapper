@@ -8,15 +8,36 @@ use DBIx::ObjectMapper::Mapper::Attribute::Property;
 sub init {
     my $self = shift;
 
+    my @attributes = $self->_init_attributes();
     my %settle_attribute;
+
     my @properties;
-    for my $prop ( @{$self->properties} ) {
-        my $isa = $prop->{isa} || confess "set property \"isa\". ";
-        $prop->{getter} ||= $self->prefix . $prop->{isa}->name;
-        $prop->{setter} ||= $self->prefix . $prop->{isa}->name;
-        push @properties,
-            DBIx::ObjectMapper::Mapper::Attribute::Property->new(%$prop);
-        $settle_attribute{ $isa->name } = 1;
+    if( @{$self->properties} ) {
+        for my $prop ( @{$self->properties} ) {
+            my $isa = $prop->{isa} || confess "Please set \"isa\" propertiy. ";
+            my $name
+                = delete $prop->{name}
+                || $isa->name
+                || confess "name is not defined.";
+            $isa->name($name);
+
+            $prop->{getter} ||= $self->prefix . $isa->name;
+            $prop->{setter} ||= $self->prefix . $isa->name;
+            push @properties,
+                DBIx::ObjectMapper::Mapper::Attribute::Property->new(%$prop);
+            $settle_attribute{ $isa->name } = 1;
+        }
+    }
+    else {
+        for my $attr ( @attributes ) {
+            $settle_attribute{ $attr->name } = 1;
+            push @properties,
+                DBIx::ObjectMapper::Mapper::Attribute::Property->new(
+                    isa    => $attr,
+                    getter => $self->prefix . $attr->name,
+                    setter => $self->prefix . $attr->name,
+                );
+        }
     }
 
     confess "primary key must be included in property"

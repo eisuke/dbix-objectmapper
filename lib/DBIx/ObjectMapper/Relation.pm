@@ -52,6 +52,11 @@ sub _init_option {
         $order_by = [ $order_by ] unless ref $order_by eq 'ARRAY';
         $self->{order_by} = $order_by;
     }
+
+    if( my $name = $self->option->{name} ) {
+        $self->{name} = $name;
+    }
+
 }
 
 {

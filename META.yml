@@ -31,6 +31,7 @@ recommends:
 requires:
   Carp::Clan: 0
   Class::Data::Inheritable: 0
+  Class::Inspector: 0
   Class::MOP: 0
   DBD::SQLite: 1.14
   DBI: 1.4

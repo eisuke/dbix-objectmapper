@@ -56,7 +56,7 @@ my $artist_table = $meta->table( artist => 'autoload' );
     ok $mapped_class->can('id');
 
     ok my $obj = $mapped_class->new(
-        id => 1, firstname => 'f', lastname => 'l' );
+        { id => 1, firstname => 'f', lastname => 'l' } );
     is $obj->firstname, 'f';
     is $obj->lastname, 'l';
     is $obj->id, 1;

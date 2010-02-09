@@ -16,6 +16,7 @@ requires 'DateTime::Format::SQLite';
 
 requires 'Try::Tiny';
 requires 'Class::MOP';
+requires 'Class::Inspector';
 requires 'Class::Data::Inheritable';
 requires 'Data::Page' => 2.00;
 requires 'Hash::Merge';

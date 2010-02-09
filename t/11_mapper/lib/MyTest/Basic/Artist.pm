@@ -4,9 +4,8 @@ use warnings;
 
 sub new {
     my $class = shift;
-    my %attr = @_;
-
-    bless \%attr, $class;
+    my $attr = shift;
+    bless \%$attr, $class;
 }
 
 sub id {

@@ -40,6 +40,16 @@ sub is_same_addr($$) {
     for my $c ( @{$artist_table->columns} ) {
         is_deeply $mapper->attributes->property($c->name)->{isa}, $c;
     }
+
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    my $obj = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj->__mapper__->set_val(id => 2);
+    is $obj->id, 2;
+    $obj->id(1);
+    is_deeply $obj->__mapper__->reducing, $input;
 };
 
 { # map auto generate class
@@ -60,6 +70,17 @@ sub is_same_addr($$) {
     is $obj->firstname, 'f';
     is $obj->lastname, 'l';
     is $obj->id, 1;
+
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    my $obj2 = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj2->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj2->__mapper__->set_val(id => 2);
+    is $obj2->id, 2;
+    $obj2->id(1);
+    is_deeply $obj2->__mapper__->reducing, $input;
+
 };
 
 { # attribute prefix
@@ -79,11 +100,29 @@ sub is_same_addr($$) {
     ok !$mapped_class->can('lastname');
     ok !$mapped_class->can('id');
 
+    my %names = ( _id => 1, _firstname => 1, _lastname => 1 );
+    ok( (grep { $names{$_} } $mapper->attributes->property_names) == 3 );
+
+    is $mapper->attributes->property('_id')->name, 'id';
+    is $mapper->attributes->property('_firstname')->name, 'firstname';
+    is $mapper->attributes->property('_lastname')->name, 'lastname';
+
     ok my $obj = $mapped_class->new(
         { _id => 1, _firstname => 'f', _lastname => 'l' } );
     is $obj->_firstname, 'f';
     is $obj->_lastname, 'l';
     is $obj->_id, 1;
+
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    my $obj2 = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj2->__mapper__->get_val('_' . $_), $input->{$_};
+    }
+    $obj2->__mapper__->set_val(_id => 2);
+    is $obj2->_id, 2;
+    $obj2->_id(1);
+    is_deeply $obj2->__mapper__->reducing, $input;
+
 
 #    dies_ok {
 #        $mapped_class->new({ id => 1, firstname => 'f', lastname => 'l' } );
@@ -109,6 +148,16 @@ sub is_same_addr($$) {
     ok my $obj = $mapped_class->new({ id => 1, lastname => 'l' } );
     is $obj->lastname, 'l';
     is $obj->id, 1;
+
+    my $input = { id => 1, lastname => 'l' };
+    my $obj2 = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj2->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj2->__mapper__->set_val(id => 2);
+    is $obj2->id, 2;
+    $obj2->id(1);
+    is_deeply $obj2->__mapper__->reducing, $input;
 
 #    dies_ok {
 #        $mapped_class->new({ id => 1, firstname => 'f', lastname => 'l' } );
@@ -174,6 +223,15 @@ sub is_same_addr($$) {
     };
 };
 
+{ # compile error class
+    my $mapped_class = 'MyTest::Basic::ArtistCompileError';
+    dies_ok {
+        DBIx::ObjectMapper::Mapper->new(
+            $meta->t('artist') => $mapped_class,
+        );
+    };
+};
+
 { # accessor only
     my $mapped_class = 'MyTest::AO::Artist';
     ok my $mapper = DBIx::ObjectMapper::Mapper->new(
@@ -209,6 +267,17 @@ sub is_same_addr($$) {
     is $obj->id, 1;
     is $obj->firstname, 'f';
     is $obj->lastname, 'l';
+
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    my $obj2 = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj2->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj2->__mapper__->set_val(id => 2);
+    is $obj2->id, 2;
+    $obj2->id(1);
+    is_deeply $obj2->__mapper__->reducing, $input;
+
 };
 
 { # array contructor argument
@@ -241,6 +310,16 @@ sub is_same_addr($$) {
     is $obj->lastname, 'lastname';
     is $obj->id, 10;
 
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    my $obj2 = $mapper->mapping($input);
+    for( keys %$input ) {
+        is $obj2->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj2->__mapper__->set_val(id => 2);
+    is $obj2->id, 2;
+    $obj2->id(1);
+    is_deeply $obj2->__mapper__->reducing, $input;
+
     $mapper->dissolve;
 };
 
@@ -265,9 +344,53 @@ sub is_same_addr($$) {
     };
 };
 
+{ # blessed ArrayRefClass
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
+        $artist_table => 'MyTest::Basic::ArrayRefArtist',
+        constructor => { arg_type => 'ARRAY' },
+    );
 
-# XXXXX join(relation)
-# XXXXX table is query
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    ok my $obj = $mapper->mapping( $input );
+    is $obj->id, 1;
+    is $obj->firstname, 'f';
+    is $obj->lastname, 'l';
+
+    for( keys %$input ) {
+        is $obj->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj->__mapper__->set_val(id => 2);
+    is $obj->id, 2;
+    $obj->id(1);
+
+    is_deeply $obj->__mapper__->reducing, $input;
+};
+
+{ # generic getter/setter
+    ok my $mapper = DBIx::ObjectMapper::Mapper->new(
+        $artist_table => 'MyTest::Basic::GenericAccessorArtist',
+        accessors => {
+            generic_setter => 'set',
+            generic_getter => 'get',
+        }
+    );
+
+    my $input = { id => 1, firstname => 'f', lastname => 'l' };
+    ok my $obj = $mapper->mapping( $input );
+    is $obj->get('id'), 1;
+    is $obj->get('firstname'), 'f';
+    is $obj->get('lastname'), 'l';
+
+    for( keys %$input ) {
+        is $obj->__mapper__->get_val($_), $input->{$_};
+    }
+    $obj->__mapper__->set_val(id => 2);
+    is $obj->get('id'), 2;
+    $obj->set('id' => 1);
+    is_deeply $obj->__mapper__->reducing, $input;
+
+};
+
 
 done_testing;
 
