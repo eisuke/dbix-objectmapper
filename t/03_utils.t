@@ -74,8 +74,10 @@ use URI;
     my @sample = (
         # X Y result
         [ undef, undef, 1],
-        [ undef, 'hoge', 0],
-        [ 100, undef, 0],
+        [ undef, 'hoge', undef ],
+        [ 'hoge', undef, undef ],
+        [ 100, undef, undef ],
+        [ 'b', 1, undef],
         [qw( a a ), 1 ],
         [ 'a', 10.2093827629, undef ],
         [
@@ -107,6 +109,14 @@ use URI;
             [qw(a b c d e)],
             [qw(a b c e d)],
             undef
+        ],
+        [
+            [qw(a b c d e)],
+            { a => 1, b => 2, c => 3},
+        ],
+        [
+            { a => 1, b => 2 },
+            [qw(a b c d e)],
         ],
         [
             {

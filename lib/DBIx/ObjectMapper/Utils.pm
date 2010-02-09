@@ -23,8 +23,8 @@ sub loaded { Class::MOP::is_class_loaded($_[0]) }
 sub is_deeply {
     my ( $X, $Y ) = @_;
 
-    return 0 if !defined($X) and defined($Y);
-    return 0 if defined($X) and !defined($Y);
+    return if !defined($X) and defined($Y);
+    return if defined($X) and !defined($Y);
     return 1 unless defined($X) and defined($Y);
 
     if( !ref($X) and !ref($Y) ) {

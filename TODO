@@ -1,5 +1,4 @@
 * Relation has_oneでunique_keyでのhas_oneを実現させる
-* accessorのexclueとattributesのinclude,excludeの関係test
 * SQL - exists,any,in support
 * Class::Inspectorをutilsに
 * prop->nameは属性名だが、そこをちゃんと把握してないコードがあるのでcheck
