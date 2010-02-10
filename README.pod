@@ -1,12 +1,66 @@
 =head1 NAME
 
-DBIx::ObjectMapper - object-relational mapper and database toolkit.
+DBIx::ObjectMapper - A implementation of the Data Mapper pattern (object-relational mapper).
 
 =head1 DESCRIPTION
 
-DBIx::ObjectMapper is a object-relational mapper of "Data Mapper Pattern", like Python's SQLAlchemy, and simple interface for database access.
+DBIx::ObjectMapper is a implementation of the Data Mapper pattern. And abstraction layer for database access.
 
-More information of "Data Mapper Pattern" is <http://martinfowler.com/eaaCatalog/dataMapper.html>.
+=head1 SYNOPSIS
+
+Create engine and mapper object.
+
+ use DBIx::ObjectMapper;
+ use DBIx::ObjectMapper::Engine::DBI;
+
+ my $engine = DBIx::ObjectMapper::Engine::DBI->new(
+    dsn => 'DBD:SQLite:',
+    username => undef,
+    password => undef,
+ );
+
+ my $mapper = DBIx::ObjectMapper->new( engine => $engine );
+
+Create a ordinary perl class.
+
+ package My::User;
+ use base qw(Class::Accessor::Fast);
+ __PACKAGE__->mk_accessors(qw(id name));
+
+ 1;
+
+Get/Define metadata of the table.
+
+ my $user_meta = $mapper->metadata->table( 'user' => 'autoload' );
+
+ # or
+
+ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
+ my $user_meta = $mapper->metadata->table(
+     'user' => [
+         Col( id => Int(), PrimaryKey ),
+         Col( name => String(128) NotNull ),
+     ]
+ );
+
+Map table metadata to the ordinary class.
+
+ $mapper->maps( $user_meta => 'My::User' );
+
+Create session and Create My::User object.
+
+ my $session = $mapper->begin_session;
+ my $user = My::User->new({ id => 1, name => 'name1' });
+ $session->add($user);
+
+When $session is destroyed, it sending "INSERT INTO user (id,name) VALUES(1,'name1')" Query to the Database.
+
+Get user data from database, and construct My::User Object.
+
+ my $session = $mapper->begin_session;
+ my $user = $session->get( 'My::User' => 1 );
+ $user->id;
+ $user->name;
 
 =head1 AUTHOR
 
