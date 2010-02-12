@@ -198,7 +198,7 @@ See the L<DBIx::ObjectMapper::Session> for more information.
 =head2 maps(%map_config)
 
 Sets a configuration of mapping.
-See the <DBIx::ObjectMapper::Mapper> for more information.
+See the L<DBIx::ObjectMapper::Mapper> for more information.
 
 =head2 relation( $relation_type => \%relation_config )
 
