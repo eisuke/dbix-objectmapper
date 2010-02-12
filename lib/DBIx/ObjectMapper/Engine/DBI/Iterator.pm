@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Engine::DBI::Iterator;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Iterator::Base);
 use DBIx::ObjectMapper::Iterator;
 

@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use List::MoreUtils;
 use Scalar::Util qw(blessed weaken);
 use Digest::MD5 qw(md5_hex);
@@ -29,11 +29,6 @@ use DBIx::ObjectMapper::Metadata::Query;
         my $self = shift;
         my $class = shift;
         return $INITIALIZED_CLASSES{$class};
-    }
-
-    sub dissolve {
-        my $self = shift;
-        delete $INITIALIZED_CLASSES{$self->mapped_class};
     }
 
     sub DESTROY {
@@ -88,7 +83,6 @@ sub new {
         @_,
         {   table => {
                 type => OBJECT,
-                # XXXX not only table
                 isa  => 'DBIx::ObjectMapper::Metadata::Table'
             },
             mapped_class      => { type => SCALAR, },
@@ -458,7 +452,7 @@ __END__
 
 =head1 NAME
 
-DBIx::ObjectMapper::Mapper
+DBIx::ObjectMapper::Mapper - map the metadata to a class.
 
 =head1 DESCRIPTION
 
@@ -486,100 +480,45 @@ DBIx::ObjectMapper::Mapper
          arg_type => 'HASHREF',
          auto     => 0,
      },
-     default_condition => [
-
-     ],
+     default_condition => [],
+     default_value     => {},
  );
 
 =head1 METHODS
 
-=head2 new
-
-B<<Options>>
+=head2 new(%config)
 
 =head3 attributes
 
-=head4  include
-
-    => { type => ARRAYREF, default => +[] },
-
-=head4  exclude
-
-    => { type => ARRAYREF, default => +[] },
-
-=head4 prefix
-
-     => { type => SCALAR,   default => q{} },
-
-=head4  properties
-
- => { type => HASHREF|ARRAYREF,  default => +{} },
-
-=over 5
-
-=item isa
-
-               => undef,
-
-=item lazy
-
-              => 0,
-
-=item validation
-
-        => 0,
-
-=item getter
-
-            => undef,
-
-=item setter
-
-            => undef,
-
-=back
-
-=head3
-
-=head4 auto
-
-       => { type => BOOLEAN,  default => 0 },
-
-=head4 exclude
-
-    => { type => ARRAYREF, default => +[], depends => 'auto' },
-
-=head4 do_replace
-
- => { type => BOOLEAN,  default => 0, depends => 'auto' },
+=head3 accessors
 
 =head3 constructor
 
-=head4 name
-
-     => { type => SCALAR, default => 'new' },
-
-=head4 arg_type
-
-@CONSTRUCTOR_ARGUMENT_TYPES;
-
-=head4 auto
-
- => { type => BOOLEAN, default => 0 },
-
-
 =head3 default_condition
-
 
 =head2 is_initialized
 
 =head2 mapping
 
+=head2 find
+
+=head2 get_unique_condition
+
+=head2 create_cache_key
+
+=head2 primary_cache_key
+
+=head2 unique_cache_keys
+
+
 =head1 AUTHOR
 
 Eisuke Oishi
 
-=head1 COPYRIGHT AND LICENSE
+=head1 COPYRIGHT
 
+Copyright 2009 Eisuke Oishi
 
+=head1 LICENSE
 
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.

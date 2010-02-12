@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::SQL::Insert;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Scalar::Util qw(blessed);
 use base qw(DBIx::ObjectMapper::SQL::Base);
 

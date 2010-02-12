@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Session;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(validate OBJECT BOOLEAN SCALAR);
 use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Session::Cache;
@@ -157,3 +157,21 @@ sub DESTROY {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Session
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.

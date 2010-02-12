@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Query;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Query::Base);
 use DBIx::ObjectMapper::Query::Select;
 use DBIx::ObjectMapper::Query::Insert;

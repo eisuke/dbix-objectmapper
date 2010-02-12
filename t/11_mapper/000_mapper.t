@@ -319,12 +319,10 @@ sub is_same_addr($$) {
     is $obj2->id, 2;
     $obj2->id(1);
     is_deeply $obj2->__mapper__->reducing, $input;
-
-    $mapper->dissolve;
 };
 
 { # not include primary key
-    my $mapped_class = 'MyTest::Basic::ArtistArray';
+    my $mapped_class = 'MyTest::Basic::ArtistArray2';
 
     dies_ok {
         ok my $mapper = DBIx::ObjectMapper::Mapper->new(

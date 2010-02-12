@@ -2,7 +2,7 @@ package DBIx::ObjectMapper::Engine::DBI::Driver::mysql;
 use strict;
 use warnings;
 use Try::Tiny;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Engine::DBI::Driver);
 
 sub init {

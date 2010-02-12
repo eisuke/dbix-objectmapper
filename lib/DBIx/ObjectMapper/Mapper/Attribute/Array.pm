@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Attribute::Array;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Mapper::Attribute);
 use DBIx::ObjectMapper::Mapper::Attribute::Property;
 
@@ -58,3 +58,19 @@ sub property {
 }
 
 1;
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Attribute::Array
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.

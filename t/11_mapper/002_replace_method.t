@@ -60,8 +60,6 @@ my $artist_table = $meta->table( artist => 'autoload' );
     is $obj->firstname, 'f';
     is $obj->lastname, 'l';
     is $obj->id, 1;
-
-    ok $mapper->dissolve;
 };
 
 done_testing;

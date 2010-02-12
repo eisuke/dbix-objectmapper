@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Metadata::Table::Column::Type::Bit;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type);
 

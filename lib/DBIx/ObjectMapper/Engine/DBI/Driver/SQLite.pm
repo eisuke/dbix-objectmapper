@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Engine::DBI::Driver::SQLite;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use Text::Balanced qw( extract_bracketed );
 use base qw(DBIx::ObjectMapper::Engine::DBI::Driver);

@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Engine::DBI::Transaction;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 
 sub new {
     my ( $class, $engine ) = @_;

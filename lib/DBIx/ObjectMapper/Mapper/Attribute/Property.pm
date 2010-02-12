@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Attribute::Property;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
 use Scalar::Util qw(weaken);
 my @TYPES = qw(column relation);
@@ -108,3 +108,22 @@ sub is_multi {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Attribute::Property
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

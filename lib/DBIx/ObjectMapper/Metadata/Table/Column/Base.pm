@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Metadata::Table::Column::Base;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Encode;
 use Scalar::Util;
 use Params::Validate qw(:all);

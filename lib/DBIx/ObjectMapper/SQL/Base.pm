@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::SQL::Base;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Scalar::Util qw(blessed);
 use DBIx::ObjectMapper::Utils;
 use base qw(Class::Data::Inheritable);

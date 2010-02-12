@@ -129,6 +129,7 @@ t/11_mapper/lib/MyTest/AO/Artist.pm
 t/11_mapper/lib/MyTest/Basic/ArrayRefArtist.pm
 t/11_mapper/lib/MyTest/Basic/Artist.pm
 t/11_mapper/lib/MyTest/Basic/ArtistArray.pm
+t/11_mapper/lib/MyTest/Basic/ArtistArray2.pm
 t/11_mapper/lib/MyTest/Basic/ArtistCompileError.pm
 t/11_mapper/lib/MyTest/Basic/GenericAccessorArtist.pm
 t/11_mapper/lib/MyTest/CO/Artist.pm
@@ -149,6 +150,8 @@ t/12_session/020_share_object.t
 t/12_session/021_validation.t
 t/12_session/022_change_checker.t
 t/12_session/023_arrayref_obj.t
+t/12_session/024_has_one_foreign_key.t
+t/12_session/025_differ_prop_name_and_col_name.t
 t/12_session/100_many_to_many.t
 t/12_session/200_die.t
 t/12_session/lib/MyTest11.pm

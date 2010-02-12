@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Utils;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use Class::MOP;
 use Scalar::Util;

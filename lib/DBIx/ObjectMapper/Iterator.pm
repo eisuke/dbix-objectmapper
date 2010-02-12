@@ -2,7 +2,7 @@ package DBIx::ObjectMapper::Iterator;
 use strict;
 use warnings;
 use base qw(DBIx::ObjectMapper::Iterator::Base);
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 
 sub new {
     my ( $class, $data_ref, $query, $callback ) = @_;

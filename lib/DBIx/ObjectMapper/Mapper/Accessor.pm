@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Accessor;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
 
 sub new {
@@ -40,3 +40,22 @@ sub generic_setter { $_[0]->{generic_setter} }
 sub generic_getter { $_[0]->{generic_getter} }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Accessor
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

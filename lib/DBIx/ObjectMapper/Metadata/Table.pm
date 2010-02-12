@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Metadata::Table;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use overload
     '""' => sub {
         my $self = shift;

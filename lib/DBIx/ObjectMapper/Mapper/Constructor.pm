@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Constructor;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
 
 my @CONSTRUCTOR_ARGUMENT_TYPES = qw( HASHREF HASH ARRAYREF ARRAY );
@@ -36,3 +36,22 @@ sub set_arg_type {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Constructor
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

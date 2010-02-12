@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Attribute::Hash;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Mapper::Attribute);
 use DBIx::ObjectMapper::Mapper::Attribute::Property;
 
@@ -61,4 +61,22 @@ sub property_names { keys %{ $_[0]->{properties} } }
 sub property       { $_[0]->{properties}->{ $_[1] } }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Attribute::Hash
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 

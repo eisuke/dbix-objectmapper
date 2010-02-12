@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Metadata::Table::Column::Type::Numeric;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type);
 use Scalar::Util qw(looks_like_number);
 

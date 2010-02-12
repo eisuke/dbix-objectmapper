@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Mapper::Instance;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use Scalar::Util qw(refaddr weaken);
 use Log::Any qw($log);
@@ -572,3 +572,22 @@ sub DESTROY {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Mapper::Instance
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Session::UnitOfWork;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Scalar::Util qw(refaddr blessed);
 use Log::Any qw($log);
 
@@ -178,3 +178,22 @@ sub DESTROY {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Session::UnitOfWork
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2009 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+

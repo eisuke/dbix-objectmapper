@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Engine::DBI::Driver;
 use strict;
 use warnings;
-use Carp::Clan;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use DBIx::ObjectMapper::Utils;
 use DBI;
 
