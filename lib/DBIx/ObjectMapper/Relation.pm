@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use DBIx::ObjectMapper::Session::Array;
+use DBIx::ObjectMapper::Mapper;
 
 my %CASCADE_TYPES = (
     # type         => [ single, multi ]
@@ -77,10 +78,19 @@ sub _init_option {
     }
 };
 
+sub mapper    {
+    my $self = shift;
+    unless( DBIx::ObjectMapper::Mapper->is_initialized($self->rel_class) ) {
+        confess 'the '
+            . $self->rel_class
+            . " is not mapped by the DBIx::ObjectMapper."
+    }
+    return $self->rel_class->__class_mapper__;
+}
+
 sub type      { $_[0]->{type} }
 sub rel_class { $_[0]->{rel_class} }
 sub option    { $_[0]->{option} }
-sub mapper    { $_[0]->rel_class->__class_mapper__ }
 sub table     { $_[0]->mapper->table }
 
 sub name {
