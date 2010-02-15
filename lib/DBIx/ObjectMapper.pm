@@ -97,7 +97,7 @@ DBIx::ObjectMapper - A implementation of the Data Mapper pattern (object-relatio
 
 =head1 SYNOPSIS
 
-Create engine and mapper object.
+Create a engine and a mapper object.
 
  use DBIx::ObjectMapper;
  use DBIx::ObjectMapper::Engine::DBI;
