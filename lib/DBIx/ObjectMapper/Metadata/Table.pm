@@ -428,10 +428,20 @@ sub _set_column {
         });
     }
 
-    my $coarce = $self->coerce->{$name} || +{};
-    if ( $c->{coerce} ) {
-        $coarce
-            = DBIx::ObjectMapper::Utils::merge_hashref( $coarce, $c->{coerce} );
+    my $to_storage;
+    if( $c->{to_storage} ) {
+        $to_storage = $c->{to_storage};
+    }
+    elsif( $self->coerce->{$name} ) {
+        $to_storage = $self->coerce->{$name}{to_storage};
+    }
+
+    my $from_storage;
+    if( $c->{from_storage} ) {
+        $from_storage = $c->{from_storage};
+    }
+    elsif( $self->coerce->{$name} ) {
+        $from_storage = $self->coerce->{$name}{from_storage};
     }
 
     my $default = $self->default->{$name} || do {
@@ -491,8 +501,8 @@ sub _set_column {
         server_check   => $c->{server_check}   || undef,
         on_update      => $on_update,
         readonly       => $readonly,
-        to_storage     => $coarce->{to_storage} || undef,
-        from_storage   => $coarce->{from_storage} || undef,
+        to_storage     => $to_storage || undef,
+        from_storage   => $from_storage || undef,
         validation     => $validation,
     );
 

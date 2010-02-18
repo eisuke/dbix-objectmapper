@@ -14,8 +14,8 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
         testmetadata => [
             Col( id      => Int(), PrimaryKey, Readonly ),
             Col( name    => Text('utf8'), NotNull, ForeignKey( test => 'id')),
-            Col( cd      => String(3), NotNull, Unique ),
-            Col( r       => SmallInt(), NotNull,  ),
+            Col( cd      => String(3), NotNull, Unique, FromStorage{ $_[0] } ),
+            Col( r       => SmallInt(), NotNull, ToStorage{ $_[0] }  ),
             Col( created => DateTime(), Default{ time() }, Validation{ 1 } ),
             Col( updated => DateTime(), OnUpdate{ time() } ),
         ],
@@ -56,10 +56,16 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
     ok $meta->coerce->{name};
     is ref($meta->coerce->{name}{to_storage}), 'CODE';
+    is ref($meta->c('name')->{to_storage}), 'CODE';
     is ref($meta->coerce->{name}{from_storage}), 'CODE';
+    is ref($meta->c('name')->{from_storage}), 'CODE';
+
+    is ref($meta->c('cd')->{to_storage}), '';
+    is ref($meta->c('cd')->{from_storage}), 'CODE';
+    is ref($meta->c('r')->{to_storage}), 'CODE';
+    is ref($meta->c('r')->{from_storage}), '';
 
     is ref($meta->validation->{$_}), 'CODE' for qw(name created);
-
 
     is_deeply $meta->foreign_key, [
         {
