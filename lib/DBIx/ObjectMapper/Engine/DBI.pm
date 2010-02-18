@@ -54,7 +54,7 @@ sub _init {
         RaiseError         => 1,
         PrintError         => 0,
         ShowErrorStatement => 1,
-        HandleError        => \&Carp::Clan::confess,
+        HandleError        => sub{ confess($_[0]) },
         %{ $option || {} }
     };
 
