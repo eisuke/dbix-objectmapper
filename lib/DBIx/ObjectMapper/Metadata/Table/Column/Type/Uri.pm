@@ -1,4 +1,4 @@
-package DBIx::ObjectMapper::Metadata::Table::Column::Type::URI;
+package DBIx::ObjectMapper::Metadata::Table::Column::Type::Uri;
 use strict;
 use warnings;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type::Text);

@@ -16,8 +16,8 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
             Col( name    => Text('utf8'), NotNull, ForeignKey( test => 'id')),
             Col( cd      => String(3), NotNull, Unique, FromStorage{ $_[0] } ),
             Col( r       => SmallInt(), NotNull, ToStorage{ $_[0] }  ),
-            Col( created => DateTime(), Default{ time() }, Validation{ 1 } ),
-            Col( updated => DateTime(), OnUpdate{ time() } ),
+            Col( created => Datetime(), Default{ time() }, Validation{ 1 } ),
+            Col( updated => Datetime(), OnUpdate{ time() } ),
         ],
         {
             unique_key      => [ 'name_uniq' => ['name'] ],

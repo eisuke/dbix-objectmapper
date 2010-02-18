@@ -1,22 +1,20 @@
-package DBIx::ObjectMapper::Metadata::Table::Column::Type::Storable;
+package DBIx::ObjectMapper::Metadata::Table::Column::Type::Yaml;
 use strict;
 use warnings;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type::Text);
-
-use Storable ();
-use MIME::Base64 ();
+use YAML();
 
 sub from_storage {
     my ( $self, $val ) = @_;
     return $val unless defined $val;
-    return Storable::thaw(MIME::Base64::decode($val));
+    return YAML::Load($val);
 }
 
 sub to_storage {
     my ( $self, $val ) = @_;
     return $val unless defined $val and ref($val);
     $val = $$val if ref $val eq 'REF';
-    return MIME::Base64::encode(Storable::nfreeze($val));
+    return YAML::Dump($val);
 }
 
 1;

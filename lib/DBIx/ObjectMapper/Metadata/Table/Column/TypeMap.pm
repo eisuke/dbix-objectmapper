@@ -34,10 +34,10 @@ our $map = {
     'date' => 'Date',
 
     # DateTime
-    'datetime'                    => 'DateTime',
-    'timestamp'                   => 'DateTime',
-    'timestamp without time zone' => 'DateTime',
-    'timestamp with time zone'    => 'DateTime',
+    'datetime'                    => 'Datetime',
+    'timestamp'                   => 'Datetime',
+    'timestamp without time zone' => 'Datetime',
+    'timestamp with time zone'    => 'Datetime',
 
     # Time
     'time'                   => 'Time',

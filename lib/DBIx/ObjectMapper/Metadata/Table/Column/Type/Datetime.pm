@@ -1,4 +1,4 @@
-package DBIx::ObjectMapper::Metadata::Table::Column::Type::DateTime;
+package DBIx::ObjectMapper::Metadata::Table::Column::Type::Datetime;
 use strict;
 use warnings;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type);

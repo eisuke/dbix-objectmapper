@@ -97,7 +97,7 @@ sub build_pkg($) {
 };
 
 {
-    my $type = 'DateTime';
+    my $type = 'Datetime';
     my $pkg = build_pkg $type;
     my $obj = $pkg->new( realtype => 'datetime' );
     is $obj->type, lc($type);
@@ -190,7 +190,7 @@ sub build_pkg($) {
 };
 
 {
-    my $type = 'Storable';
+    my $type = 'Mush';
     my $pkg = build_pkg $type;
     my $obj = $pkg->new;
     is $obj->type, lc($type);
@@ -236,7 +236,7 @@ if( $dsn && $user ) {
 };
 
 { # URI
-    my $type = 'URI';
+    my $type = 'Uri';
     my $pkg = build_pkg $type;
     my $obj = $pkg->new;
     is $obj->type, lc($type);
@@ -249,7 +249,7 @@ if( $dsn && $user ) {
 };
 
 { # YAML
-    my $type = 'YAML';
+    my $type = 'Yaml';
     my $pkg = build_pkg $type;
     my $obj = $pkg->new;
     is $obj->type, lc($type);

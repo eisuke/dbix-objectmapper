@@ -5,11 +5,7 @@ use Test::More;
 use DateTime;
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
-use DBIx::ObjectMapper::Metadata::Sugar qw(Col),
-    YAML => { -as => 'Yaml' },
-    URI  => { -as => 'Uri'},
-    Storable => { -as => 'Serialize'}
-;
+use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 
 
 my $engine = DBIx::ObjectMapper::Engine::DBI->new({
@@ -30,7 +26,7 @@ CREATE TABLE test_types (
 my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 my $table = $mapper->metadata->table(
     test_types => [
-        Col( storable => Serialize() ),
+        Col( storable => Mush() ),
         Col( yaml => Yaml() ),
         Col( uri => Uri() ),
     ],
