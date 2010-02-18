@@ -704,14 +704,13 @@ sub _insert_query_callback {
         my $input_val = $query->values;
         return unless ref($input_val) eq 'HASH'; # XXXXX
 
+        my %context = %$input_val;
         for my $c ( @{ $self->columns } ) {
             my $val = $c->to_storage(
-                $input_val,
+                \%context,
                 $dbh,
             );
-            if ( $val ) {
-                $query->values->{ $c->name } = $val;
-            }
+            $input_val->{ $c->name } = $val if defined $val;
         }
     };
 }
@@ -737,15 +736,13 @@ sub _update_query_callback {
         my $query = shift;
         my $engine = shift;
 
-        # XXXX default,on_updateは別にしたほうがいいかも
+        my %context = %{$query->set};
         for my $c ( @{ $self->columns } ) {
             my $val = $c->to_storage_on_update(
-                $query->set,
+                \%context,
                 $self->engine->dbh,
             );
-            if ($val) {
-                $query->set->{ $c->name } = $val;
-            }
+            $query->set->{ $c->name } = $val if defined $val;
         }
     };
 }
