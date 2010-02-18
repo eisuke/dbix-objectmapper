@@ -62,7 +62,7 @@ my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
     use utf8;
     is $c->from_storage('あ'), 'あ-inflate', 'from_storage';
     is $c->to_storage(), '-default-deflate', 'to_storage default';
-    is $c->to_storage('い'), Encode::encode('utf8', 'い-deflate'), 'to_stroage utf8';
+    is $c->to_storage({ type => 'い'}), Encode::encode('utf8', 'い-deflate'), 'to_stroage utf8';
     is $c->to_storage_on_update(), '-on_update-deflate', 'to_storage_on_update';
 };
 
@@ -86,8 +86,8 @@ my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
 
     ok $c->validation->(1), 'do validation';
     ok !$c->validation->('a'), 'do vlaidation';
-    dies_ok { $c->to_storage('foo') } 'to_storage invalid';
-    is $c->to_storage(2), 2, 'to_storage valid';
+    dies_ok { $c->to_storage({ type => 'foo'}) } 'to_storage invalid';
+    is $c->to_storage({ type=> 2 }), 2, 'to_storage valid';
 };
 
 { # readonly
@@ -108,8 +108,8 @@ my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
     );
 
     ok $c->readonly, 'readonly';
-    ok $c->to_storage('str'), 'readonly to_storage';
-    dies_ok { $c->to_storage_on_update('str') } 'readonly to_storage_on_update';
+    ok $c->to_storage({ type => 'str'}), 'readonly to_storage';
+    dies_ok { $c->to_storage_on_update({ type => 'str'}) } 'readonly to_storage_on_update';
 };
 
 { # func

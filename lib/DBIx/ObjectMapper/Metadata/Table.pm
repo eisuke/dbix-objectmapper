@@ -700,11 +700,16 @@ sub _insert_query_callback {
 
     return sub {
         my $query = shift;
+        my $dbh = shift;
         my $input_val = $query->values;
         return unless ref($input_val) eq 'HASH'; # XXXXX
 
         for my $c ( @{ $self->columns } ) {
-            if ( my $val = $c->to_storage( $input_val->{ $c->name } ) ) {
+            my $val = $c->to_storage(
+                $input_val,
+                $dbh,
+            );
+            if ( $val ) {
                 $query->values->{ $c->name } = $val;
             }
         }
@@ -730,10 +735,15 @@ sub _update_query_callback {
 
     return sub {
         my $query = shift;
+        my $engine = shift;
+
+        # XXXX default,on_updateは別にしたほうがいいかも
         for my $c ( @{ $self->columns } ) {
-            if ( my $val
-                = $c->to_storage_on_update( $query->set->{ $c->name } ) )
-            {
+            my $val = $c->to_storage_on_update(
+                $query->set,
+                $self->engine->dbh,
+            );
+            if ($val) {
                 $query->set->{ $c->name } = $val;
             }
         }

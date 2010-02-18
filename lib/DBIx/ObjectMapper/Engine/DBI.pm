@@ -437,7 +437,7 @@ sub update {
         $query = $self->_as_query_object('update', $query);
     }
 
-    $callback->($query) if $callback and ref($callback) eq 'CODE';
+    $callback->($query, $self->dbh) if $callback and ref($callback) eq 'CODE';
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];
@@ -460,7 +460,7 @@ sub insert {
         $query = $self->_as_query_object('insert', $query);
     }
 
-    $callback->($query) if $callback and ref($callback) eq 'CODE';
+    $callback->($query, $self->dbh) if $callback and ref($callback) eq 'CODE';
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->log_sql($sql, @bind);
@@ -492,7 +492,7 @@ sub delete {
         $query = $self->_as_query_object('delete', $query);
     }
 
-    $callback->($query) if $callback and ref($callback) eq 'CODE';
+    $callback->($query, $self->dbh) if $callback and ref($callback) eq 'CODE';
 
     if ( my $keys = $self->{cache_target_table}{ $query->table } ) {
         $self->{cache_target_table}{ $query->table } = [];

@@ -130,7 +130,9 @@ sub clone {
 }
 
 sub to_storage {
-    my ( $self, $val, $on_update ) = @_;
+    my ( $self, $context, $dbh, $on_update ) = @_;
+    $context ||= +{};
+    my $val = $context->{$self->name};
 
     if( $on_update and $self->readonly ) {
         confess $self . " is READONLY column.";
@@ -144,13 +146,13 @@ sub to_storage {
 
     if( $on_update ) {
         if( my $update = $self->on_update ) {
-            $val = $update->($val);
+            $val = $update->($context, $dbh);
         }
     }
     else {
         if( !defined $val ) {
             if( my $default = $self->default ) {
-                $val = $default->();
+                $val = $default->($context, $dbh);
             }
             #elsif( my $server_default = $self->server_default ) {
             #    $val = \$server_default;
@@ -166,8 +168,10 @@ sub to_storage {
 }
 
 sub to_storage_on_update {
-    my ( $self, $val ) = @_;
-    return $self->to_storage($val, 1);
+    my $self    = shift;
+    my $context = shift || +{};
+    my $dbh     = shift || undef;
+    return $self->to_storage($context, $dbh, 1);
 }
 
 sub from_storage {
