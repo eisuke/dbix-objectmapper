@@ -267,7 +267,11 @@ sub get_val_trigger {
                 = $class_mapper->table->select->column( values %lazy_column )
                 ->where(@$uniq_cond)->first;
             $self->unit_of_work->{query_cnt}++;
-            $self->set_val( $_ => $val->{ $_ } ) for keys %lazy_column;
+            for my $col ( keys %lazy_column ) {
+                $self->unit_of_work->change_checker->regist( $val->{$col} )
+                    if ref $val->{$col};
+                $self->set_val( $col => $val->{$col} );
+            }
         }
     }
 

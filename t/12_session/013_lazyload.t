@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
-
+use DateTime;
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
 
@@ -10,16 +10,16 @@ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     username => '',
     password => '',
     on_connect_do => [
-        q{CREATE TABLE lazyload( id integer primary key, comment text, add_comment1 text, add_comment2 text, add_comment3 text)},
+        q{CREATE TABLE lazyload( id integer primary key, comment text, add_comment1 text, add_comment2 text, add_comment3 text, created datetime )},
     ],
 });
 
 my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 
 my $lazy = $mapper->metadata->table( 'lazyload' => 'autoload' );
-
+my $now = DateTime->now;
 $lazy->insert->values($_)->execute for(
-    { comment => 'first', add_comment1 => 'first add_comment1', add_comment2 => 'first add_comment2', add_comment3 => 'first add_comment3' },
+    { comment => 'first', add_comment1 => 'first add_comment1', add_comment2 => 'first add_comment2', add_comment3 => 'first add_comment3', created => $now },
     { comment => 'second' },
 );
 
@@ -41,6 +41,9 @@ ok $mapper->maps(
             add_comment3 => {
                 lazy => 'add_comment',
             },
+            created => {
+                lazy => 1,
+            }
         }
     }
 );
@@ -54,7 +57,9 @@ ok $mapper->maps(
     is $d->add_comment1, 'first add_comment1';
     is $d->add_comment2, 'first add_comment2';
     is $d->add_comment3, 'first add_comment3';
-    is $session->uow->query_cnt, 3;
+    ok $d->created;
+    is $session->uow->query_cnt, 4;
+    ok !$d->__mapper__->is_modified;
 };
 
 done_testing;
