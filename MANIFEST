@@ -44,6 +44,7 @@ lib/DBIx/ObjectMapper/Mapper/Attribute/Property.pm
 lib/DBIx/ObjectMapper/Mapper/Constructor.pm
 lib/DBIx/ObjectMapper/Mapper/Instance.pm
 lib/DBIx/ObjectMapper/Metadata.pm
+lib/DBIx/ObjectMapper/Metadata/Declare.pm
 lib/DBIx/ObjectMapper/Metadata/Query.pm
 lib/DBIx/ObjectMapper/Metadata/Sugar.pm
 lib/DBIx/ObjectMapper/Metadata/Table.pm
@@ -121,6 +122,7 @@ t/10_meta/003_metadata.t
 t/10_meta/004_query.t
 t/10_meta/005_cast_column_type.t
 t/10_meta/006_default_and_on_update.t
+t/10_meta/007_declare.t
 t/11_mapper/000_mapper.t
 t/11_mapper/001_inherit_mapper_config.t
 t/11_mapper/002_replace_method.t

@@ -2,6 +2,7 @@ package DBIx::ObjectMapper::Metadata;
 use strict;
 use warnings;
 use DBIx::ObjectMapper::Metadata::Table;
+use DBIx::ObjectMapper::Utils;
 
 my $DEFAULT_QUERY_CLASS = 'DBIx::ObjectMapper::Query';
 
@@ -58,6 +59,17 @@ sub autoload_all_tables {
     my @tables = $engine->get_tables;
     $self->table( $_ => [], { engine => $engine, autoload => 1 } )
         for @tables;
+    return @tables;
+}
+
+sub load_from_declaration {
+    my $self = shift;
+    my @declaration = @_;
+    my @tables;
+    for my $d ( @declaration ) {
+        DBIx::ObjectMapper::Utils::load_class($d);
+        push @tables, $self->table( @$_ ) for $d->get_declaration;
+    }
     return @tables;
 }
 

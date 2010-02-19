@@ -4,6 +4,10 @@ use warnings;
 use Sub::Exporter;
 use Module::Pluggable::Object;
 
+our @ATTRS = qw(Col PrimaryKey NotNull OnUpdate Default ToStorage Unique
+                FromStorage ServerDefault Readonly ForeignKey ServerCheck
+                Validation);
+
 sub Col {
     my $name = shift;
     my %args = @_;
@@ -32,7 +36,7 @@ sub ServerDefault  { server_default => $_[0] }
 sub ForeignKey     { foreign_key    => [ $_[0] => $_[1] ] }
 sub ServerCheck    { server_check   => $_[0] }
 
-my @types;
+our @TYPES;
 {
     my $namespace = 'DBIx::ObjectMapper::Metadata::Table::Column::Type';
     my $loader = Module::Pluggable::Object->new(
@@ -46,21 +50,18 @@ my @types;
         $name =~ s/^$namespace\:://;
         no strict 'refs';
         *{"$pkg\::$name"} = sub { type => $type_class->new(@_) };
-        push @types, $name;
+        push @TYPES, $name;
     }
 };
 
-my @FUNC = (
-    qw(Col PrimaryKey NotNull OnUpdate Default ToStorage Unique
-       FromStorage ServerDefault Readonly ForeignKey ServerCheck
-       Validation),
-    @types,
-);
+our @ALL = ( @ATTRS, @TYPES );
 
 Sub::Exporter::setup_exporter({
-    exports => [ @FUNC ],
+    exports => \@ALL,
     groups  => {
-        all => [ @FUNC ],
+        all => \@ALL,
+        types => \@TYPES,
+        attrs => \@ATTRS,
     }
 });
 
