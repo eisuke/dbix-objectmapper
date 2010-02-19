@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use Test::Warn;
+use Capture::Tiny;
 
 use DBIx::ObjectMapper::Utils;
 use DateTime;
@@ -140,7 +140,10 @@ use URI;
 
     is DBIx::ObjectMapper::Utils::is_deeply($_->[0], $_->[1]), $_->[2] for @sample;
 
-    warnings_like { DBIx::ObjectMapper::Utils::is_deeply(sub{}, sub{}) } qr/CODE is not supported/;
+    my ($stdout, $stderr) = Capture::Tiny::capture {
+        DBIx::ObjectMapper::Utils::is_deeply(sub{}, sub{});
+    };
+    ok $stderr =~ /CODE is not supported/;
 
     # DateTime
     my $now = DateTime->now();

@@ -58,6 +58,12 @@ sub reset_column {
         };
     }
 
+    my %multi_method = (
+        pager => undef,
+        first => 'first',
+        count => 'size',
+    );
+
     for my $meth ( qw( pager count first ) ) {
         *{"$pkg\::$meth"} = sub {
             my $self          = shift;
@@ -70,15 +76,28 @@ sub reset_column {
                 $self->{set_default_cond} = 1;
             }
 
-            local $self->_query->{callback} = sub {
-                return $uow->add_storage_object(
-                    $mapper->mapping(
-                        $orig_callback->(@_),
-                        $uow->change_checker,
-                    )
-                );
-            };
-            $self->_query->$meth(@_);
+            if( $self->is_multi ) {
+                my $result = $self->execute;
+                # $result is DBIx::ObjectMapper::Iterator
+                if( my $multi_method = $multi_method{$meth} ) {
+                    return $result->$multi_method;
+                }
+                else {
+                    confess
+                        "the $meth method is not suppurted with eager_join.";
+                }
+            }
+            else {
+                local $self->_query->{callback} = sub {
+                    return $uow->add_storage_object(
+                        $mapper->mapping(
+                            $orig_callback->(@_),
+                            $uow->change_checker,
+                        )
+                    );
+                };
+                return $self->_query->$meth(@_);
+            }
         };
     }
 };
@@ -267,6 +286,11 @@ sub execute {
     if( $self->is_multi ) {
         my $result = [];
         my %settle;
+
+        if( $self->_query->builder->limit ) {
+            # limitメソッドはeager_joinメソッドと一緒に使った場合、期待通りにならない可能性があります。
+            cluck "There is a possibility of not becoming it according to the expectation when the limit method is used with the eager_join method.";
+        }
 
         for my $r ( $self->_query->execute->all ) {
             $self->_join_result_to_object($r);

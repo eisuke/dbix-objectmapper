@@ -1,7 +1,7 @@
 use strict;
 use warnings;
+use Capture::Tiny;
 use Test::More;
-use Test::Warn;
 
 use DBIx::ObjectMapper;
 use DBIx::ObjectMapper::Engine::DBI;
@@ -40,12 +40,13 @@ eval {
     is $session->query('MyTest17::Player')->count, 0;
 };
 
-warnings_like {
+my ($stdout, $stderr) = Capture::Tiny::capture {
     { ## can't die in DESTROY method....
         my $session = $mapper->begin_session();
         $session->add( MyTest17::Player->new( id => 'a' ) );
     };
-} qr/datatype mismatch/;
+};
+ok $stderr =~ /datatype mismatch/;
 
 {
     my $session = $mapper->begin_session;

@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
+use Capture::Tiny;
 use File::Spec;
 use FindBin;
 use lib File::Spec->catfile($FindBin::Bin, 'lib');
@@ -104,6 +105,46 @@ my $mapper = MyTest11->mapper;
     }
     is $loop_cnt, 1;
     is $it->size, 1;
+};
+
+{ # eager_join and first,count
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+
+    my $query = $session->query(
+        'MyTest11::Artist',
+     )
+     ->eager_join('cds')
+     ->where( $cd->c('title')->like('Led Zeppelin%') )
+     ->order_by( $cd->c('id')->desc );
+
+    ok my $a = $query->first;
+    is $a->name, 'Led Zeppelin';
+    is @{$a->cds}, 4;
+};
+
+{ # using the eager_join method with the limit method warning.
+    my $session = $mapper->begin_session;
+    my $artist = $mapper->metadata->t('artist');
+    my $cd     = $mapper->metadata->t('cd');
+
+    my $query = $session->query(
+        'MyTest11::Artist',
+     )
+     ->eager_join('cds')
+     ->where( $cd->c('title')->like('Led Zeppelin%') )
+     ->order_by( $cd->c('id')->desc )->limit(2);
+
+    my $it;
+    my ( $stdout, $stderr ) = Capture::Tiny::capture {
+        $it = $query->execute;
+    };
+    ok $stderr =~ /the limit method is used with the eager_join method/;
+
+    ok my $a = $it->next;
+    is $a->name, 'Led Zeppelin';
+    is @{$a->cds}, 2;
 };
 
 { # has_many is one record
@@ -266,18 +307,20 @@ my $mapper = MyTest11->mapper;
 { # errors
     my $session = $mapper->begin_session;
 
-    throws_ok { # joined same table
+    #throws_ok { # joined same table
+    dies_ok {
         $session->query('MyTest11::Cd')
             ->eager_join('linernote')
             ->add_join('linernote')
             ->execute;
-    } qr/has already been defined./;
+    };# qr/has already been defined./;
 
-    throws_ok { # not exists
+    #throws_ok { # not exists
+    dies_ok {
         $session->query('MyTest11::Artist')
             ->eager_join('linernote')
             ->execute;
-    } qr/linernote does not exists/;
+    };# qr/linernote does not exists/;
 
 
     dies_ok {

@@ -27,12 +27,12 @@ requires 'Text::Balanced';
 requires 'List::MoreUtils';
 requires 'DateTime';
 requires 'Sub::Exporter';
+requires 'Capture::Tiny';
 
-build_requires 'Test::More', 0.88;
-test_requires 'Test::Builder'       => 0.33;
-test_requires 'Test::Exception'     => 0;
+build_requires 'Test::More'     => 0.88;
+test_requires 'Test::Builder'   => 0.33;
+test_requires 'Test::Exception' => 0;
 test_requires 'Test::Base';
-test_requires 'Test::Warn'          => 0.11;
 
 recommends 'DateTime::Format::Pg';
 recommends 'DateTime::Format::MySQL';
