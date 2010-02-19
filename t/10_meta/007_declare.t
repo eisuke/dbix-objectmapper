@@ -42,18 +42,17 @@ ok( TestMeta007::B->get_declaration('baz') );
 
 is_deeply(
     TestMeta007::A->get_declaration(),
-    TestMeta007::A->get_declaration('foo'),
+    [ TestMeta007::A->get_declaration('foo') ],
 );
 
 is( TestMeta007::B->get_declaration, 2 );
 
-my $d = TestMeta007::A->get_declaration('foo');
-is ref($d), 'ARRAY';
-is $d->[0], 'foo';
-is ref($d->[1][0]), 'HASH';
-ok $d->[1][0]->{primary_key};
-ok !$d->[1][0]->{is_nullable};
-ok $d->[2]->{autoload};
+my @d = TestMeta007::A->get_declaration('foo');
+is $d[0], 'foo';
+is ref($d[1][0]), 'HASH';
+ok $d[1][0]->{primary_key};
+ok !$d[1][0]->{is_nullable};
+ok $d[2]->{autoload};
 
 
 my $metadata = DBIx::ObjectMapper::Metadata->new;

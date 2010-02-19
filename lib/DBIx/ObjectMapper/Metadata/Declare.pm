@@ -28,7 +28,7 @@ sub get_declaration {
     my $class = shift;
     if( @_ ) {
         my $table = shift;
-        return $DECLARE{$class}->{$table};
+        return @{$DECLARE{$class}->{$table}};
     }
     else {
         return values %{$DECLARE{$class}};
