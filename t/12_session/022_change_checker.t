@@ -112,5 +112,24 @@ $mapper->maps(
     is $d->created, $check;
 };
 
+{ # reflesh
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $d = MyTest22::ChangeChecker->new({
+        created => $now,
+        storable => { a => 1, b => 2, c => 3 },
+        yaml => [ qw(perl python ruby)],
+        uri => URI->new('http://example.com/path/to/index.html?a=1&b=2'),
+    });
+
+    $session->add($d);
+    $session->flush;
+    ok !$d->__mapper__->is_modified;
+    $d->created;
+    ok !$d->__mapper__->is_modified;
+
+    $d->storable({ c => 1 });
+
+    ok $d->__mapper__->is_modified;
+};
 
 done_testing;

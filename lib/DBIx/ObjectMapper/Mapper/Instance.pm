@@ -209,7 +209,7 @@ sub reflesh {
 
     $self->change_status('persistent');
     $self->unit_of_work->_set_cache($self);
-    $self->modify( $new_val );
+    $self->_modify( $new_val );
 
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $prop = $class_mapper->attributes->property($prop_name);
@@ -226,14 +226,22 @@ sub reflesh {
     }
 }
 
-sub modify {
+# this method internal use only.
+sub _modify {
     my $self = shift;
     my $rdata = shift;
     my $class_mapper = $self->instance->__class_mapper__;
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $col = $class_mapper->attributes->property($prop_name)->name
             || $prop_name;
-        $self->set_val($prop_name => $rdata->{$col}) if exists $rdata->{$col};
+        if( exists $rdata->{$col} ) {
+            $self->set_val($prop_name => $rdata->{$col});
+
+            # re-regist change_checker. because internal use only.
+            if( ref $rdata->{$col} ) {
+                $self->unit_of_work->change_checker->regist( $rdata->{$col} );
+            }
+        }
     }
 
     return $self->instance;
@@ -428,7 +436,7 @@ sub update {
             );
         }
 
-        $self->modify($new_val) if $new_val;
+        $self->_modify($new_val) if $new_val;
     } catch {
         $self->change_status('detached');
         confess $_[0];
@@ -452,7 +460,7 @@ sub save {
     try {
         my $comp_result
             = $class_mapper->table->insert->values(%$data)->execute();
-        $self->modify($comp_result);
+        $self->_modify($comp_result);
         $self->initialize;
 
         for my $prop_name ( $class_mapper->attributes->property_names ) {
