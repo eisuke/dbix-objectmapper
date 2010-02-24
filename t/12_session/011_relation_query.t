@@ -307,29 +307,29 @@ my $mapper = MyTest11->mapper;
 { # errors
     my $session = $mapper->begin_session;
 
-    #throws_ok { # joined same table
-    dies_ok {
+    eval {
         $session->query('MyTest11::Cd')
             ->eager_join('linernote')
             ->add_join('linernote')
             ->execute;
-    };# qr/has already been defined./;
+    };
+    ok $@ =~ /has already been defined./;
 
-    #throws_ok { # not exists
-    dies_ok {
+    eval {
         $session->query('MyTest11::Artist')
-            ->eager_join('linernote')
+           ->eager_join('linernote')
             ->execute;
-    };# qr/linernote does not exists/;
+    };
+    ok $@ =~ /linernote does not exists/;
 
-
-    dies_ok {
+    eval {
         $session->query('MyTest11::Artist')
             ->eager_join({ cds => 'linernote' })
             ->add_join('linernote')
             ->execute;
     };
 
+    ok $@ =~ /linernote does not exists/;
 };
 
 { # has_many modify
