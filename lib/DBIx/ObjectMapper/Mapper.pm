@@ -419,12 +419,16 @@ sub mapping {
         $change_checker->regist($val) if ref $val;
     }
 
-    return $self->mapped_class->${constructor}(
+    my $obj = $self->mapped_class->${constructor}(
           $type eq 'HASH' ? %$param
         : ( $type eq 'HASHREF' || $type eq 'ARRAYREF' ) ? $param
         : ( $type eq 'ARRAY' ) ? @$param
         :                        undef
     );
+
+    $obj->__mapper__->initialize; # initialized mapper
+
+    return $obj;
 }
 
 sub find {

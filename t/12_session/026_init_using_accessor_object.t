@@ -16,7 +16,7 @@ my $mapper = DBIx::ObjectMapper->new(
     }),
 );
 
-$mapper->metadata->t('customer' => 'autoload');
+$mapper->metadata->t( 'customer' => 'autoload' );
 
 {
     package MyTest026::Customer;
@@ -36,8 +36,8 @@ $mapper->metadata->t('customer' => 'autoload');
 
     sub id {
         my $self = shift;
-        $self->{email} = shift if @_;
-        return $self->{email};
+        $self->{id} = shift if @_;
+        return $self->{id};
 
     }
 
@@ -73,7 +73,10 @@ $mapper->metadata->t('customer' => 'autoload');
     1;
 };
 
-$mapper->maps( $mapper->metadata->t('customer') => 'MyTest026::Customer' );
+$mapper->maps(
+    $mapper->metadata->t('customer') => 'MyTest026::Customer',
+    constructor => { arg_type => 'HASH' }
+);
 
 {
     my $session = $mapper->begin_session;
@@ -81,5 +84,18 @@ $mapper->maps( $mapper->metadata->t('customer') => 'MyTest026::Customer' );
         name => 'hoge',
         email => 'foo@example.com',
     );
+    ok $session->add($cust);
 };
+
+{
+    my $session = $mapper->begin_session;
+    ok my $cust = $session->get( 'MyTest026::Customer' => 1 );
+    ok $session->delete($cust);
+};
+
+{
+    my $session = $mapper->begin_session;
+    ok !$session->get( 'MyTest026::Customer' => 1 );
+};
+
 done_testing;
