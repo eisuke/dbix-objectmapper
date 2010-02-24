@@ -187,10 +187,19 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $generic_getter => sub {
                     my $instance = shift;
-                    my $caller   = caller(2);
-                    if ( my $mapper = $instance->__mapper__
-                        and $caller !~ /^DBIx::ObjectMapper::/ )
-                    {
+                    my $mapper = $instance->__mapper__;
+                    return unless $mapper;
+
+                    my $mapper_call = 0;
+                    for my $i ( 0 .. 100 ) {
+                        my $caller = caller($i) || last;
+                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
+                            $mapper_call = 1;
+                            last;
+                        }
+                    }
+
+                    if ( !$mapper_call ) {
                         if( @_ == 1 ) {
                             $mapper->get_val_trigger(@_);
                         }
@@ -205,11 +214,19 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $generic_getter => sub {
                     my $instance = shift;
-                    my $caller   = caller(2);
-                    if (    @_ == 1
-                        and my $mapper = $instance->__mapper__
-                        and $caller !~ /^DBIx::ObjectMapper::/ )
-                    {
+                    my $mapper = $instance->__mapper__;
+                    return unless $mapper;
+
+                    my $mapper_call = 0;
+                    for my $i ( 0 .. 100 ) {
+                        my $caller = caller($i) || last;
+                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
+                            $mapper_call = 1;
+                            last;
+                        }
+                    }
+
+                    if ( !$mapper_call ) {
                         $mapper->get_val_trigger(@_);
                     }
                 }
@@ -218,11 +235,19 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $generic_setter => sub {
                     my $instance = shift;
-                    my $caller   = caller(2);
-                    if (    @_ == 2
-                        and my $mapper = $instance->__mapper__
-                        and $caller !~ /^DBIx::ObjectMapper::/ )
-                    {
+                    my $mapper = $instance->__mapper__;
+                    return unless $mapper;
+
+                    my $mapper_call = 0;
+                    for my $i ( 0 .. 100 ) {
+                        my $caller = caller($i) || last;
+                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
+                            $mapper_call = 1;
+                            last;
+                        }
+                    }
+
+                    if ( !$mapper_call ) {
                         $mapper->set_val_trigger(@_);
                     }
                 }
@@ -289,10 +314,19 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $getter => sub {
                     my $instance = shift;
-                    my $caller = caller(2);
-                    if ( my $mapper = $instance->__mapper__
-                        and $caller !~ /^DBIx::ObjectMapper::/ )
-                    {
+                    my $mapper = $instance->__mapper__;
+                    return unless $mapper;
+
+                    my $mapper_call = 0;
+                    for my $i ( 0 .. 100 ) {
+                        my $caller = caller($i) || last;
+                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
+                            $mapper_call = 1;
+                            last;
+                        }
+                    }
+
+                    if ( !$mapper_call ) {
                         $mapper->get_val_trigger( $prop_name );
                     }
                 }
@@ -301,10 +335,19 @@ sub _initialize {
             $meta->add_before_method_modifier(
                 $setter => sub {
                     my $instance = shift;
-                    my $caller = caller(2);
-                    if ( my $mapper = $instance->__mapper__
-                        and $caller !~ /^DBIx::ObjectMapper::/ )
-                    {
+                    my $mapper = $instance->__mapper__;
+                    return unless $mapper;
+
+                    my $mapper_call = 0;
+                    for my $i ( 0 .. 100 ) {
+                        my $caller = caller($i) || last;
+                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
+                            $mapper_call = 1;
+                            last;
+                        }
+                    }
+
+                    if ( !$mapper_call ) {
                         $mapper->set_val_trigger( $prop_name, @_ );
                     }
                 }
