@@ -258,7 +258,9 @@ sub get_val_trigger {
     }
     elsif( !$self->is_persistent ) {
         if( $prop->is_multi ) {
-            $self->set_val( $name => [] ) if !defined $self->get_val($name);
+            my $val = $self->get_val($name);
+            $self->set_val( $name => [] )
+                if !defined $val || ( ref $val eq 'ARRAY' and @$val == 0 );
         }
         return;
     }
@@ -266,7 +268,8 @@ sub get_val_trigger {
     if( $prop->type eq 'relation' ) {
         my $val = $self->get_val($name);
         $self->load_rel_val($name)
-            if !defined $val || ( ref $val eq 'ARRAY' and @$val == 0 );
+            if !defined $val
+                || ( ref $val eq 'ARRAY' and !tied(@$val) and @$val == 0 );
     }
     elsif( my %lazy_column = $class_mapper->attributes->lazy_column($name) ) {
         unless ( defined $self->get_val($name) ) {

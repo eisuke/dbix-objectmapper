@@ -720,7 +720,12 @@ sub _insert_query_callback {
                 \%context,
                 $dbh,
             );
-            $input_val->{ $c->name } = $val if defined $val;
+            if( defined $val ) {
+                $input_val->{ $c->name } = $val;
+            }
+            elsif( exists $input_val->{ $c->name } ) {
+                delete $input_val->{ $c->name };
+            }
         }
     };
 }
