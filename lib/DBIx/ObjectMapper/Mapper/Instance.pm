@@ -232,9 +232,13 @@ sub _modify {
     my $rdata = shift;
     my $class_mapper = $self->instance->__class_mapper__;
     for my $prop_name ( $class_mapper->attributes->property_names ) {
-        my $col = $class_mapper->attributes->property($prop_name)->name
+        my $prop = $class_mapper->attributes->property($prop_name);
+        my $col = $prop->name
             || $prop_name;
         if( exists $rdata->{$col} ) {
+            if( defined $rdata->{$col} and $prop->type eq 'column' ) {
+                $rdata->{$col} = $prop->{isa}->from_storage( $rdata->{$col} );
+            }
             $self->set_val($prop_name => $rdata->{$col});
 
             # re-regist change_checker. because internal use only.

@@ -6,7 +6,7 @@ use YAML();
 
 sub from_storage {
     my ( $self, $val ) = @_;
-    return $val unless defined $val;
+    return $val if !defined $val or ref $val;
     return YAML::Load($val);
 }
 

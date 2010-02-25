@@ -8,7 +8,7 @@ use MIME::Base64 ();
 
 sub from_storage {
     my ( $self, $val ) = @_;
-    return $val unless defined $val;
+    return $val if !defined $val or ref $val;
     return Storable::thaw(MIME::Base64::decode($val));
 }
 
