@@ -13,7 +13,7 @@ sub new {
     my $option       = shift;
 
     my $mapper = $mapped_class->__class_mapper__;
-    my $query  = $mapper->table->select;
+    my $query  = $mapper->select;
 
     bless {
         mapped_class     => $mapped_class,

@@ -278,8 +278,7 @@ sub get_val_trigger {
     elsif( my %lazy_column = $class_mapper->attributes->lazy_column($name) ) {
         unless ( defined $self->get_val($name) ) {
             my $uniq_cond = $self->identity_condition;
-            my $val
-                = $class_mapper->table->select->column( values %lazy_column )
+            my $val = $class_mapper->select( values %lazy_column )
                 ->where(@$uniq_cond)->first;
             $self->unit_of_work->{query_cnt}++;
             for my $col ( keys %lazy_column ) {
@@ -407,8 +406,7 @@ sub update {
 
     try {
         if( keys %$modified_data ) {
-            $result = $class_mapper->table->update->set(%$modified_data)
-                ->where(@$uniq_cond)->execute();
+            $result = $class_mapper->update( $modified_data, $uniq_cond );
             $new_val = DBIx::ObjectMapper::Utils::merge_hashref(
                 $reduce_data,
                 $modified_data
@@ -465,8 +463,7 @@ sub save {
     my $data = { %$reduce_data, %{$class_mapper->default_value} };
 
     try {
-        my $comp_result
-            = $class_mapper->table->insert->values(%$data)->execute();
+        my $comp_result = $class_mapper->insert(%$data);
         $self->_modify($comp_result);
         $self->initialize;
 
@@ -514,7 +511,7 @@ sub delete {
             }
         }
 
-        $result = $class_mapper->table->delete->where(@$uniq_cond)->execute();
+        $result = $class_mapper->delete(@$uniq_cond);
     } catch {
         $self->change_status('detached');
         confess $_[0];

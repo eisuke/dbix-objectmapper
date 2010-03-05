@@ -47,29 +47,7 @@ sub new {
         return $_[1]->__class_mapper__;
     }
 
-    my $self = bless {
-        table        => undef,
-        mapped_class => undef,
-        attributes   => +{},
-        accessors    => +{},
-        constructor  => +{},
-        input_option => +{},
-        mapped       => 0,
-    }, $class;
-
-    if( ref $_[0] eq $class ) {
-        my $orig_mapper = shift;
-        my $mapped_class = shift;
-        my $orig_option = DBIx::ObjectMapper::Utils::clone(
-            $orig_mapper->{input_option} );
-        my %input_option = @_;
-        my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-            $orig_option,
-            \%input_option,
-        );
-        return $class->new( $orig_mapper->table => $mapped_class, %$option );
-    }
-    elsif( ref $_[0] eq 'ARRAY' ) {
+    if( ref $_[0] eq 'ARRAY' ) {
         my ( $query, $alias_name, $param ) = @{$_[0]};
         $_[0] = DBIx::ObjectMapper::Metadata::Query->new(
             $alias_name => $query, $param || +{}
@@ -78,30 +56,95 @@ sub new {
 
     unshift @_, 'table';
     splice @_, 2, 0, 'mapped_class';
+    my %input_option = @_;
+    my @input = @_;
+
+    if( my $inherits = $input_option{inherits} ) {
+        $inherits = $input_option{inherits} = [ $inherits ] if !ref $inherits;
+        for my $inh ( @{$input_option{inherits}} ) {
+            my $orig_mapper;
+            if( $class->is_initialized($inh) ) {
+                $orig_mapper = $inh->__class_mapper__;
+            }
+            else {
+                confess "$inh is not intialized.";
+            }
+            my $mapped_class = $input_option{mapped_class};
+            my $orig_option = DBIx::ObjectMapper::Utils::clone(
+                $orig_mapper->{input_option}
+            );
+
+            if ( $orig_option->{table}->table_name eq
+                $input_option{table}->table_name )
+            {
+                my $option = DBIx::ObjectMapper::Utils::merge_hashref(
+                    $orig_option,
+                    \%input_option,
+                );
+                @input = %$option;
+            }
+            else {
+                require DBIx::ObjectMapper::Metadata::Polymorphic;
+                $input_option{table}
+                    = DBIx::ObjectMapper::Metadata::Polymorphic->new(
+                    $orig_option->{table}, $input_option{table} );
+
+                my $option = DBIx::ObjectMapper::Utils::merge_hashref(
+                    $orig_option,
+                    \%input_option,
+                );
+                @input = %$option;
+            }
+        }
+    }
 
     my %option = validate(
-        @_,
+        @input,
         {   table => {
                 type => OBJECT,
                 isa  => 'DBIx::ObjectMapper::Metadata::Table'
             },
-            mapped_class      => { type => SCALAR, },
-            attributes        => { type => HASHREF, default => +{} },
-            accessors         => { type => HASHREF, default => +{} },
-            constructor       => { type => HASHREF, default => +{} },
-            default_condition => { type => ARRAYREF, default => +[] },
-            default_value     => { type => HASHREF, default => +{} },
+            mapped_class         => { type => SCALAR, },
+            attributes           => { type => HASHREF, default => +{} },
+            accessors            => { type => HASHREF, default => +{} },
+            constructor          => { type => HASHREF, default => +{} },
+            default_condition    => { type => ARRAYREF, default => +[] },
+            default_value        => { type => HASHREF, default => +{} },
+            inherits             => { type => ARRAYREF, default => [] },
+            polymorphic_on       => { type => SCALAR, optional => 1 },
+            polymorphic_identity => { type => SCALAR, optional => 1 },
         }
     );
 
-    $self->{table} = $option{table};
-    $self->{mapped_class} = $option{mapped_class};
-    $self->{default_condition} = $option{default_condition};
-    $self->{default_value} = $option{default_value};
-    $self->{input_option} = +{
-        map { $_ => $option{$_} } qw(constructor attributes accessors
-                                     default_value default_condition)
-    };
+    if( $option{polymorphic_on} ) {
+        if( exists $option{attributes}->{exclude} ) {
+            push @{$option{attributes}->{exclude}}, $option{polymorphic_on};
+        }
+        else {
+            $option{attributes}->{exclude} = [ $option{polymorphic_on} ];
+        }
+    }
+
+    if( $option{polymorphic_on} and $option{polymorphic_identity} ) {
+        push @{$option{default_condition}},
+            $option{table}->c($option{polymorphic_on})
+                == $option{polymorphic_identity};
+        $option{default_value}->{$option{polymorphic_on}}
+            = $option{polymorphic_identity};
+    }
+
+    my $self = bless {
+        table             => $option{table},
+        mapped_class      => $option{mapped_class},
+        default_condition => $option{default_condition},
+        default_value     => $option{default_value},
+        input_option      => \%option,
+        inherits          => $option{inherits},
+        attributes        => +{},
+        accessors         => +{},
+        constructor       => +{},
+        mapped            => 0,
+    }, $class;
 
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
@@ -127,7 +170,7 @@ sub _init_attributes_config {
     no strict 'refs';
     my $package = __PACKAGE__;
     for my $meth (qw(table mapped_class attributes accessors
-                     constructor default_condition default_value)) {
+                     constructor default_condition default_value inherits)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
@@ -435,18 +478,43 @@ sub find {
     my $self = shift;
     my $where = shift;
     my @where = @$where;
-
-    my @column;
-    for my $prop_name ( $self->attributes->property_names ) {
-        my $prop = $self->attributes->property($prop_name);
-        next unless $prop->type eq 'column' and !$prop->lazy;
-        push @column, $prop->{isa};
-    }
-
     push @where, @{$self->default_condition};
-    my $it = $self->table->select->column(@column)->where(@where)->execute;
+    my $it = $self->select->where(@where)->execute;
     return unless $it;
     return $self->mapping($it->next || undef, @_);
+}
+
+sub select {
+    my $self = shift;
+    my @column = @_;
+
+    unless(@column) {
+        for my $prop_name ( $self->attributes->property_names ) {
+            my $prop = $self->attributes->property($prop_name);
+            next unless $prop->type eq 'column' and !$prop->lazy;
+            push @column, $prop->{isa};
+        }
+    }
+
+    return $self->table->select->column(@column);
+}
+
+sub insert {
+    my $self = shift;
+    my %data = @_;
+    return $self->table->insert->values(%data)->execute;
+}
+
+sub update {
+    my $self = shift;
+    my ( $data, $cond ) = @_;
+    return $self->table->update->set(%$data)->where(@$cond)->execute();
+}
+
+sub delete {
+    my $self = shift;
+    my @where = @_;
+    return $self->table->delete->where(@where)->execute();
 }
 
 sub get_unique_condition {

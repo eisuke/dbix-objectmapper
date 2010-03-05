@@ -65,20 +65,22 @@ my $players = $mapper->metadata->t(
 
 $mapper->maps(
     $players => 'My::Player',
-    attributes => { exclude => ['play'] },
+    polymorphic_on => 'play',
 );
 
 $mapper->maps(
     $players => 'My::Footballer',
-    attributes => { exclude => ['play'] },
-    default_condition => [ $players->c('play') == 'football' ],
-    default_value => { play => 'football' },
+    polymorphic_identity => 'football',
+    inherits => 'My::Player',
 );
+
 $mapper->maps(
     $players => 'My::TennisPlayer',
-    attributes => { exclude => ['play'] },
-    default_condition => [ $players->c('play') == 'tennis' ],
-    default_value => { play => 'tennis' },
+    polymorphic_identity => 'tennis',
+    inherits => 'My::Player',
+#    attributes => { exclude => ['play'] },
+#    default_condition => [ $players->c('play') == 'tennis' ],
+#    default_value => { play => 'tennis' },
 );
 
 {

@@ -65,8 +65,11 @@ ok my $player_mapper = DBIx::ObjectMapper::Mapper->new(
     }
 );
 
+ok( DBIx::ObjectMapper::Mapper->is_initialized('MyTest001::Player') );
+
 ok my $inherit_mapper = DBIx::ObjectMapper::Mapper->new(
-    $player_mapper    => 'MyTest001::FootballPlayer',
+    $player => 'MyTest001::FootballPlayer',
+    inherits => ['MyTest001::Player'],
     default_condition => [ $player->c('play') == 'football' ],
     default_value => { $player->c('play') => 'football' },
 );

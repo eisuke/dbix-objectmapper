@@ -153,7 +153,7 @@ sub cascade_delete {
 
     my @cond = $self->identity_condition($mapper);
     return if !@cond || ( @cond == 1 and !defined $cond[0]->[2] );
-    $self->table->delete->where(@cond)->execute;
+    $self->mapper->delete(@cond);
 }
 
 sub cascade_update {
@@ -177,7 +177,7 @@ sub cascade_update {
     }
     return unless keys %sets;
 
-    $self->table->update->set(%sets)->where(@$uniq_cond)->execute;
+    $self->mapper->update( \%sets, $uniq_cond );
 }
 
 sub cascade_save {
