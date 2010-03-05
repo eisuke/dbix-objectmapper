@@ -46,12 +46,6 @@ my $players = $mapper->metadata->t(
         $self->{name};
     }
 
-    sub play {
-        my $self = shift;
-        $self->{play} = shift if @_;
-        return $self->{play};
-    }
-
     1;
 };
 
@@ -69,14 +63,20 @@ my $players = $mapper->metadata->t(
     1;
 };
 
-$mapper->maps( $players => 'My::Player' );
+$mapper->maps(
+    $players => 'My::Player',
+    attributes => { exclude => ['play'] },
+);
+
 $mapper->maps(
     $players => 'My::Footballer',
+    attributes => { exclude => ['play'] },
     default_condition => [ $players->c('play') == 'football' ],
     default_value => { play => 'football' },
 );
 $mapper->maps(
     $players => 'My::TennisPlayer',
+    attributes => { exclude => ['play'] },
     default_condition => [ $players->c('play') == 'tennis' ],
     default_value => { play => 'tennis' },
 );
