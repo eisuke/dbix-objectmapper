@@ -225,7 +225,7 @@ sub convert_join_to_sql {
         $stm .= ' ON ' . $stm_cond;
         push @bind, @bind_cond;
     }
-    elsif( not ref $cond ) {
+    elsif( defined $cond and not ref $cond ) {
         $stm .= ' USING(' . $cond . ')';
     }
 

@@ -462,3 +462,10 @@ DBIx::ObjectMapper::SQL->select->from('table')->where( \'id=1', [ 'cd', 1 ] );
 
 --- expected
 SELECT * FROM table WHERE ( id=1 AND cd = ? ) <= 1
+
+=== natural join
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['fuga', undef, 'natural'] );
+
+--- expected
+SELECT * FROM hoge NATURAL JOIN fuga <= 
