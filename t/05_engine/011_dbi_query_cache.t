@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More qw(no_plan);
+use Test::More;
 use Test::Exception;
 
 use DBIx::ObjectMapper::Engine;
@@ -85,3 +85,4 @@ sub get_it {
     $engine->cache->clear;
 };
 
+done_testing;

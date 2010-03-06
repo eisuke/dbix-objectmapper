@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More qw(no_plan);
+use Test::More;
 use Test::Exception;
 
 use DBIx::ObjectMapper::Engine;
@@ -302,3 +302,5 @@ sub check_interface {
         ok $pkg->can($_), "$pkg can $_";
     }
 }
+
+done_testing;

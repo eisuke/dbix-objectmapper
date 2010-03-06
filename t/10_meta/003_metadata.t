@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More qw(no_plan);
+use Test::More;
 use DBIx::ObjectMapper::Metadata;
 use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
 use DBIx::ObjectMapper::Engine::DBI;
@@ -46,3 +46,4 @@ use DBIx::ObjectMapper::Engine::DBI;
 
 };
 
+done_testing;
