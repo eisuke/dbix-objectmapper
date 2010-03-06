@@ -14,9 +14,9 @@ sub load_class {
     my $class_name = shift;
     return $class_name if loaded($class_name);
     Class::MOP::load_class($class_name);
-    confess(
-        "require $class_name was successful but the package is not defined")
-      unless loaded($class_name);
+#    confess(
+#        "require $class_name was successful but the package is not defined")
+#      unless loaded($class_name);
 
     return $class_name;
 }
