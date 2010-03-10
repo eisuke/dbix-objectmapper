@@ -81,7 +81,8 @@ subtest 'basic' => sub {
 
 subtest 'query' => sub {
     my $session = $mapper->begin_session;
-    my $it = $session->query('MyTest12::BBS')->order_by($bbs->c('id'))->execute;
+    my $attr = $mapper->attribute('MyTest12::BBS');
+    my $it = $session->search('MyTest12::BBS')->order_by($attr->p('id'))->execute;
     check($it->[0]);
     is $session->uow->query_cnt, 8;
     done_testing;
@@ -90,6 +91,7 @@ subtest 'query' => sub {
 subtest 'eagerload' => sub {
     my $session = $mapper->begin_session;
     my $first = $session->get( 'MyTest12::BBS' => 1, { eagerload => 'children' } );
+
     check($first);
     is $session->uow->query_cnt, 7;
     done_testing;
@@ -105,9 +107,10 @@ subtest 'eagerload2' => sub {
 
 subtest 'join nested' => sub {
     my $session = $mapper->begin_session;
-    my $first = $session->query('MyTest12::BBS')->join( { children => 'parent' } )->where( $bbs->c('id')->as_alias('children_parent') == 1 )->first;
+    my $attr = $mapper->attribute('MyTest12::BBS');
+    my $first = $session->search('MyTest12::BBS')->filter( $attr->p('children.parent.id') == 1 )->first;
     check($first);
-    is $session->uow->query_cnt, 7;
+    is $session->uow->query_cnt, 8;
     done_testing;
 };
 

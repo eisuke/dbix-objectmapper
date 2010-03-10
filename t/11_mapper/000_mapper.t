@@ -38,7 +38,7 @@ sub is_same_addr($$) {
     is_same_addr $mapper, $mapped_class->__class_mapper__;
 
     for my $c ( @{$artist_table->columns} ) {
-        is_deeply $mapper->attributes->property($c->name)->{isa}, $c;
+        is_deeply $mapper->attributes->property($c->name), $c;
     }
 
     my $input = { id => 1, firstname => 'f', lastname => 'l' };
@@ -103,9 +103,9 @@ sub is_same_addr($$) {
     my %names = ( _id => 1, _firstname => 1, _lastname => 1 );
     ok( (grep { $names{$_} } $mapper->attributes->property_names) == 3 );
 
-    is $mapper->attributes->property('_id')->name, 'id';
-    is $mapper->attributes->property('_firstname')->name, 'firstname';
-    is $mapper->attributes->property('_lastname')->name, 'lastname';
+    is $mapper->attributes->property_info('_id')->name, 'id';
+    is $mapper->attributes->property_info('_firstname')->name, 'firstname';
+    is $mapper->attributes->property_info('_lastname')->name, 'lastname';
 
     ok my $obj = $mapped_class->new(
         { _id => 1, _firstname => 'f', _lastname => 'l' } );

@@ -149,7 +149,32 @@ subtest 'cascade_delete' => sub {
 };
 
 subtest 'eagerload' => sub {
-    plan skip_all => 'TODO';
+    my $session = $mapper->begin_session;
+    ok my $parent = MyTest14::Parent->new( id => 1 );
+    my @children = $session->search('MyTest14::Child')->execute->all;
+    ok $parent->children(\@children);
+    $session->add($parent);
+    $session->commit;
+
+    my $pre_cnt = $session->uow->query_cnt;
+
+    ok my $p = $session->get(
+        'MyTest14::Parent' => 1,
+        { eagerload => 'children'}
+    );
+    is $p->id, 1;
+    ok $p->children;
+    is ref($p->children), 'ARRAY';
+
+    is scalar(@{$p->children}), 6;
+    for my $c ( @{$p->children} ) {
+        ok $c->id;
+    }
+
+    is $session->uow->query_cnt - $pre_cnt, 1;
+
+    done_testing;
 };
+
 
 done_testing;

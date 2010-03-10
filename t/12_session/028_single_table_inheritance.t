@@ -100,13 +100,13 @@ $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my $it = $session->query('My::Player')->execute;
+    my $it = $session->search('My::Player')->execute;
     is @$it, 3;
 
-    my $footballer = $session->query('My::Footballer')->execute;
+    my $footballer = $session->search('My::Footballer')->execute;
     is @$footballer, 2;
 
-    my $tennis_player = $session->query('My::TennisPlayer')->execute;
+    my $tennis_player = $session->search('My::TennisPlayer')->execute;
     is @$tennis_player, 1;
 };
 

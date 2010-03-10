@@ -15,12 +15,13 @@ my $mapper = MyTest11->mapper;
 
 { # has_many/has_one
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
-    my $it = $session->query('MyTest11::Artist')->join({ 'cds' => 'linernote' })
-        ->where( $cd->c('title')->like('Led Zeppelin%') )->order_by($cd->c('id'))->execute;
-    ok $it;
+    my $artist = $mapper->attribute('MyTest11::Artist');
+    my $it = $session->search('MyTest11::Artist')
+        ->filter(
+            $artist->p('cds.title')->like('Led Zeppelin%')
+        )->order_by($artist->p('cds.id'))->execute;
 
+    ok $it;
     my $loop_cnt = 0;
     while( my $a = $it->next ) {
         $loop_cnt++;
@@ -36,14 +37,14 @@ my $mapper = MyTest11->mapper;
     is $loop_cnt, 1;
 };
 
+
 { # belongs_to
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
-    my $it = $session->query('MyTest11::Cd')->join('artist')
-        ->where(
-            $artist->c('name') == 'Led Zeppelin',
-            $cd->c('title')->like('Led Zeppelin%')
+    my $cd = $mapper->attribute('MyTest11::Cd');
+    my $it = $session->search('MyTest11::Cd')
+        ->filter(
+            $cd->property('artist.name') == 'Led Zeppelin',
+            $cd->prop('title')->like('Led Zeppelin%')
         )->execute;
     ok $it;
     my $loop_cnt = 0;
@@ -53,17 +54,25 @@ my $mapper = MyTest11->mapper;
     is $loop_cnt, 4;
 };
 
+{ # belongs_to eagerload
+    my $session = $mapper->begin_session;
+    my $cd = $mapper->attribute('MyTest11::Cd');
+    my $it = $session->search( 'MyTest11::Cd')
+     ->eager( $cd->p('artist') )
+     ->filter( $cd->p('title') == 'Led Zeppelin' )->execute;
+    ok $it;
+    while( my $a = $it->next ) {
+
+    }
+};
+
 { # eargerload
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
-
-    my $it = $session->query(
-        'MyTest11::Artist',
-     )
-     ->eager_join('cds')
-     ->where( $cd->c('title')->like('Led Zeppelin%') )
-     ->order_by( $cd->c('id')->desc )
+    my $artist = $mapper->attribute('MyTest11::Artist');
+    my $it = $session->search('MyTest11::Artist')
+     ->eager($artist->p('cds'))
+     ->filter( $artist->p('cds.title')->like('Led Zeppelin%') )
+     ->order_by( $artist->p('cds.id')->desc )
      ->execute;
     ok $it;
     my $loop_cnt = 0;
@@ -80,22 +89,23 @@ my $mapper = MyTest11->mapper;
     is $it->size, 1;
 };
 
-{ # add eager_join
+{ # eagerload2
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
+    my $artist = $mapper->attribute('MyTest11::Artist');
 
-    my $query = $session->query(
-        'MyTest11::Artist',
+    my $it = $session->search('MyTest11::Artist')
+     ->eager(
+         $artist->p('cds'),
+         $artist->p('cds.linernote'),
+         $artist->p('cds.tracks'),
      )
-     ->where( $cd->c('title')->like('Led Zeppelin%') )
-     ->order_by( $cd->c('id')->desc );
-
-    $query->add_eager_join('cds');
-    ok my $it = $query->execute;
+     ->filter( $artist->p('cds.title')->like('Led Zeppelin%') )
+     ->order_by( $artist->p('cds.id')->desc )
+     ->execute;
+    ok $it;
     my $loop_cnt = 0;
     my $cd_id = 4;
-    for my $a ( @$it ) {
+    while( my $a = $it->next ) {
         $loop_cnt++;
         is $a->id, 1;
         is $a->name, 'Led Zeppelin';
@@ -109,32 +119,27 @@ my $mapper = MyTest11->mapper;
 
 { # eager_join and first,count
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
+    my $artist = $mapper->attribute('MyTest11::Artist');
 
-    my $query = $session->query(
-        'MyTest11::Artist',
-     )
-     ->eager_join('cds')
-     ->where( $cd->c('title')->like('Led Zeppelin%') )
-     ->order_by( $cd->c('id')->desc );
+    my $query = $session->search('MyTest11::Artist')
+     ->eager( $artist->p('cds') )
+     ->filter( $artist->p('cds.title')->like('Led Zeppelin%') )
+     ->order_by( $artist->p('cds.id')->desc );
 
     ok my $a = $query->first;
+
     is $a->name, 'Led Zeppelin';
     is @{$a->cds}, 4;
 };
 
 { # using the eager_join method with the limit method warning.
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
+    my $artist = $mapper->attribute('MyTest11::Artist');
 
-    my $query = $session->query(
-        'MyTest11::Artist',
-     )
-     ->eager_join('cds')
-     ->where( $cd->c('title')->like('Led Zeppelin%') )
-     ->order_by( $cd->c('id')->desc )->limit(2);
+    my $query = $session->search('MyTest11::Artist')
+     ->eager( $artist->p('cds') )
+     ->filter( $artist->p('cds.title')->like('Led Zeppelin%') )
+     ->order_by( $artist->p('cds.id')->desc )->limit(2);
 
     my $it;
     my ( $stdout, $stderr ) = Capture::Tiny::capture {
@@ -149,14 +154,13 @@ my $mapper = MyTest11->mapper;
 
 { # has_many is one record
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
+    my $artist = $mapper->attribute('MyTest11::Artist');
 
-    my $it = $session->query(
+    my $it = $session->search(
         'MyTest11::Artist',
      )
-     ->eager_join('cds')
-     ->where( $cd->c('id') == 1 )
+     ->eager($artist->p('cds'))
+     ->filter( $artist->p('cds.id') == 1 )
      ->execute;
 
     my $loop_cnt = 0;
@@ -170,14 +174,12 @@ my $mapper = MyTest11->mapper;
 
 { # nest join
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
-    my $track  = $mapper->metadata->t('track');
-    my $it = $session->query('MyTest11::Artist')->join(
-        { 'cds' => 'tracks' },
-    )->where(
-        $cd->c('title')->like('Led Zeppelin%'),
-        $track->c('track_no') > 8,
+    my $attr = $mapper->attribute('MyTest11::Artist');
+
+    my $it = $session->search('MyTest11::Artist')
+    ->filter(
+        $attr->p('cds.title')->like('Led Zeppelin%'),
+        $attr->p('cds.tracks.track_no') > 8,
     )->execute;
 
     my $loop_cnt = 0;
@@ -192,14 +194,14 @@ my $mapper = MyTest11->mapper;
 
 { # nest join eagerload
     my $session = $mapper->begin_session;
-    my $artist = $mapper->metadata->t('artist');
-    my $cd     = $mapper->metadata->t('cd');
-    my $track  = $mapper->metadata->t('track');
+    my $attr = $mapper->attribute('MyTest11::Artist');
+
     my $it
-        = $session->query( 'MyTest11::Artist' )
-        ->eager_join( { 'cds' => 'tracks' } )->where(
-        $cd->c('title')->like('Led Zeppelin%'),
-        $track->c('track_no') > 8,
+        = $session->search( 'MyTest11::Artist' )
+        ->eager( $attr->p('cds'), $attr->p('cds.tracks') )
+        ->filter(
+            $attr->p('cds.title')->like('Led Zeppelin%'),
+            $attr->p('cds.tracks.track_no') > 8,
         )->execute;
     my $loop_cnt = 0;
     while( my $a = $it->next ) {
@@ -207,16 +209,12 @@ my $mapper = MyTest11->mapper;
         is $a->id, 1;
         is $a->name, 'Led Zeppelin';
         ok $a->cds;
-        # ******* memo **********
-        # eagerloadは第一階層までにしておく
-        # そもそも深い階層のeagerloadは重いので、
-        # そこまで必要であれば、metadata.queryを利用したほうがいいと思う
-        # ***********************
         ok $a->cds->[0]->tracks;
+        ok $a->cds->[0]->tracks->[0]->track_no > 8;
     }
 
     is $loop_cnt, 1;
-    is $session->uow->query_cnt, 2; # tracks is lazyload
+    is $session->uow->query_cnt, 1;
 };
 
 { # nested get
@@ -241,7 +239,6 @@ my $mapper = MyTest11->mapper;
         is $track->track_no, $track_no++;
     }
     is $track_no, 10;
-
 };
 
 { # get with eargerload
@@ -267,10 +264,10 @@ my $mapper = MyTest11->mapper;
 
 { # egear and join
     my $session = $mapper->begin_session;
-    my $track = $mapper->metadata->t('track');
-    my $it = $session->query('MyTest11::Cd')->eager_join('linernote')
-        ->add_join('tracks')
-        ->where( $track->c('track_no') > 9 )->execute;
+    my $attr = $mapper->attribute('MyTest11::Cd');
+
+    my $it = $session->search('MyTest11::Cd')->eager($attr->p('linernote'))
+        ->filter( $attr->p('tracks.track_no') > 9 )->execute;
     my $loop_cnt = 0;
     while( my $cd = $it->next ) {
         ok $cd->id;
@@ -285,11 +282,11 @@ my $mapper = MyTest11->mapper;
 
 { # egear and join2
     my $session = $mapper->begin_session;
-    my $liner = $mapper->metadata->t('linernote');
+    my $attr = $mapper->attribute('MyTest11::Cd');
 
-    my $it = $session->query('MyTest11::Cd')->eager_join('tracks')
-        ->add_join('linernote')
-        ->where( $liner->c('note')->func('length') > 0 )->execute;
+    my $it = $session->search('MyTest11::Cd')->eager($attr->p('tracks'))
+        #->filter( $attr->p('linernote.note')->func('length') > 0 )
+        ->execute;
     my $loop_cnt = 0;
     while( my $cd = $it->next ) {
         ok $cd->id;
@@ -299,37 +296,34 @@ my $mapper = MyTest11->mapper;
         is ref($cd->tracks), 'ARRAY';
         $loop_cnt++;
     }
-
-    is $session->uow->query_cnt, 1 + $loop_cnt; # tracks is lazyload
+    ok $loop_cnt;
+    is $session->uow->query_cnt, $loop_cnt + 1;
 };
 
 
 { # errors
     my $session = $mapper->begin_session;
 
-    eval {
-        $session->query('MyTest11::Cd')
-            ->eager_join('linernote')
-            ->add_join('linernote')
-            ->execute;
-    };
-    ok $@ =~ /has already been defined./;
+    my $attr = $mapper->attribute('MyTest11::Artist');
 
     eval {
-        $session->query('MyTest11::Artist')
-           ->eager_join('linernote')
+        $session->search('MyTest11::Artist')
+           ->eager($attr->p('linernote'))
             ->execute;
     };
     ok $@ =~ /linernote does not exists/;
 
     eval {
-        $session->query('MyTest11::Artist')
-            ->eager_join({ cds => 'linernote' })
-            ->add_join('linernote')
-            ->execute;
+        $attr->p('cds.hogefuga');
     };
 
-    ok $@ =~ /linernote does not exists/;
+    ok $@ =~ /hogefuga does not exists/;
+
+
+    eval {
+        $session->search('MyTest11::Artist')->eager($attr->p('cds'))->pager;
+    };
+    ok $@ =~ /the pager method is not suppurted/;
 };
 
 { # has_many modify
@@ -367,5 +361,4 @@ my $mapper = MyTest11->mapper;
 };
 
 done_testing;
-
 __END__

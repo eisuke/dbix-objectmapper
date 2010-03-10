@@ -8,7 +8,7 @@ sub new {
     my ( $class, $name, $mapper, @val ) = @_;
     my $array;
     tie @$array, $class, $name, $mapper;
-    push @$array, @val;
+    push @$array, @val if @val;
     return $array;
 }
 

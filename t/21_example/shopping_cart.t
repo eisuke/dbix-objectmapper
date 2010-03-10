@@ -62,8 +62,7 @@ $product->insert( prodkey => 'ABC-4', title => 'title4', price => 400 )->execute
 
 {
     my $session = $mapper->begin_session();
-
-    my $prod = $session->query('MapperExample::Product')->execute;
+    my $prod = $session->search('MapperExample::Product')->execute;
 
     my $cart = MapperExample::ShoppingCart->new({ created => DateTime->now() });
 

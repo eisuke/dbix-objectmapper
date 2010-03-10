@@ -58,7 +58,7 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my $query = $session->query('MyTest15::Manager');
+    my $query = $session->search('MyTest15::Manager');
     is $query->count, 4;
     my $it = $query->execute;
 
@@ -69,7 +69,7 @@ ok $mapper->maps(
     }
     is $loop_cnt, 4;
 
-    $query->where( $emproyee->c('id') > 2 );
+    $query->filter( $emproyee->c('id') > 2 );
     my $it2 = $query->execute;
     my $loop_cnt2 = 0;
     while ( my $e = $it2->next ) {

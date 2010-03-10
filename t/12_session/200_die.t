@@ -37,7 +37,7 @@ eval {
 
 {
     my $session = $mapper->begin_session;
-    is $session->query('MyTest17::Player')->count, 0;
+    is $session->search('MyTest17::Player')->count, 0;
 };
 
 my ($stdout, $stderr) = Capture::Tiny::capture {
@@ -50,7 +50,7 @@ ok $stderr =~ /datatype mismatch/;
 
 {
     my $session = $mapper->begin_session;
-    is $session->query('MyTest17::Player')->count, 0;
+    is $session->search('MyTest17::Player')->count, 0;
 };
 
 

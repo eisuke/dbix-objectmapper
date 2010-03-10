@@ -54,7 +54,7 @@ sub do_test {
     my $session = shift;
     $session->add( MyTest18::Books->new( title => 'title' . $_ ) ) for 1 .. 10;
 
-    my $it = $session->query('MyTest18::Books')->execute;
+    my $it = $session->search('MyTest18::Books')->execute;
     my $loop_cnt = 0;
     while( my $b = $it->next ) {
         ok $b->id;

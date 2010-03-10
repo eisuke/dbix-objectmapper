@@ -163,8 +163,9 @@ $mapper->maps(
     is $cust1->email, 'cust1@example.com';
     is $cust1->id, 1;
 
-    ok my $it = $session->query('MyTest002::Customer')->where(
-        $customer->c('id')->as_alias('customer_email') < 10
+    my $attr = $mapper->attribute('MyTest002::Customer');
+    ok my $it = $session->search('MyTest002::Customer')->filter(
+        $attr->p('id') < 10
     )->execute;
 
     my $loop_cnt = 0;

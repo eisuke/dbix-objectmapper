@@ -1,12 +1,19 @@
 * SQL - exists,any,in support
 
+===
+
+my $it = $session->search('MyTest11::Cd')
+                 ->eager($artist->p('cd'))
+                 ->with([ $artist->p('cd') => ])
+                 ->lazy()
+                 ->filter(
+                    $artist->property('name') == 'Led Zeppelin',
+                    $artist->property('cds')->property('title') == '',
+                 )->execute;
 
 ===
 http://www.sqlalchemy.org/docs/05/mappers.html#custom-comparators
 http://www.sqlalchemy.org/docs/05/mappers.html#composite-column-types
-
-===
-http://www.sqlalchemy.org/docs/05/mappers.html#joined-table-inheritance
 
 ===
 Queryからmappingする形

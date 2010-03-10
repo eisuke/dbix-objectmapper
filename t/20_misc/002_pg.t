@@ -169,7 +169,8 @@ $mapper->maps(
 
 { # check
     my $session = $mapper->begin_session( autocommit => 0 );
-    is $session->query('My::PgTest')->where( $table->c('i') == 10 )->count, 0;
+    my $attr = $mapper->attribute('My::PgTest');
+    is $session->search('My::PgTest')->filter( $attr->p('i') == 10 )->count, 0;
 };
 
 { # transaction commit
@@ -180,7 +181,8 @@ $mapper->maps(
 
 { # check
     my $session = $mapper->begin_session( autocommit => 0 );
-    is $session->query('My::PgTest')->where( $table->c('i') == 10 )->count, 1;
+    my $attr = $mapper->attribute('My::PgTest');
+    is $session->search('My::PgTest')->filter( $attr->p('i') == 10 )->count, 1;
 };
 
 
@@ -202,7 +204,8 @@ $mapper->maps(
 
 {
     my $session = $mapper->begin_session( autocommit => 0 );
-    is $session->query('My::PgTest')->where( $table->c('i') == 11 )->count, 2;
+    my $attr = $mapper->attribute('My::PgTest');
+    is $session->search('My::PgTest')->filter( $attr->p('i') == 11 )->count, 2;
 };
 
 

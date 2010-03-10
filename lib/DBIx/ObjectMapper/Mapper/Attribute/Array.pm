@@ -49,7 +49,7 @@ sub init {
 
 sub property_names { map { $_->name } @{ $_[0]->properties } }
 
-sub property {
+sub property_info {
     my ($self, $name) = @_;
     for( @{ $self->properties } ) {
         return $_ if $_->name eq $name;

@@ -152,8 +152,9 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my $it = $session->query('Parent')->join('children')
-        ->where( $child->c('parent_id') == 1 )->execute;
+    my $attr = $mapper->attribute('Parent');
+    my $it = $session->search('Parent')
+        ->filter( $attr->p('children.parent_id') == 1 )->execute;
     is $it->next->id, 1;
     ok !$it->next;
 };

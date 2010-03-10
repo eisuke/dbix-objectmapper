@@ -5,10 +5,10 @@ use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(validate OBJECT BOOLEAN SCALAR);
 use DBIx::ObjectMapper::Utils;
 use DBIx::ObjectMapper::Session::Cache;
-use DBIx::ObjectMapper::Session::Query;
+use DBIx::ObjectMapper::Session::Search;
 use DBIx::ObjectMapper::Session::UnitOfWork;
 use DBIx::ObjectMapper::Session::ObjectChangeChecker;
-my $DEFAULT_QUERY_CLASS = 'DBIx::ObjectMapper::Session::Query';
+my $DEFAULT_SEARCH_CLASS = 'DBIx::ObjectMapper::Session::Search';
 
 sub new {
     my $class = shift;
@@ -30,8 +30,8 @@ sub new {
                 },
                 default => DBIx::ObjectMapper::Session::Cache->new()
             },
-            query_class =>
-                { type => SCALAR, default => $DEFAULT_QUERY_CLASS },
+            search_class =>
+                { type => SCALAR, default => $DEFAULT_SEARCH_CLASS },
             change_checker => {
                 type => OBJECT,
                 default =>
@@ -45,7 +45,7 @@ sub new {
     $attr{unit_of_work}
         = DBIx::ObjectMapper::Session::UnitOfWork->new(
         ( $attr{no_cache} ? undef : $attr{cache} ),
-        $attr{query_class},
+        $attr{search_class},
         $attr{change_checker},
         { share_object => $attr{share_object} },
     );
@@ -58,11 +58,12 @@ sub autocommit  { $_[0]->{autocommit} }
 sub uow         { $_[0]->{unit_of_work} }
 sub engine      { $_[0]->{engine} }
 
-sub query {
+sub search {
     my $self = shift;
     $self->flush;
-    return $self->uow->query(@_);
+    return $self->uow->search(@_);
 }
+
 
 sub get {
     my $self = shift;

@@ -22,9 +22,11 @@ sub new {
         name      => undef,
         rel_class => $rel_class,
         option    => $option || {},
-        type      => 'rel',
+        type      => 'relation',
         cascade   => +{},
         is_multi  => $is_multi,
+        table     => undef,
+        via       => [],
     }, $class;
 
     $self->_init_option;
@@ -53,11 +55,6 @@ sub _init_option {
         $order_by = [ $order_by ] unless ref $order_by eq 'ARRAY';
         $self->{order_by} = $order_by;
     }
-
-    if( my $name = $self->option->{name} ) {
-        $self->{name} = $name;
-    }
-
 }
 
 {
@@ -91,11 +88,37 @@ sub mapper    {
 sub type      { $_[0]->{type} }
 sub rel_class { $_[0]->{rel_class} }
 sub option    { $_[0]->{option} }
-sub table     { $_[0]->mapper->table }
+sub table     { $_[0]->{table} ||= $_[0]->mapper->table->clone($_[0]->name) }
+sub property  {
+    my $self = shift;
+    my $name = shift;
+    my $prop = $self->mapper->attributes->property($name);
+    my @via = @{$self->{via}};
+
+    if( $prop->isa('DBIx::ObjectMapper::Metadata::Table::Column') ) {
+        $prop->as_alias($self->name, @via);
+    }
+    else {
+        return $prop->clone(@via);
+    }
+}
+*prop = *p = \&property;
+
+sub clone {
+    my $self = shift;
+    my @via = @_;
+    push @via, @{$self->{via}} if $self->{via};
+    my $clone = bless {%$self}, ref($self);
+    $clone->{via} = \@via;
+    return $clone;
+}
 
 sub name {
     my $self = shift;
-    $self->{name} = shift if @_;
+    if( @_ ) {
+        $self->{name} = shift;
+        unshift @{$self->{via}}, $self->{name};
+    }
     return $self->{name};
 }
 
@@ -103,18 +126,20 @@ sub foreign_key {}
 
 sub get_one {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
-    my $cond = $mapper->relation_condition->{$name} || return;
+
+    my $cond = $mapper->relation_condition->{$self->name} || return;
     $mapper->set_val(
-        $name => $mapper->unit_of_work->get( $self->rel_class => $cond ) );
+        $self->name => $mapper->unit_of_work->get(
+            $self->rel_class => $cond
+        )
+    );
 }
 
 sub get_multi {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
-    my $cond = $mapper->relation_condition->{$name} || return;
+    my $cond = $mapper->relation_condition->{$self->name} || return;
 
     my $rel_mapper = $self->mapper;
 
@@ -123,17 +148,17 @@ sub get_multi {
         @order_by = @{$self->{order_by}};
     }
     else {
-        @order_by = map { $rel_mapper->table->c($_) }
+        @order_by = map { $rel_mapper->attributes->property($_) }
             @{ $rel_mapper->table->primary_key };
     }
 
     my @new_val
-        = $mapper->unit_of_work->query( $self->rel_class )->where(@$cond)
+        = $mapper->unit_of_work->search( $self->rel_class )->filter(@$cond)
         ->order_by(@order_by)->execute->all;
 
     $mapper->set_val(
-        $name => DBIx::ObjectMapper::Session::Array->new(
-            $name,
+        $self->name => DBIx::ObjectMapper::Session::Array->new(
+            $self->name,
             $mapper,
             @new_val
         )
@@ -158,12 +183,11 @@ sub cascade_delete {
 
 sub cascade_update {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
 
     return unless $self->is_cascade_save_update and $mapper->is_modified;
 
-    my $uniq_cond = $mapper->relation_condition->{$name};
+    my $uniq_cond = $mapper->relation_condition->{$self->name};
     my $modified_data = $mapper->modified_data;
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
@@ -182,7 +206,6 @@ sub cascade_update {
 
 sub cascade_save {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
     my $instance = shift;
 

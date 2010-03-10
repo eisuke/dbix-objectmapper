@@ -61,7 +61,8 @@ eval {
         artist => 456,
         year => 1901
     )->execute;
-    $parent_rs = $session->query('My::ThreadTest')->where( $cd->c('year') == 1901 )->execute;
+    my $attr = $mapper->attribute('My::ThreadTest');
+    $parent_rs = $session->search('My::ThreadTest')->filter( $attr->p('year') == 1901 )->execute;
     $parent_rs->next;
 };
 ok(!$@) or diag "Creation eval failed: $@";
@@ -71,7 +72,8 @@ while(@children < $num_children) {
     my $newthread = async {
         my $tid = threads->tid;
         my $session = $mapper->begin_session;
-        my $child_rs = $session->query('My::ThreadTest')->where( $cd->c('year') == 1901 )->execute;
+        my $attr = $mapper->attribute('My::ThreadTest');
+        my $child_rs = $session->search('My::ThreadTest')->filter( $attr->p('year') == 1901 )->execute;
         my $row = $parent_rs->next;
         if($row && $row->artist =~ /^(?:123|456)$/) {
             $session->add(
@@ -96,10 +98,11 @@ while(@children) {
     my $child = pop(@children);
     my $tid = $child->tid;
     my $session = $mapper->begin_session;
-    my $rs = $session->query('My::ThreadTest')->where(
-        $cd->c('title') == "test success $tid",
-        $cd->c('artist') == $tid,
-        $cd->c('year') == scalar(@children)
+    my $attr = $mapper->attribute('My::ThreadTest');
+    my $rs = $session->search('My::ThreadTest')->filter(
+        $attr->p('title') == "test success $tid",
+        $attr->p('artist') == $tid,
+        $attr->p('year') == scalar(@children)
     )->execute;
     is($rs->next->artist, $tid, "Child $tid successful");
 }

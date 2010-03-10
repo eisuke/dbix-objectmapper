@@ -32,14 +32,37 @@ sub identity_condition {
     return @cond;
 }
 
+sub relation_condition {
+    my $self = shift;
+    my $class_table = shift;
+    my $rel_table = shift;
+
+    my $fk1 = $self->assc_table->get_foreign_key_by_table( $class_table );
+    my @assc_cond;
+    for my $i ( 0 .. $#{$fk1->{keys}} ) {
+        push @assc_cond,
+            $self->assc_table->c( $fk1->{keys}->[$i] )
+                == $class_table->c($fk1->{refs}->[$i]);
+    }
+
+    my $fk2 = $self->assc_table->get_foreign_key_by_table($rel_table);
+    my @cond;
+    my $attr = $self->mapper->attributes;
+    for my $i ( 0 .. $#{$fk2->{keys}} ) {
+        push @cond,
+            $self->assc_table->c( $fk2->{keys}->[$i] )
+                == $rel_table->c($fk2->{refs}->[$i]);
+    }
+
+    return \@cond, [ $self->assc_table => \@assc_cond ];
+}
+
 sub get {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
-
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
-
+    my $attr = $rel_mapper->attributes;
     my $fk1 =
         $self->assc_table->get_foreign_key_by_table( $rel_mapper->table );
     my @assc_cond;
@@ -49,18 +72,17 @@ sub get {
                 == $rel_mapper->table->c($fk1->{refs}->[$i]);
     }
 
-    my $cond = $mapper->relation_condition->{$name};
-    my @val = $mapper->unit_of_work->query( $self->rel_class )
-        ->join(
-            [ $self->assc_table => \@assc_cond ],
-        )
-        ->where(@$cond)
-        ->order_by( map { $rel_mapper->table->c($_) }
-            @{ $rel_mapper->table->primary_key } )->execute->all;
+    my $cond = $mapper->relation_condition->{$self->name};
+    my $query = $mapper->unit_of_work->search( $self->rel_class )
+        ->filter(@$cond)
+        ->order_by( map { $attr->p($_) }
+            @{ $rel_mapper->table->primary_key } );
+    push @{$query->{join}}, [ $self->assc_table => \@assc_cond ];
 
+    my @val = $query->execute->all;
     $mapper->set_val(
-        $name => DBIx::ObjectMapper::Session::Array->new(
-            $name,
+        $self->name => DBIx::ObjectMapper::Session::Array->new(
+            $self->name,
             $mapper,
             @val
         )
@@ -69,10 +91,8 @@ sub get {
 
 sub cascade_save {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
     my $instance = shift;
-
     return unless $self->is_cascade_save_update;
 
     my $class_mapper = $mapper->instance->__class_mapper__;
@@ -104,12 +124,10 @@ sub cascade_save {
 
 sub cascade_update {
     my $self = shift;
-    my $name = shift;
     my $mapper = shift;
-
     return unless $self->is_cascade_save_update and $mapper->is_modified;
 
-    my $uniq_cond = $mapper->relation_condition->{$name};
+    my $uniq_cond = $mapper->relation_condition->{$self->name};
     my $modified_data = $mapper->modified_data;
     my $class_mapper = $mapper->instance->__class_mapper__;
 
@@ -138,15 +156,15 @@ sub cascade_delete {
 
 sub many_to_many_add {
     my $self = shift;
-    my ($name, $mapper, $instance) = @_;
+    my ($mapper, $instance) = @_;
     $self->cascade_save(@_);
 }
 
 sub many_to_many_remove {
     my $self = shift;
-    my ($name, $mapper, $instance) = @_;
+    my ($mapper, $instance) = @_;
     my $rel_mapper = $self->mapper;
-    my $uniq_cond = $mapper->relation_condition->{$name};
+    my $uniq_cond = $mapper->relation_condition->{$self->name};
     my @cond = @$uniq_cond;
 
     my $fk1 =

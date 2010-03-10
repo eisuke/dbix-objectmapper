@@ -29,8 +29,9 @@ $mapper->maps(
 
 { # all
     my $session = $mapper->begin_session( cache => DBIx::ObjectMapper::Session::Cache->new );
+    my $attr = $mapper->attribute('MyTest11::Artist');
     my $query
-        = $session->query('MyTest11::Artist')->order_by( $artist->c('id') );
+        = $session->search('MyTest11::Artist')->order_by( $attr->p('id') );
     my $it = $query->execute();
     my $count = 0;
     while( my $a = $it->next ) {
@@ -44,16 +45,18 @@ $mapper->maps(
 
 { # where
     my $session = $mapper->begin_session;
-    my $artist = $session->query('MyTest11::Artist')
-        ->where( $artist->c('name')->like('%a%') )->first;
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    my $artist = $session->search('MyTest11::Artist')
+        ->filter( $attr->p('name')->like('%a%') )->first;
     is $artist->id, 1;
     is $artist->name, 'a';
 };
 
 { # limit/offset
     my $session = $mapper->begin_session;
-    my $it      = $session->query('MyTest11::Artist')
-        ->order_by( $artist->c('id')->desc )->limit(2)->offset(2)->execute;
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    my $it      = $session->search('MyTest11::Artist')
+        ->order_by( $attr->p('id')->desc )->limit(2)->offset(2)->execute;
 
     my $loop_cnt = 0;
     my $id = 5;
@@ -66,8 +69,9 @@ $mapper->maps(
 
 { # pager
     my $session = $mapper->begin_session;
-    my $query   = $session->query('MyTest11::Artist')
-        ->order_by( $artist->c('id') )->limit(2);
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    my $query   = $session->search('MyTest11::Artist')
+        ->order_by( $attr->p('id') )->limit(2);
     my $pager = $query->pager(1);
     is ref($pager), 'Data::Page';
     is $pager->current_page, 1;
@@ -83,8 +87,9 @@ $mapper->maps(
 
 { # first/count
     my $session = $mapper->begin_session;
-    my $query   = $session->query('MyTest11::Artist')
-        ->order_by( $artist->c('id') );
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    my $query   = $session->search('MyTest11::Artist')
+        ->order_by( $attr->p('id') );
     my $a = $query->first;
     is $a->id, 1;
     is $query->count, 7;

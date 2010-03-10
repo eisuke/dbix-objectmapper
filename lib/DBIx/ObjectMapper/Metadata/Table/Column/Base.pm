@@ -46,6 +46,7 @@ my $ATTRIBUTES = {
     from_storage   => { type => CODEREF|UNDEF, optional => 1 },
     to_storage     => { type => CODEREF|UNDEF, optional => 1 },
     validation     => { type => CODEREF|UNDEF, optional => 1 },
+    via            => { type => ARRAYREF,      optional => 1 },
     # AutoIncrement XXXXX
 };
 
@@ -118,8 +119,11 @@ sub is { $_[0]->name => $_[1] || undef }
 sub as_alias {
     my $self = shift;
     my $name = shift;
+    my @via  = @_;
     my $clone = $self->clone;
     $clone->{table} = $name;
+    unshift @via, @{$self->{via}} if $self->{via};
+    $clone->{via} = \@via if @via;
     return $clone;
 }
 

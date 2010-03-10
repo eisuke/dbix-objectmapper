@@ -16,6 +16,7 @@ use DBIx::ObjectMapper::Mapper::Constructor;
 use DBIx::ObjectMapper::Mapper::Accessor;
 use DBIx::ObjectMapper::Mapper::Attribute;
 use DBIx::ObjectMapper::Metadata::Query;
+use DBIx::ObjectMapper::Session::Array;
 
 {
     my %INITIALIZED_CLASSES;
@@ -36,6 +37,22 @@ use DBIx::ObjectMapper::Metadata::Query;
         warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
         delete $INITIALIZED_CLASSES{ $self->mapped_class }
             if $self->mapped_class;
+    }
+
+    my %POLYMORPHIC_TREE;
+
+    sub get_polymorphic_tree {
+        my $self = shift;
+        return $POLYMORPHIC_TREE{$self->mapped_class} || +{};
+    }
+
+    sub set_polymorphic_tree {
+        my $self = shift;
+        my $tree = $POLYMORPHIC_TREE{$self->inherits} ||= +{};
+        return $tree->{$self->mapped_class} = [
+            $self->polymorphic_on,
+            $self->polymorphic_identity,
+        ];
     }
 };
 
@@ -59,42 +76,39 @@ sub new {
     my %input_option = @_;
     my @input = @_;
 
-    if( my $inherits = $input_option{inherits} ) {
-        $inherits = $input_option{inherits} = [ $inherits ] if !ref $inherits;
-        for my $inh ( @{$input_option{inherits}} ) {
-            my $orig_mapper;
-            if( $class->is_initialized($inh) ) {
-                $orig_mapper = $inh->__class_mapper__;
-            }
-            else {
-                confess "$inh is not intialized.";
-            }
-            my $mapped_class = $input_option{mapped_class};
-            my $orig_option = DBIx::ObjectMapper::Utils::clone(
-                $orig_mapper->{input_option}
-            );
+    if( my $inh = $input_option{inherits} ) {
+        my $orig_mapper;
+        if( $class->is_initialized($inh) ) {
+            $orig_mapper = $inh->__class_mapper__;
+        }
+        else {
+            confess "$inh is not intialized.";
+        }
+        my $mapped_class = $input_option{mapped_class};
+        my $orig_option = DBIx::ObjectMapper::Utils::clone(
+            $orig_mapper->{input_option}
+        );
 
-            if ( $orig_option->{table}->table_name eq
-                $input_option{table}->table_name )
-            {
-                my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-                    $orig_option,
-                    \%input_option,
-                );
-                @input = %$option;
-            }
-            else {
-                require DBIx::ObjectMapper::Metadata::Polymorphic;
-                $input_option{table}
-                    = DBIx::ObjectMapper::Metadata::Polymorphic->new(
+        if ( $orig_option->{table}->table_name eq
+             $input_option{table}->table_name )
+        {
+            my $option = DBIx::ObjectMapper::Utils::merge_hashref(
+                $orig_option,
+                \%input_option,
+            );
+            @input = %$option;
+        }
+        else {
+            require DBIx::ObjectMapper::Metadata::Polymorphic;
+            $input_option{table}
+                = DBIx::ObjectMapper::Metadata::Polymorphic->new(
                     $orig_option->{table}, $input_option{table} );
 
-                my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-                    $orig_option,
-                    \%input_option,
-                );
-                @input = %$option;
-            }
+            my $option = DBIx::ObjectMapper::Utils::merge_hashref(
+                $orig_option,
+                \%input_option,
+            );
+            @input = %$option;
         }
     }
 
@@ -110,7 +124,7 @@ sub new {
             constructor          => { type => HASHREF, default => +{} },
             default_condition    => { type => ARRAYREF, default => +[] },
             default_value        => { type => HASHREF, default => +{} },
-            inherits             => { type => ARRAYREF, default => [] },
+            inherits             => { type => SCALAR, optional => 1 },
             polymorphic_on       => { type => SCALAR, optional => 1 },
             polymorphic_identity => { type => SCALAR, optional => 1 },
         }
@@ -134,17 +148,26 @@ sub new {
     }
 
     my $self = bless {
-        table             => $option{table},
-        mapped_class      => $option{mapped_class},
-        default_condition => $option{default_condition},
-        default_value     => $option{default_value},
-        input_option      => \%option,
-        inherits          => $option{inherits},
-        attributes        => +{},
-        accessors         => +{},
-        constructor       => +{},
-        mapped            => 0,
+        table                => $option{table},
+        mapped_class         => $option{mapped_class},
+        default_condition    => $option{default_condition},
+        default_value        => $option{default_value},
+        input_option         => \%option,
+        inherits             => $option{inherits},
+        polymorphic_on       => $option{polymorphic_on} || undef,
+        polymorphic_identity => $option{polymorphic_identity} || undef,
+        attributes           => +{},
+        accessors            => +{},
+        constructor          => +{},
+        mapped               => 0,
     }, $class;
+
+    if (    $self->inherits
+        and $self->polymorphic_on
+        and $self->polymorphic_identity )
+    {
+        $self->set_polymorphic_tree();
+    }
 
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
@@ -170,7 +193,8 @@ sub _init_attributes_config {
     no strict 'refs';
     my $package = __PACKAGE__;
     for my $meth (qw(table mapped_class attributes accessors
-                     constructor default_condition default_value inherits)) {
+                     constructor default_condition default_value
+                     inherits polymorphic_on polymorphic_identity)) {
         *{"$package\::$meth"} = sub { $_[0]->{$meth} };
     }
 };
@@ -232,17 +256,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         if( @_ == 1 ) {
                             $mapper->get_val_trigger(@_);
                         }
@@ -259,17 +273,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         $mapper->get_val_trigger(@_);
                     }
                 }
@@ -280,17 +284,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         $mapper->set_val_trigger(@_);
                     }
                 }
@@ -300,7 +294,7 @@ sub _initialize {
 
     for my $prop_name ( $self->attributes->property_names ) {
         next if $self->accessors->exclude->{$prop_name};
-        my $property = $self->attributes->property($prop_name);
+        my $property = $self->attributes->property_info($prop_name);
         if( $self->accessors->auto ) {
             if ( $meta->find_all_methods_by_name($prop_name)
                 and !$self->accessors->do_replace )
@@ -332,17 +326,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         if( @_ ) {
                             $mapper->set_val_trigger( $prop_name, @_ );
                         }
@@ -359,17 +343,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         $mapper->get_val_trigger( $prop_name );
                     }
                 }
@@ -380,17 +354,7 @@ sub _initialize {
                     my $instance = shift;
                     my $mapper = $instance->__mapper__;
                     return unless $mapper;
-
-                    my $mapper_call = 0;
-                    for my $i ( 0 .. 100 ) {
-                        my $caller = caller($i) || last;
-                        if( $caller =~ /^DBIx::ObjectMapper::/ ) {
-                            $mapper_call = 1;
-                            last;
-                        }
-                    }
-
-                    if ( !$mapper_call ) {
+                    if ( !$DBIx::ObjectMapper::Mapper::Instance::call ) {
                         $mapper->set_val_trigger( $prop_name, @_ );
                     }
                 }
@@ -438,7 +402,7 @@ sub _initialize {
 }
 
 sub mapping {
-    my ( $self, $hashref_data, $change_checker ) = @_;
+    my ( $self, $hashref_data, $uow ) = @_;
 
     return unless $hashref_data;
 
@@ -447,9 +411,19 @@ sub mapping {
 
     my $param;
     for my $prop_name ( $self->attributes->property_names ) {
-        my $prop = $self->attributes->property($prop_name);
+        my $prop = $self->attributes->property_info($prop_name);
         my $name = $prop->name || $prop_name;
         my $val = $hashref_data->{$name};
+
+        if( $prop->type eq 'relation' and defined $val ) {
+            if( $prop->is_multi ) {
+                $val = [ map { $prop->mapper->mapping($_, $uow) } @$val ];
+            }
+            else {
+                $val = $prop->mapper->mapping($val, $uow);
+            }
+        }
+
         if( $type eq 'HASH' or $type eq 'HASHREF' ) {
             $param ||= +{};
             $param->{$prop_name} = $val;
@@ -459,7 +433,7 @@ sub mapping {
             push @$param, $val;
         }
 
-        $change_checker->regist($val) if ref $val;
+        $uow->change_checker->regist($val) if $uow and ref $val;
     }
 
     my $obj = $self->mapped_class->${constructor}(
@@ -470,8 +444,7 @@ sub mapping {
     );
 
     $obj->__mapper__->initialize; # initialized mapper
-
-    return $obj;
+    return $uow ? $uow->add_storage_object($obj) : $obj;
 }
 
 sub find {
@@ -484,37 +457,41 @@ sub find {
     return $self->mapping($it->next || undef, @_);
 }
 
+sub load_properties {
+    my $self = shift;
+
+    my @column;
+    for my $prop_name ( $self->attributes->property_names ) {
+        my $prop = $self->attributes->property_info($prop_name);
+        next unless $prop->type eq 'column' and !$prop->lazy;
+        push @column, $prop->{isa};
+    }
+    return @column;
+}
+
 sub select {
     my $self = shift;
     my @column = @_;
-
-    unless(@column) {
-        for my $prop_name ( $self->attributes->property_names ) {
-            my $prop = $self->attributes->property($prop_name);
-            next unless $prop->type eq 'column' and !$prop->lazy;
-            push @column, $prop->{isa};
-        }
-    }
-
+    push @column, $self->load_properties unless @column;
     return $self->table->select->column(@column);
 }
 
 sub insert {
     my $self = shift;
     my %data = @_;
-    return $self->table->insert->values(%data)->execute;
+    return $self->table->insert(%data)->execute;
 }
 
 sub update {
     my $self = shift;
     my ( $data, $cond ) = @_;
-    return $self->table->update->set(%$data)->where(@$cond)->execute();
+    return map { $_->execute } $self->table->update($data, $cond);
 }
 
 sub delete {
     my $self = shift;
     my @where = @_;
-    return $self->table->delete->where(@where)->execute();
+    return map { $_->execute } $self->table->delete(@where);
 }
 
 sub get_unique_condition {

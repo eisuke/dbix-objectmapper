@@ -24,7 +24,7 @@ sub new {
         for my $ex ( @{ $option{exclude} } ) {
             # XXX fixed English
             confess "Can't exlude $ex. not included attributes."
-                unless $mapper->attributes->property($ex);
+                unless $mapper->attributes->property_info($ex);
         }
     }
 

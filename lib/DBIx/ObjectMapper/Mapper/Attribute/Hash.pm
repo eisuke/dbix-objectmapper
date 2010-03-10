@@ -58,7 +58,7 @@ sub init {
 }
 
 sub property_names { keys %{ $_[0]->{properties} } }
-sub property       { $_[0]->{properties}->{ $_[1] } }
+sub property_info  { $_[0]->{properties}->{ $_[1] } }
 
 1;
 

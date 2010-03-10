@@ -6,10 +6,10 @@ use Scalar::Util qw(refaddr blessed);
 use Log::Any qw($log);
 
 sub new {
-    my ( $class, $cache, $query, $change_checker, $option ) = @_;
+    my ( $class, $cache, $search, $change_checker, $option ) = @_;
     bless {
         query_cnt      => 0,
-        query          => $query,
+        search         => $search,
         cache          => $cache || undef,
         change_checker => $change_checker,
         objects        => +[],
@@ -20,7 +20,7 @@ sub new {
 }
 
 sub query_cnt      { $_[0]->{query_cnt} }
-sub query          { $_[0]->{query}->new(@_) }
+sub search         { $_[0]->{search}->new(@_) }
 sub cache          { $_[0]->{cache} }
 sub change_checker { $_[0]->{change_checker} }
 
@@ -31,10 +31,13 @@ sub get {
     my ( $key, @cond ) = $class_mapper->get_unique_condition($id);
 
     if( my $eagerload = $option->{eagerload} ) {
+        my $attr = $class_mapper->attributes;
         my @eagerload
             = ref($eagerload) eq 'ARRAY' ? @{$eagerload} : ($eagerload);
-        return $self->query($t_class)->eager_join(@eagerload)->where(@cond)
-            ->execute->first;
+        return $self->search($t_class)
+                    ->eager(map{ $attr->p($_) } @eagerload)
+                    ->filter(@cond)
+                    ->execute->first;
     }
     elsif( my $cached_obj = $self->_get_cache($key) ) {
         $log->info("{UnitOfWork} Cache Hit: $key");
@@ -43,15 +46,14 @@ sub get {
         }
         else {
             my $result = $cached_obj->__mapper__->reducing;
-            my $obj = $cached_obj->__class_mapper__->mapping(
+            return $cached_obj->__class_mapper__->mapping(
                 $result,
-                $self->change_checker,
+                $self,
             );
-            return $self->add_storage_object($obj);
         }
     }
     else {
-        my $obj = $class_mapper->find( \@cond, $self->change_checker )
+        my $obj = $class_mapper->find( \@cond, $self )
             || return;
         $self->{query_cnt}++;
         return $self->add_storage_object($obj);

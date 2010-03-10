@@ -47,8 +47,9 @@ subtest 'cascade_delete' => sub {
 
     # check
     ok !$session->get( 'MyTest11::Cd' => 1 );
+    my $attr = $mapper->attribute('MyTest11::Track');
     my $cd1_tracks
-        = $session->query('MyTest11::Track')->where( $track->c('cd_id') == 1 )
+        = $session->search('MyTest11::Track')->filter( $attr->p('cd_id') == 1 )
         ->execute;
     is scalar(@$cd1_tracks), 0;
 

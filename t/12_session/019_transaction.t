@@ -50,7 +50,7 @@ $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    is $session->query('MyTest18::Books')->count, 0;
+    is $session->search('MyTest18::Books')->count, 0;
 };
 
 {
@@ -86,7 +86,7 @@ $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    is $session->query('MyTest18::Books')->count, 10;
+    is $session->search('MyTest18::Books')->count, 10;
 };
 
 {
@@ -109,7 +109,7 @@ $mapper->maps(
     };
 
     is $session->autoflush, 0;
-    is $session->query('MyTest18::Books')->count, 0;
+    is $session->search('MyTest18::Books')->count, 0;
 
     $session->add( MyTest18::Books->new( title => 'title' . $_ ) ) for 6 .. 10;
     $session->commit;
@@ -117,7 +117,7 @@ $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    is $session->query('MyTest18::Books')->count, 5;
+    is $session->search('MyTest18::Books')->count, 5;
 };
 
 done_testing;

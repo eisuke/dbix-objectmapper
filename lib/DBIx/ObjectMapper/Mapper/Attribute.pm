@@ -18,7 +18,8 @@ sub new {
             properties => { type => HASHREF|ARRAYREF,  default => +{} },
         }
     );
-    $option{table} = $mapper->table;
+    $option{table}        = $mapper->table;
+    $option{mapped_class} = $mapper->mapped_class;
 
     my $type = 'Hash';
 
@@ -105,18 +106,35 @@ sub exclude        { $_[0]->{exclude} }
 sub prefix         { $_[0]->{prefix} }
 sub properties     { $_[0]->{properties} }
 sub property_names { confess "Abstruct Method" }
-sub property       { confess "Abstruct Method" }
+sub property_info  { confess "Abstruct Method" }
+
+sub property {
+    my $self = shift;
+    my $name = shift;
+    my @via = split('\.', $name);
+    my $via_1 = shift(@via);
+    my $info = $self->property_info($via_1);
+    confess "$via_1 does not exists in attributes." unless $info;
+    my $prop = $info->{isa};
+
+    for( @via ) {
+        $prop = $prop->property($_);
+        confess "$_ does not exists in attributes." unless $prop;
+    }
+    return $prop;
+}
+*prop = *p = \&property;
 
 sub lazy_column {
     my ( $self, $name ) = @_;
-    my $prop = $self->property($name);
+    my $prop = $self->property_info($name);
     if( $prop->lazy eq 1 ) {
         return $name => $prop->{isa};
     }
     elsif( $prop->lazy ) {
         my %lazy_column;
         for my $prop_name ( $self->property_names ) {
-            my $other_prop = $self->property($prop_name);
+            my $other_prop = $self->property_info($prop_name);
             $lazy_column{$prop_name} = $other_prop->{isa}
                 if $other_prop->lazy eq $prop->lazy;
         }

@@ -732,16 +732,22 @@ sub _insert_query_callback {
 
 sub delete {
     my $self = shift;
-    return $self->query_object->delete( $self->_delete_query_callback )
+    my $query = $self->query_object->delete( $self->_delete_query_callback )
         ->table( $self->table_name );
+    $query->where(@_) if @_;
+    return $query;
 }
 
 sub _delete_query_callback { undef } # TODO cascade delete
 
 sub update {
     my $self = shift;
-    return $self->query_object->update( $self->_update_query_callback )
+    my ( $data, $cond ) = @_;
+    my $query = $self->query_object->update( $self->_update_query_callback )
         ->table( $self->table_name );
+    $query->set(%$data) if $data;
+    $query->where( @$cond ) if $cond;
+    return $query;
 }
 
 sub _update_query_callback {

@@ -88,6 +88,20 @@ sub relation {
     return $rel_class->new( @_ );
 }
 
+sub attribute {
+    my $self = shift;
+    my $map_class = shift;
+    if( DBIx::ObjectMapper::Mapper->is_initialized($map_class) ) {
+        return $map_class->__class_mapper__->attributes;
+    }
+    else {
+        my $class = ref($self);
+        confess "the $map_class is not under the management of $class";
+    }
+}
+
+*attr = \&attribute;
+
 1;
 __END__
 

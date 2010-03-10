@@ -46,7 +46,7 @@ ok $mapper->maps(
     $session->add($bp);
     $session->flush;
 
-    my $query = $session->query('MyTest17::BaseballPlayer');
+    my $query = $session->search('MyTest17::BaseballPlayer');
     is $query->count, 1;
     my $bp1 = $query->first;
     is $bp1->name, 'bp1';
@@ -60,7 +60,7 @@ ok $mapper->maps(
     $session->add($bp);
     $session->flush;
 
-    my $query = $session->query('MyTest17::FootballPlayer');
+    my $query = $session->search('MyTest17::FootballPlayer');
     is $query->count, 1;
     my $fp1 = $query->first;
     is $fp1->name, 'fp1';
@@ -69,7 +69,7 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my $query = $session->query('MyTest17::Player');
+    my $query = $session->search('MyTest17::Player');
     is $query->count, 2;
 };
 

@@ -53,7 +53,9 @@ eval {
         artist => 456,
         year => 1901
     )->execute;
-    $parent_rs = $session->query('My::ForkTest')->where( $cd->c('year') == 1901 )->execute;
+
+    my $attr = $mapper->attribute('My::ForkTest');
+    $parent_rs = $session->search('My::ForkTest')->filter( $attr->p('year') == 1901 )->execute;
     $parent_rs->next;
 };
 ok(!$@) or diag "Creation eval failed: $@";
@@ -93,7 +95,8 @@ while(@pids < $num_children) {
     # child
     $pid = $$;
     my $session = $mapper->begin_session;
-    my $child_rs = $session->query('My::ForkTest')->where( $cd->c('year') == 1901 )->execute;
+    my $attr = $mapper->attribute('My::ForkTest');
+    my $child_rs = $session->search('My::ForkTest')->filter( $attr->p('year') == 1901 )->execute;
     my $row = $parent_rs->next;
     if($row && $row->artist =~ /^(?:123|456)$/) {
         $session->add(
@@ -113,10 +116,11 @@ waitpid($_,0) for(@pids);
 while(@pids) {
     my $pid = pop(@pids);
     my $session = $mapper->begin_session;
-    my $rs = $session->query('My::ForkTest')->where(
-        $cd->c('title') == "test success $pid",
-        $cd->c('artist') == $pid,
-        $cd->c('year') == scalar(@pids)
+    my $attr = $mapper->attribute('My::ForkTest');
+    my $rs = $session->search('My::ForkTest')->filter(
+        $attr->p('title') == "test success $pid",
+        $attr->p('artist') == $pid,
+        $attr->p('year') == scalar(@pids)
     )->execute;
     is($rs->next->artist, $pid, "Child $pid successful");
 }

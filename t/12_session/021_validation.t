@@ -163,8 +163,8 @@ my $parent_mapper = $mapper->maps(
     }
 );
 
-ok $parent_mapper->attributes->property('children')->{isa}->is_cascade_save_update, 'only cascade save_update';
-ok $parent_mapper->attributes->property('children')->{isa}->validation, 'set validation option';
+ok $parent_mapper->attributes->property('children')->is_cascade_save_update, 'only cascade save_update';
+ok $parent_mapper->attributes->property('children')->validation, 'set validation option';
 
 $mapper->maps(
     $mapper->metadata->t('child') => 'MyTest21::Child',

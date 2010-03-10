@@ -45,6 +45,7 @@ lib/DBIx/ObjectMapper/Mapper/Constructor.pm
 lib/DBIx/ObjectMapper/Mapper/Instance.pm
 lib/DBIx/ObjectMapper/Metadata.pm
 lib/DBIx/ObjectMapper/Metadata/Declare.pm
+lib/DBIx/ObjectMapper/Metadata/Polymorphic.pm
 lib/DBIx/ObjectMapper/Metadata/Query.pm
 lib/DBIx/ObjectMapper/Metadata/Sugar.pm
 lib/DBIx/ObjectMapper/Metadata/Table.pm
@@ -90,7 +91,7 @@ lib/DBIx/ObjectMapper/Session.pm
 lib/DBIx/ObjectMapper/Session/Array.pm
 lib/DBIx/ObjectMapper/Session/Cache.pm
 lib/DBIx/ObjectMapper/Session/ObjectChangeChecker.pm
-lib/DBIx/ObjectMapper/Session/Query.pm
+lib/DBIx/ObjectMapper/Session/Search.pm
 lib/DBIx/ObjectMapper/Session/UnitOfWork.pm
 lib/DBIx/ObjectMapper/SQL.pm
 lib/DBIx/ObjectMapper/SQL/Base.pm
@@ -123,6 +124,7 @@ t/10_meta/004_query.t
 t/10_meta/005_cast_column_type.t
 t/10_meta/006_default_and_on_update.t
 t/10_meta/007_declare.t
+t/10_meta/008_insert_skip_default_value.t
 t/11_mapper/000_mapper.t
 t/11_mapper/001_inherit_mapper_config.t
 t/11_mapper/002_replace_method.t
@@ -140,12 +142,11 @@ t/12_session/000_array.t
 t/12_session/000_basic.t
 t/12_session/001_query.t
 t/12_session/010_relation_basic.t
-t/12_session/011_relation_query.t
+t/12_session/011_relation_search.t
 t/12_session/012_self_relation.t
 t/12_session/013_lazyload.t
 t/12_session/014_cascade.t
 t/12_session/015_default_condition.t
-t/12_session/016_custom_join.t
 t/12_session/017_default_value.t
 t/12_session/018_no_cache.t
 t/12_session/019_transaction.t
@@ -155,6 +156,10 @@ t/12_session/022_change_checker.t
 t/12_session/023_arrayref_obj.t
 t/12_session/024_has_one_foreign_key.t
 t/12_session/025_differ_prop_name_and_col_name.t
+t/12_session/026_init_using_accessor_object.t
+t/12_session/027_no_data_rel.t
+t/12_session/028_single_table_inheritance.t
+t/12_session/029_class_table_inheritance.t
 t/12_session/100_many_to_many.t
 t/12_session/200_die.t
 t/12_session/lib/MyTest11.pm
