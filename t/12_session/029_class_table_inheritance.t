@@ -184,4 +184,8 @@ while( my $m = $emp->next ) {
 
 $session->commit;
 
+is $session->search('My::Employee')->count, 0;
+is $session->search('My::Manager')->count, 0;
+is $session->search('My::Engineer')->count, 0;
+
 done_testing;
