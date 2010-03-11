@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Log::Any qw($log);
+use List::MoreUtils;
 use DBIx::ObjectMapper::Iterator;
 
 sub new {
@@ -208,10 +209,16 @@ sub _finalize {
     if( my @polymorphic_class = keys %{$self->{with_polymorphic}} ) {
         for my $pc ( @polymorphic_class ) {
             my $mapper = $pc->__class_mapper__;
-            push @join,
-                [ $mapper->table->child_table, $mapper->table->{rel_cond} ];
-            push @column, @{$mapper->table->{polymorphic_columns}};
+            my $table  = $mapper->table;
+            if( $table->{polymorphic_columns} ) {
+                push @join, [ $table->child_table, $table->{rel_cond} ];
+                push @column, @{$table->{polymorphic_columns}};
+            }
+            else {
+                push @column, $table->c($mapper->polymorphic_on);
+            }
         }
+        @column = List::MoreUtils::uniq(@column);
     }
 
     $query->column(@column);
@@ -272,9 +279,11 @@ sub get_mapper {
             my ( $key, $val ) = @{$self->{with_polymorphic}->{$c}};
             if( defined $d->{$key} and $d->{$key} eq $val ) {
                 my $mapper = $c->__class_mapper__;
-                my $table = $mapper->table->child_table;
-                $d->{$_} = $d->{ $table->table_name }->{$_}
-                    for keys %{ $d->{ $table->table_name } };
+                my $table  = $mapper->table;
+                if( $table->{polymorphic_columns} ) {
+                    $d->{$_} = $d->{ $table->child_table->table_name }->{$_}
+                        for keys %{ $d->{ $table->child_table->table_name } };
+                }
                 return $mapper;
             }
         }

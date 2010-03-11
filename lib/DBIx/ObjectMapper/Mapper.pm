@@ -89,27 +89,21 @@ sub new {
             $orig_mapper->{input_option}
         );
 
-        if ( $orig_option->{table}->table_name eq
+        if ( $orig_option->{table}->table_name ne
              $input_option{table}->table_name )
         {
-            my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-                $orig_option,
-                \%input_option,
-            );
-            @input = %$option;
-        }
-        else {
             require DBIx::ObjectMapper::Metadata::Polymorphic;
             $input_option{table}
                 = DBIx::ObjectMapper::Metadata::Polymorphic->new(
-                    $orig_option->{table}, $input_option{table} );
-
-            my $option = DBIx::ObjectMapper::Utils::merge_hashref(
-                $orig_option,
-                \%input_option,
-            );
-            @input = %$option;
+                    $orig_option->{table}, $input_option{table}
+                );
         }
+
+        my $option = DBIx::ObjectMapper::Utils::merge_hashref(
+            $orig_option,
+            \%input_option,
+        );
+        @input = %$option;
     }
 
     my %option = validate(

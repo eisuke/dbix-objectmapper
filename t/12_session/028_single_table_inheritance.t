@@ -78,9 +78,6 @@ $mapper->maps(
     $players => 'My::TennisPlayer',
     polymorphic_identity => 'tennis',
     inherits => 'My::Player',
-#    attributes => { exclude => ['play'] },
-#    default_condition => [ $players->c('play') == 'tennis' ],
-#    default_value => { play => 'tennis' },
 );
 
 {
@@ -119,6 +116,22 @@ $mapper->maps(
 
     ok $session->get( 'My::Footballer' => 10 );
     ok !$session->get( 'My::TennisPlayer' => 10 );
+};
+
+{
+    my $session = $mapper->begin_session;
+    my $it = $session->search('My::Player')->with_polymorphic('*')->execute;
+    my %result;
+    my $loop_cnt = 0;
+    while( my $p = $it->next ) {
+        my $ref = ref($p);
+        $result{$ref}++;
+        ok $p->id;
+        $loop_cnt++;
+    }
+    is $loop_cnt, 3;
+    is $result{'My::Footballer'}, 2;
+    is $result{'My::TennisPlayer'}, 1;
 };
 
 done_testing;
