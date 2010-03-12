@@ -2,7 +2,7 @@ package DBIx::ObjectMapper::Metadata::Polymorphic;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
-use base qw(DBIx::ObjectMapper::Metadata::Query);
+use base qw(DBIx::ObjectMapper::Metadata::Table);
 
 use Params::Validate qw(:all);
 use Scalar::Util;
@@ -38,26 +38,95 @@ sub new {
         grep{ !exists $shared_column{$_->name } } @{$child->columns},
     );
 
-    my $self = $class->SUPER::new(
-        $parent->table_name . '_' . $child->table_name,
-        $parent->select->column(@columns)->join([ $child => \@rel_cond ]),
-        {
-            primary_key => $parent->primary_key,
-            unique_key  => $parent->unique_key,
-        }
-    );
+    my %column_map;
+    for my $i ( 0 .. $#columns ) {
+        my $col_name = $columns[$i]->name;
+#        if( $column_map{$col_name} ) {
+#            confess "column '$col_name' already exists."
+#        }
+        $column_map{$col_name} = $i + 1;
+    }
 
-    $self->{polymorphic_columns} = \@columns;
-    $self->{rel_cond} = \@rel_cond;
-    $self->{parent_table} = $parent;
-    $self->{child_table}  = $child;
-    $self->{shared_column} = \%shared_column;
-
-    return $self;
+    return return bless {
+        table_name  => $parent->table_name,
+        columns     => \@columns,
+        column_map  => \%column_map,
+        engine      => $parent->engine,
+        query_class => $parent->{query_class}
+            || $class->DEFAULT_QUERY_CLASS(),
+        column_metaclass    => $class->DEFAULT_COLUMN_METACLASS,
+        primary_key         => $parent->primary_key || [],
+        foreign_key         => $parent->foreign_key || [],
+        unique_key          => $parent->unique_key || [],
+        polymorphic_columns => \@columns,
+        rel_cond            => \@rel_cond,
+        parent_table        => $parent,
+        child_table         => $child,
+        shared_column       => \%shared_column,
+    }, $class;
 }
 
 sub parent_table { $_[0]->{parent_table} }
 sub child_table  { $_[0]->{child_table} }
+sub table_name { $_[0]->{table_name} }
+sub rel_cond  { $_[0]->{rel_cond} }
+
+sub clone {
+    my $self = shift;
+    my $alias = shift;
+    my $class = ref $self;
+    my $clone =  bless { %$self }, $class;
+    $clone->parent_table->as($alias);
+    return $clone;
+}
+
+sub is_clone {
+    my $self = shift;
+    $self->parent_table->is_clone;
+}
+
+
+=head2 primary_key
+
+=cut
+
+sub primary_key { $_[0]->{primary_key} }
+
+=head2 unique_key
+
+=cut
+
+sub unique_key { $_[0]->{unique_key} }
+
+=head2 foreign_key
+
+=cut
+
+sub foreign_key { $_[0]->{foreign_key} }
+
+sub column {
+    my $self = shift;
+
+    if( @_ == 1 and !ref($_[0]) ) {
+        my $name = shift;
+        if( exists $self->column_map->{$name} ) {
+            return $self->{columns}->[ $self->column_map->{$name} - 1 ];
+        }
+        else {
+            return;
+        }
+    }
+    elsif( @_ == 0 ) {
+        return @{$self->columns};
+    }
+    else {
+        confess '$obj->column(Scalar|Void)';
+    }
+}
+
+sub columns    { $_[0]->{columns} }
+sub column_map { $_[0]->{column_map} }
+
 
 sub insert {
     my $self = shift;
@@ -70,7 +139,8 @@ sub insert {
         if( $self->parent_table->c($key) ) {
             $parent_data{$key} = $data{$key};
         }
-        elsif( $self->child_table->c($key) ) {
+
+        if( $self->child_table->c($key) ) {
             $child_data{$key} = $data{$key};
         }
     }
@@ -107,11 +177,14 @@ sub update {
             $parent_data{$key} = $data->{$key};
             $child_data{$key} = $data->{$key};
         }
-        elsif( $self->parent_table->c($key) ) {
-            $parent_data{$key} = $data->{$key};
-        }
-        elsif( $self->child_table->c($key) ) {
-            $child_data{$key} = $data->{$key};
+        else {
+            if( $self->parent_table->c($key) ) {
+                $parent_data{$key} = $data->{$key};
+            }
+
+            if( $self->child_table->c($key) ) {
+                $child_data{$key} = $data->{$key};
+            }
         }
     }
 
@@ -146,6 +219,44 @@ sub delete {
     push @query, $self->child_table->delete(@child_where);
 
     return @query;
+}
+
+sub select {
+    my $self = shift;
+    my $parent_join = $self->parent_table->select->builder->join;
+    return $self->query_object->select( $self->_select_query_callback )
+        ->column(@{$self->columns})->from( $self )
+        ->add_join(@$parent_join, [ $self->child_table => $self->rel_cond ]);
+}
+
+sub _select_query_callback_core {
+    my ( $self, $col_obj, $col_name, $result, $row, $i ) = @_;
+
+    my %table = (
+        $self->parent_table->table_name => 1,
+        $self->child_table->table_name => 1,
+    );
+
+    if( my $p_alias = $self->parent_table->alias_name ) {
+        $table{$p_alias} = 1;
+    }
+
+    if( my $c_alias = $self->child_table->alias_name ) {
+        $table{$c_alias} = 1;
+    }
+
+    if ( $table{$col_obj->table} ) {
+        $result->{ $col_name } = $col_obj->from_storage( $row->[$i] );
+    }
+    else {
+        $result->{ $col_obj->table }->{ $col_name }
+            = $col_obj->from_storage( $row->[$i] );
+    }
+}
+
+sub count {
+    my $self = shift;
+    return $self->select->count;
 }
 
 1;

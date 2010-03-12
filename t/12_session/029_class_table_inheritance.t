@@ -69,6 +69,9 @@ my $manager = $mapper->metadata->t( 'manager' => 'autoload' );
 $mapper->maps(
     $person => 'My::Employee',
     polymorphic_on => 'type',
+    attributes => {
+        exclude => ['type'],
+    }
 );
 
 my $engineer_map = $mapper->maps(

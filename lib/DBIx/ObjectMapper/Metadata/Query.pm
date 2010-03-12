@@ -66,25 +66,6 @@ sub clone {
 sub is_clone { 0 }
 
 
-=head2 engine
-
-=cut
-
-sub engine {
-    my $self = shift;
-
-    if( @_ ) {
-        my ($engine) = validate_pos(
-            @_,
-            { type => OBJECT, isa => 'DBIx::ObjectMapper::Engine' }
-        );
-
-        $self->{engine} = $engine;
-    }
-
-    return $self->{engine};
-}
-
 =head2 primary_key
 
 =cut

@@ -546,18 +546,13 @@ sub _select_query_callback {
                 my $col_obj
                     = $self->_get_column_object_from_query( $column->[$i] );
                 if( $col_obj ) {
-                    if ($col_obj->table eq $self->table_name
-                        or (    $self->alias_name
-                            and $col_obj->table eq $self->alias_name )
-                        )
-                    {
-                        $result{ $column->[$i][1] }
-                            = $col_obj->from_storage( $result->[$i] );
-                    }
-                    else {
-                        $result{ $col_obj->table }->{ $column->[$i][1] }
-                            = $col_obj->from_storage($result->[$i]);
-                    }
+                    $self->_select_query_callback_core(
+                        $col_obj,
+                        $column->[$i][1],
+                        \%result,
+                        $result,
+                        $i
+                    );
                 }
                 else {
                     $result{$column->[$i][1]} = $result->[$i];
@@ -574,23 +569,33 @@ sub _select_query_callback {
             else {
                 my $col_obj
                     = $self->_get_column_object_from_query( $column->[$i] );
-                if ($col_obj->table eq $self->table_name
-                    or (    $self->alias_name
-                        and $col_obj->table eq $self->alias_name )
-                    )
-                {
-                    $result{ $col_obj->name }
-                        = $col_obj->from_storage( $result->[$i] );
-                }
-                else {
-                    $result{$col_obj->table}->{$col_obj->name}
-                        = $col_obj->from_storage( $result->[$i] );
-                }
+                $self->_select_query_callback_core(
+                    $col_obj,
+                    $col_obj->name,
+                    \%result,
+                    $result,
+                    $i
+                );
             }
         }
 
         return \%result;
     };
+}
+
+sub _select_query_callback_core {
+    my ( $self, $col_obj, $col_name, $result, $row, $i ) = @_;
+    if ($col_obj->table eq $self->table_name
+        or (    $self->alias_name
+            and $col_obj->table eq $self->alias_name )
+        )
+    {
+        $result->{ $col_name } = $col_obj->from_storage( $row->[$i] );
+    }
+    else {
+        $result->{ $col_obj->table }->{ $col_name }
+            = $col_obj->from_storage( $row->[$i] );
+    }
 }
 
 sub _get_column_object_from_query {

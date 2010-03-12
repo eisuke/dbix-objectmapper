@@ -25,7 +25,7 @@ sub new {
         limit            => undef,
         offset           => undef,
         add_lazy_column  => [],
-        with_polymorphic => {},
+        with_polymorphic => [],
     }, $class;
 }
 
@@ -35,14 +35,18 @@ sub mapper       { $_[0]->{mapped_class}->__class_mapper__ }
 sub with_polymorphic {
     my $self = shift;
     my @classes = @_;
-    my $tree = $self->mapper->get_polymorphic_tree;
+    my @tree = $self->mapper->get_polymorphic_tree;
+
+    my @child_poly;
     if( grep { $_ eq '*' } @classes ) {
-        $self->{with_polymorphic}->{$_} = $tree->{$_} for keys %$tree;
+        push @{$self->{with_polymorphic}}, @tree;
     }
     else {
-        for my $c ( @classes ) {
-            $self->{with_polymorphic}->{$c} = $tree->{$c}
-                if exists $tree->{$c};
+        my %classes = map { $_ => 1 } @classes;
+        for my $t ( @tree ) {
+            if( $classes{$t->[0]} ) {
+                push @{$self->{with_polymorphic}}, $t;
+            }
         }
     }
 
@@ -179,7 +183,7 @@ sub _finalize {
 
     my @where = @{$self->mapper->default_condition};
     push @where, @{ $self->{filter} } if @{ $self->{filter} };
-    $query->where( @where ) if @where;
+    $query->add_where( @where ) if @where;
 
     my @join;
     if( @{ $self->{join} } ) {
@@ -206,25 +210,30 @@ sub _finalize {
     }
     @column = @column_tmp;
 
-    if( my @polymorphic_class = keys %{$self->{with_polymorphic}} ) {
-        for my $pc ( @polymorphic_class ) {
-            my $mapper = $pc->__class_mapper__;
+    if( my @polymorphic = @{$self->{with_polymorphic}} ) {
+        my %polymorphic_table;
+        for my $p ( @polymorphic ) {
+            my $mapper = $p->[0]->__class_mapper__;
             my $table  = $mapper->table;
             if( $table->{polymorphic_columns} ) {
+                next if $polymorphic_table{$table->child_table};
                 push @join, [ $table->child_table, $table->{rel_cond} ];
                 push @column, @{$table->{polymorphic_columns}};
+                $polymorphic_table{$table->child_table} = 1;
             }
             else {
+                next if $polymorphic_table{$table};
                 push @column, $table->c($mapper->polymorphic_on);
+                $polymorphic_table{$table} = 1;
             }
         }
         @column = List::MoreUtils::uniq(@column);
     }
 
     $query->column(@column);
-    $query->join(@join) if @join;
-    $query->group_by(@group_by) if @group_by;
-    $query->order_by(@{$self->{order_by}}) if @{$self->{order_by}};
+    $query->add_join(@join) if @join;
+    $query->add_group_by(@group_by) if @group_by;
+    $query->add_order_by(@{$self->{order_by}}) if @{$self->{order_by}};
 
     for my $meth (qw(limit offset)) {
         $query ->${meth}( $self->{$meth} ) if $self->{$meth};
@@ -274,21 +283,45 @@ sub execute {
 sub get_mapper {
     my ( $self, $d ) = @_;
 
-    if( my @polymorphic_class = keys %{$self->{with_polymorphic}} ) {
-        for my $c ( @polymorphic_class ) {
-            my ( $key, $val ) = @{$self->{with_polymorphic}->{$c}};
-            if( defined $d->{$key} and $d->{$key} eq $val ) {
-                my $mapper = $c->__class_mapper__;
-                my $table  = $mapper->table;
-                if( $table->{polymorphic_columns} ) {
-                    $d->{$_} = $d->{ $table->child_table->table_name }->{$_}
-                        for keys %{ $d->{ $table->child_table->table_name } };
+    if( my @polymorphic = @{$self->{with_polymorphic}} ) {
+        for my $p ( @polymorphic ) {
+            my ( $key, $val ) = @{$p->[1]};
+            my $mapper;
+
+            if( $key->table eq $self->mapper->table->table_name ) {
+                if( defined $d->{$key->name} and $d->{$key->name} eq $val ) {
+                    $mapper = $p->[0]->__class_mapper__;
                 }
+            }
+            else {
+                my $table_name = $key->table;
+                if (    defined $d->{$table_name}
+                    and defined $d->{$table_name}->{ $key->name }
+                    and $d->{$table_name}->{ $key->name } eq $val )
+                {
+                    $mapper = $p->[0]->__class_mapper__;
+                }
+            }
+
+            if( $mapper ) {
+                $self->_shift_inherit_data($mapper->table, $d);
                 return $mapper;
             }
         }
     }
+
     return $self->mapper;
+}
+
+sub _shift_inherit_data {
+    my ( $self, $table, $d ) = @_;
+    if( $table->{polymorphic_columns} ) {
+        my $child_table = $table->child_table->table_name;
+        $d->{$_} = $d->{$child_table}->{$_}
+            for keys %{ $d->{$child_table} };
+        delete $d->{$child_table};
+        $self->_shift_inherit_data($table->parent_table, $d);
+    }
 }
 
 sub _exec_query {

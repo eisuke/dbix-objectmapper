@@ -43,14 +43,21 @@ use DBIx::ObjectMapper::Session::Array;
 
     sub get_polymorphic_tree {
         my $self = shift;
-        return $POLYMORPHIC_TREE{$self->mapped_class} || +{};
+        my $tree = $POLYMORPHIC_TREE{$self->mapped_class} || +{};
+        my @tree = map{ [ $_ => $tree->{$_} ] } keys %$tree;
+        for my $child_class ( keys %$tree ) {
+            my @child_tree
+                = $child_class->__class_mapper__->get_polymorphic_tree;
+            unshift @tree, @child_tree;
+        }
+        return @tree;
     }
 
     sub set_polymorphic_tree {
         my $self = shift;
         my $tree = $POLYMORPHIC_TREE{$self->inherits} ||= +{};
         return $tree->{$self->mapped_class} = [
-            $self->polymorphic_on,
+            $self->table->c($self->polymorphic_on),
             $self->polymorphic_identity,
         ];
     }
@@ -75,6 +82,7 @@ sub new {
     splice @_, 2, 0, 'mapped_class';
     my %input_option = @_;
     my @input = @_;
+    my $is_class_table_inheritance = 0;
 
     if( my $inh = $input_option{inherits} ) {
         my $orig_mapper;
@@ -89,14 +97,22 @@ sub new {
             $orig_mapper->{input_option}
         );
 
-        if ( $orig_option->{table}->table_name ne
-             $input_option{table}->table_name )
-        {
+        my $orig_table = $orig_option->{table};
+        if( ref $orig_table eq 'DBIx::ObjectMapper::Metadata::Polymorphic' ) {
+            $orig_table = $orig_table->child_table;
+        }
+        my $input_table = $input_option{table};
+
+        if ( $orig_table->table_name ne $input_table->table_name ) {
+            $is_class_table_inheritance = 1;
             require DBIx::ObjectMapper::Metadata::Polymorphic;
             $input_option{table}
                 = DBIx::ObjectMapper::Metadata::Polymorphic->new(
                     $orig_option->{table}, $input_option{table}
                 );
+        }
+        else {
+            $input_option{table} = $orig_option->{table};
         }
 
         my $option = DBIx::ObjectMapper::Utils::merge_hashref(
@@ -124,23 +140,6 @@ sub new {
         }
     );
 
-    if( $option{polymorphic_on} ) {
-        if( exists $option{attributes}->{exclude} ) {
-            push @{$option{attributes}->{exclude}}, $option{polymorphic_on};
-        }
-        else {
-            $option{attributes}->{exclude} = [ $option{polymorphic_on} ];
-        }
-    }
-
-    if( $option{polymorphic_on} and $option{polymorphic_identity} ) {
-        push @{$option{default_condition}},
-            $option{table}->c($option{polymorphic_on})
-                == $option{polymorphic_identity};
-        $option{default_value}->{$option{polymorphic_on}}
-            = $option{polymorphic_identity};
-    }
-
     my $self = bless {
         table                => $option{table},
         mapped_class         => $option{mapped_class},
@@ -156,16 +155,44 @@ sub new {
         mapped               => 0,
     }, $class;
 
+    $self->_init_constructor_config( %{ $option{constructor} } );
+    $self->_init_attributes_config( %{ $option{attributes} } );
+    $self->_init_acceesors_config( %{ $option{accessors} } );
+
+    if( $self->polymorphic_on and $self->polymorphic_identity ) {
+        # XXXXX 多段継承している場合は、親にさらに条件を追加する
+        # if (    $is_class_table_inheritance
+        #     and $dc->[0]->name eq $self->polymorphic_on )
+        # {
+
+        # for my $i ( 0 .. $#default_condition ) {
+        #     my $dc = $default_condition[$i];
+        #         my $parent_val = $self->default_condition->[$i]->[1][2];
+        #         if ( $parent_val ne $self->polymorphic_identity ) {
+        #             $self->default_condition->[$i]->[1]
+        #                 = [ $self->table->c( $self->polymorphic_on )
+        #                     == [ $parent_val, $self->polymorphic_identity, ]
+        #                 ];
+        #             splice( @default_condition, $i, 1 );
+        #         }
+        #     }
+        # }
+
+        my @default_condition;
+        push @default_condition,
+            $self->table->c($self->polymorphic_on)
+                == $self->polymorphic_identity;
+        $self->{default_condition} = \@default_condition;
+        $self->default_value->{$self->polymorphic_on}
+            = $self->polymorphic_identity;
+    }
+
     if (    $self->inherits
         and $self->polymorphic_on
         and $self->polymorphic_identity )
     {
         $self->set_polymorphic_tree();
     }
-
-    $self->_init_constructor_config( %{ $option{constructor} } );
-    $self->_init_attributes_config( %{ $option{attributes} } );
-    $self->_init_acceesors_config( %{ $option{accessors} } );
 
     $self->_initialize;
     return $self;

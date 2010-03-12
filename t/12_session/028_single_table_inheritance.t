@@ -46,6 +46,12 @@ my $players = $mapper->metadata->t(
         $self->{name};
     }
 
+    sub play {
+        my $self = shift;
+        $self->{play} = shift if @_;
+        $self->{play};
+    }
+
     1;
 };
 
