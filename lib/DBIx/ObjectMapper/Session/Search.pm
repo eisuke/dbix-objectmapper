@@ -283,11 +283,10 @@ sub execute {
 sub get_mapper {
     my ( $self, $d ) = @_;
 
+    my $mapper;
     if( my @polymorphic = @{$self->{with_polymorphic}} ) {
         for my $p ( @polymorphic ) {
             my ( $key, $val ) = @{$p->[1]};
-            my $mapper;
-
             if( $key->table eq $self->mapper->table->table_name ) {
                 if( defined $d->{$key->name} and $d->{$key->name} eq $val ) {
                     $mapper = $p->[0]->__class_mapper__;
@@ -302,15 +301,14 @@ sub get_mapper {
                     $mapper = $p->[0]->__class_mapper__;
                 }
             }
-
-            if( $mapper ) {
-                $self->_shift_inherit_data($mapper->table, $d);
-                return $mapper;
-            }
+            last if $mapper;
         }
     }
 
-    return $self->mapper;
+    $mapper ||= $self->mapper;
+
+    $self->_shift_inherit_data($mapper->table, $d);
+    return $mapper;
 }
 
 sub _shift_inherit_data {

@@ -15,6 +15,7 @@ my $mapper = DBIx::ObjectMapper->new(
             q{CREATE TABLE engineer(id integer primary key, language text, FOREIGN KEY(id) REFERENCES person(id))},
             q{CREATE TABLE manager(id integer primary key, type text, golf_swing text, FOREIGN KEY(id) REFERENCES employee(id))},
             q{CREATE TABLE geek_manager (id integer primary key, language TEXT, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
+            q{CREATE TABLE deadshit_manager (id integer primary key, iq integer, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
         ],
     }),
 );
@@ -116,6 +117,19 @@ $mapper->metadata->autoload_all_tables;
     1;
 };
 
+{
+    package My::Manager::Deadshit;
+    use base qw(My::Manager);
+
+    sub iq {
+        my $self = shift;
+        $self->{iq} = shift if @_;
+        return $self->{iq};
+    }
+
+    1;
+};
+
 $mapper->maps(
     $mapper->metadata->t('employee') => 'My::Employee',
     polymorphic_on => 'type',
@@ -173,6 +187,13 @@ $mapper->maps(
             }
         }
     }
+);
+
+$mapper->maps(
+    $mapper->metadata->t('deadshit_manager') => 'My::Manager::Deadshit',
+    inherits => 'My::Manager',
+    polymorphic_on => 'type',
+    polymorphic_identity => 'deadshit_manager',
 );
 
 my @languages = (
@@ -235,15 +256,25 @@ for my $i ( 1 .. 5 ) {
     });
 }
 
+for my $i ( 1 .. 5 ) {
+    push @persons, My::Manager::Deadshit->new({
+        golf_swing => $i * 1000,
+        name => 'deadshit_manager' . $i,
+        memo => 'deadshit_manager_memo' . $i,
+        iq   => 1 * $i,
+    });
+}
+
 $session->add_all(@persons);
 $session->commit();
 
-is $session->search('My::Employee')->count, 30;
+is $session->search('My::Employee')->count, 35;
 is $session->search('My::Engineer')->count, 10;
 is $session->search('My::Engineer::PerlMonger')->count, 1;
 is $session->search('My::Engineer::Pythonista')->count, 1;
-is $session->search('My::Manager')->count, 10;
+is $session->search('My::Manager')->count, 15;
 is $session->search('My::Manager::Geek')->count, 5;
+is $session->search('My::Manager::Deadshit')->count, 5;
 
 my $it = $session->search( 'My::Employee' )->with_polymorphic('*')->execute;
 my $loop_cnt = 0;
@@ -254,13 +285,14 @@ while( my $e = $it->next ) {
     $loop_cnt++;
 }
 
-is $loop_cnt, 30;
+is $loop_cnt, 35;
 is @{$classes{'My::Employee'}}, 10;
 is @{$classes{'My::Engineer'}}, 8;
 is @{$classes{'My::Engineer::PerlMonger'}}, 1;
 is @{$classes{'My::Engineer::Pythonista'}}, 1;
 is @{$classes{'My::Manager'}}, 5;
 is @{$classes{'My::Manager::Geek'}}, 5;
+is @{$classes{'My::Manager::Deadshit'}}, 5;
 
 for my $eng ( @{$classes{'My::Engineer'}} ) {
     ok $eng->language;
@@ -284,6 +316,13 @@ for my $geek_m ( @{$classes{'My::Manager::Geek'}} ) {
     $memo{$geek_m->id} = $geek_m->memo;
 }
 
+for my $deadshit ( @{$classes{'My::Manager::Deadshit'}} ) {
+    ok $deadshit->iq;
+    ok $deadshit->golf_swing;
+    ok $deadshit->memo;
+    $memo{$deadshit->id} = $deadshit->memo;
+}
+
 my $man_attr = $mapper->attribute('My::Manager');
 my $it2 = $session->search( 'My::Manager' )->execute;
 my $memo_cnt = 0;
@@ -293,6 +332,32 @@ while( my $m = $it2->next ) {
         $memo_cnt++;
     }
 }
-is $memo_cnt, 5;
+is $memo_cnt, 10;
+
+my $attr2 = $mapper->attribute('My::Manager::Deadshit');
+
+my $most_deadshit = $session->search('My::Manager::Deadshit')
+    ->order_by( $attr2->p('iq') )->first;
+
+$most_deadshit->memo('最もバカ');
+$most_deadshit->iq(0);
+$most_deadshit->golf_swing(100000);
+$most_deadshit->id(100);
+$session->commit;
+
+my $check_most_deadshit = $session->search('My::Manager::Deadshit')
+    ->filter( $attr2->p('iq') == 0 )->first;
+is $check_most_deadshit->id, 100;
+is $check_most_deadshit->memo,'最もバカ';
+is $check_most_deadshit->iq, 0;
+
+is $check_most_deadshit->golf_swing, 100000;
+
+$session->delete($check_most_deadshit);
+$session->commit;
+
+ok !$session->get('My::Manager::Deadshit' => 100 );
+ok !$session->get('My::Manager' => 100 );
+ok !$session->get('My::Employee' => 100 );
 
 done_testing;

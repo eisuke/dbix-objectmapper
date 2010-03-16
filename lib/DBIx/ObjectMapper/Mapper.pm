@@ -55,6 +55,10 @@ use DBIx::ObjectMapper::Session::Array;
 
     sub set_polymorphic_tree {
         my $self = shift;
+        return
+            unless $self->inherits
+                and $self->polymorphic_on
+                and $self->polymorphic_identity;
         my $tree = $POLYMORPHIC_TREE{$self->inherits} ||= +{};
         return $tree->{$self->mapped_class} = [
             $self->table->c($self->polymorphic_on),
@@ -119,6 +123,51 @@ sub new {
             $orig_option,
             \%input_option,
         );
+
+        if (    $option->{polymorphic_on}
+            and $option->{polymorphic_identity}
+            and $orig_mapper->inherits
+            and $orig_mapper->polymorphic_on eq $option->{polymorphic_on} )
+        {
+            my $parent_default_cond = $orig_mapper->default_condition;
+            for my $i ( 0 .. $#{$parent_default_cond} ) {
+                my $pc = $parent_default_cond->[$i];
+                next unless $option->{polymorphic_on} eq $pc->[0]->name;
+                if ( ref $pc->[2] eq 'ARRAY' ) {
+                    unless ( grep { $_ eq $option->{polymorphic_identity} }
+                        @{ $pc->[2] } )
+                    {
+                        push @{ $pc->[2] }, $option->{polymorphic_identity};
+                    }
+                }
+                elsif ( $option->{polymorphic_identity} ne $pc->[2] ) {
+                    $pc->[2] = [ $pc->[2], $option->{polymorphic_identity} ];
+                }
+            }
+
+            if( my @default_cond = @{$option->{default_condition}} ) {
+                for my $i ( $#default_cond ) {
+                    if ( $option->{polymorphic_on} eq
+                         $default_cond[$i]->[0]->name )
+                    {
+                        $default_cond[$i]->[2]
+                            = $option->{polymorphic_identity};
+                    }
+                }
+            }
+
+            $option->{default_value}->{$option->{polymorphic_on}}
+                = $option->{polymorphic_identity};
+        }
+        elsif( $option->{polymorphic_on} and $option->{polymorphic_identity} ) {
+            $option->{default_condition} = [
+                $option->{table}->c( $option->{polymorphic_on} )
+                    == $option->{polymorphic_identity} ];
+
+            $option->{default_value}->{$option->{polymorphic_on}}
+                = $option->{polymorphic_identity};
+        }
+
         @input = %$option;
     }
 
@@ -158,41 +207,7 @@ sub new {
     $self->_init_constructor_config( %{ $option{constructor} } );
     $self->_init_attributes_config( %{ $option{attributes} } );
     $self->_init_acceesors_config( %{ $option{accessors} } );
-
-    if( $self->polymorphic_on and $self->polymorphic_identity ) {
-        # XXXXX 多段継承している場合は、親にさらに条件を追加する
-        # if (    $is_class_table_inheritance
-        #     and $dc->[0]->name eq $self->polymorphic_on )
-        # {
-
-        # for my $i ( 0 .. $#default_condition ) {
-        #     my $dc = $default_condition[$i];
-        #         my $parent_val = $self->default_condition->[$i]->[1][2];
-        #         if ( $parent_val ne $self->polymorphic_identity ) {
-        #             $self->default_condition->[$i]->[1]
-        #                 = [ $self->table->c( $self->polymorphic_on )
-        #                     == [ $parent_val, $self->polymorphic_identity, ]
-        #                 ];
-        #             splice( @default_condition, $i, 1 );
-        #         }
-        #     }
-        # }
-
-        my @default_condition;
-        push @default_condition,
-            $self->table->c($self->polymorphic_on)
-                == $self->polymorphic_identity;
-        $self->{default_condition} = \@default_condition;
-        $self->default_value->{$self->polymorphic_on}
-            = $self->polymorphic_identity;
-    }
-
-    if (    $self->inherits
-        and $self->polymorphic_on
-        and $self->polymorphic_identity )
-    {
-        $self->set_polymorphic_tree();
-    }
+    $self->set_polymorphic_tree();
 
     $self->_initialize;
     return $self;

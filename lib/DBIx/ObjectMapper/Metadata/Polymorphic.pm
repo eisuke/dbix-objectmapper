@@ -193,14 +193,12 @@ sub update {
     if( keys %parent_data ) {
         my @parent_where = $self->cast_cond( 'parent', $cond );
         push @query,
-            $self->parent_table->update->set(%parent_data)
-            ->where(@parent_where);
+            $self->parent_table->update(\%parent_data, \@parent_where);
     }
 
     if( keys %child_data ) {
         my @child_where = $self->cast_cond( 'child', $cond );
-        push @query,
-            $self->child_table->update->set(%child_data)->where(@child_where);
+        push @query, $self->child_table->update(\%child_data, \@child_where);
     }
 
     return @query;
