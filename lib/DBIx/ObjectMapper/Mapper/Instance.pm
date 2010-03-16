@@ -452,24 +452,7 @@ sub update {
             }
         }
 
-        for my $smm ( @{$self->{save_many_to_many}} ) {
-            my $prop = $class_mapper->attributes->property_info($smm->{name});
-            next unless $prop->type eq 'relation';
-            $prop->{isa}->many_to_many_add(
-                $self,
-                $self->get($smm->{mapper_addr})->instance,
-            );
-        }
-
-        for my $rmm ( @{$self->{remove_many_to_many}} ) {
-            my $prop = $class_mapper->attributes->property_info($rmm->{name});
-            next unless $prop->type eq 'relation';
-            $prop->{isa}->many_to_many_remove(
-                $self,
-                $self->get($rmm->{mapper_addr})->instance,
-            );
-        }
-
+        $self->_release_many_to_many_event;
         $self->_modify($new_val) if $new_val;
     } catch {
         $self->change_status('detached');
@@ -559,15 +542,10 @@ sub add_multi_val {
     my $prop = $class_mapper->attributes->property_info($name) || return;
     return unless $prop->type eq 'relation';
 
-    if ( $prop->{isa}->type eq 'many_to_many'
-        and ( $obj->__mapper__->is_transient || $obj->__mapper__->is_pending )
-        )
-    {
+    $self->unit_of_work->add($obj);
+    if ( $prop->{isa}->type eq 'many_to_many' ) {
         my $mapper_addr = refaddr($obj);
         $self->_regist_many_to_many_event( $name, $mapper_addr, 'save' );
-    }
-    elsif( $self->is_persistent ) {
-        $self->unit_of_work->add($obj);
     }
 }
 
@@ -600,6 +578,30 @@ sub _regist_many_to_many_event {
         name => $name,
         mapper_addr => $mapper_addr,
     };
+    $self->_release_many_to_many_event if $self->unit_of_work->autoflush;
+}
+
+sub _release_many_to_many_event {
+    my $self = shift;
+    my $class_mapper = $self->instance->__class_mapper__;
+
+    while( my $smm = shift(@{$self->{save_many_to_many}}) ) {
+        my $prop = $class_mapper->attributes->property_info($smm->{name});
+        next unless $prop->type eq 'relation';
+        $prop->{isa}->many_to_many_add(
+            $self,
+            $self->get($smm->{mapper_addr})->instance,
+        );
+    }
+
+    while( my $rmm = shift(@{$self->{remove_many_to_many}}) ) {
+        my $prop = $class_mapper->attributes->property_info($rmm->{name});
+        next unless $prop->type eq 'relation';
+        $prop->{isa}->many_to_many_remove(
+            $self,
+            $self->get($rmm->{mapper_addr})->instance,
+        );
+    }
 }
 
 sub demolish {

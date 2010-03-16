@@ -47,16 +47,18 @@ sub new {
         ( $attr{no_cache} ? undef : $attr{cache} ),
         $attr{search_class},
         $attr{change_checker},
-        { share_object => $attr{share_object} },
+        {   share_object => $attr{share_object},
+            autoflush    => $attr{autoflush},
+        },
     );
 
     return bless \%attr, $class;
 }
 
-sub autoflush   { $_[0]->{autoflush} }
 sub autocommit  { $_[0]->{autocommit} }
 sub uow         { $_[0]->{unit_of_work} }
 sub engine      { $_[0]->{engine} }
+sub autoflush   { $_[0]->{autoflush} }
 
 sub search {
     my $self = shift;
@@ -132,6 +134,7 @@ sub txn {
     return $self->{engine}->transaction(
         sub {
             local $self->{autoflush} = 1;
+            local $self->uow->{option}{autoflush} = 1;
             $code->();
         },
     );

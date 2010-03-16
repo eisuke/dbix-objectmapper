@@ -24,6 +24,14 @@ sub search         { $_[0]->{search}->new(@_) }
 sub cache          { $_[0]->{cache} }
 sub change_checker { $_[0]->{change_checker} }
 
+sub autoflush      {
+    my $self = shift;
+    if( @_ ) {
+        $self->{option}{autoflush} = shift;
+    }
+    return $self->{option}{autoflush};
+}
+
 sub get {
     my ( $self, $t_class, $id, $option ) = @_;
     my $class_mapper = $t_class->__class_mapper__;

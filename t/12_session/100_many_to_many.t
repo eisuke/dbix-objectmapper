@@ -176,5 +176,32 @@ subtest 'eagerload' => sub {
     done_testing;
 };
 
+subtest 'autoflush_add' => sub {
+    {
+        my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+
+        for ( 21 .. 25 ) {
+            $session->add(MyTest14::Child->new( id => $_  ));
+        }
+
+        my $attr = $mapper->attribute('MyTest14::Child');
+        my $child = $session->search('MyTest14::Child')->filter(
+            $attr->p('id')->between(21,25)
+        )->execute;
+
+        my $p = MyTest14::Parent->new({ id => 2 });
+        $session->add($p);
+        for ( @$child ) {
+            push @{$p->children}, $_;
+        }
+    };
+
+    my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+    ok my $p = $session->get( 'MyTest14::Parent' => 2 );
+    is @{$p->children}, 5;
+
+    done_testing;
+};
+
 
 done_testing;

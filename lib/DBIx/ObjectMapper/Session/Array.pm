@@ -6,9 +6,8 @@ use base qw(Tie::Array);
 
 sub new {
     my ( $class, $name, $mapper, @val ) = @_;
-    my $array;
-    tie @$array, $class, $name, $mapper;
-    push @$array, @val if @val;
+    my $array = [];
+    tie @$array, $class, $name, $mapper, \@val;
     return $array;
 }
 
@@ -16,14 +15,14 @@ sub TIEARRAY {
     my $class = shift;
     my $name = shift;
     my $mapper = shift;
+    my $val = shift;
 
-    my $self = bless {
-        value      => +[],
+    return bless {
+        value      => $val,
         name       => $name,
         mapperaddr => refaddr($mapper->instance),
         mapper     => ref($mapper),
     }, $class;
-    return $self;
 }
 
 sub name { $_[0]->{name} }

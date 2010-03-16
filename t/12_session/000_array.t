@@ -83,42 +83,42 @@ $mapper->{unit_of_work} = $uow;
 my $array = DBIx::ObjectMapper::Session::Array->new('name', $mapper, qw(a b c d));
 
 ok tied(@$array);
-is_deeply $array, $uow->{add};
+is_deeply [], $uow->{add};
 is $array->[0], 'a';
 
 push @$array, 'e';
 unshift @$array, 0;
 is_deeply $array, [qw(0 a b c d e)];
-is_deeply $uow->{add}, [qw(a b c d e 0)];
+is_deeply $uow->{add}, [qw(e 0)];
 
 shift @$array;
 is_deeply $array, [qw(a b c d e)];
-is_deeply $uow->{add}, [qw(a b c d e 0)];
+is_deeply $uow->{add}, [qw(e 0)];
 is_deeply $uow->{delete}, [qw(0)];
 
 pop @$array;
 is_deeply $array, [qw(a b c d)];
-is_deeply $uow->{add}, [qw(a b c d e 0)];
+is_deeply $uow->{add}, [qw(e 0)];
 is_deeply $uow->{delete}, [qw(0 e)];
 
 splice @$array, 0, 0, '1';
 is_deeply $array, [qw(1 a b c d)];
-is_deeply $uow->{add}, [qw(a b c d e 0 1)];
+is_deeply $uow->{add}, [qw(e 0 1)];
 is_deeply $uow->{delete}, [qw(0 e)];
 
 splice @$array, 0, 1, '2';
 is_deeply $array, [qw(2 a b c d)];
-is_deeply $uow->{add}, [qw(a b c d e 0 1 2)];
+is_deeply $uow->{add}, [qw(e 0 1 2)];
 is_deeply $uow->{delete}, [qw(0 e 1)];
 
 splice @$array, 3;
 is_deeply $array, [qw(2 a b)];
-is_deeply $uow->{add}, [qw(a b c d e 0 1 2)];
+is_deeply $uow->{add}, [qw(e 0 1 2)];
 is_deeply $uow->{delete}, [qw(0 e 1 c d)];
 
 $array->[3] = 'f';
 is_deeply $array, [qw(2 a b f)];
-is_deeply $uow->{add}, [qw(a b c d e 0 1 2 f)];
+is_deeply $uow->{add}, [qw(e 0 1 2 f)];
 is_deeply $uow->{delete}, [qw(0 e 1 c d)];
 
 is join(',', @$array), '2,a,b,f';
