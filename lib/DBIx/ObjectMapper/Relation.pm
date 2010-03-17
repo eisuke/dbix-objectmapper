@@ -7,10 +7,11 @@ use DBIx::ObjectMapper::Mapper;
 
 my %CASCADE_TYPES = (
     # type         => [ single, multi ]
-    save_update    => [ 0, 0 ],
+    save_update    => [ 0, 1 ],
     delete         => [ 0, 0 ],
     detach         => [ 0, 0 ],
     reflesh_expire => [ 0, 0 ],
+    delete_orphan  => [ 0, 0 ],
 );
 
 sub new {
@@ -42,12 +43,12 @@ sub _init_option {
         $cascade_option =~ s/\s//g;
         my %cascade = map { $_ => 1 } split ',', $cascade_option;
         if( $cascade{all} ) {
-            $self->{cascade}{$_} = 1 for keys %CASCADE_TYPES;
+            $self->{cascade}{$_} = 1
+                for qw(save_update reflesh_expire delete detach);
         }
-        else {
-            for my $c ( keys %CASCADE_TYPES ) {
-                $self->{cascade}{$c} = 1 if $cascade{$c};
-            }
+
+        for my $c ( keys %CASCADE_TYPES ) {
+            $self->{cascade}{$c} = 1 if $cascade{$c};
         }
     }
 
@@ -168,8 +169,6 @@ sub get_multi {
 
 sub relation_condition {}
 
-sub identity_condition {}
-
 sub cascade_delete {
     my $self = shift;
     my $mapper = shift;
@@ -181,6 +180,34 @@ sub cascade_delete {
     $self->mapper->delete(@cond);
 }
 
+sub relation_value {
+    my $self = shift;
+    my $mapper = shift;
+    my $class_mapper = $mapper->instance->__class_mapper__;
+    my $rel_mapper = $self->mapper;
+
+    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
+    my %val;
+    for my $i ( 0 .. $#{$fk->{keys}} ) {
+        $val{$fk->{keys}->[$i]} = $mapper->get_val( $fk->{refs}->[$i] );
+    }
+    return \%val;
+}
+
+sub identity_condition {
+    my $self = shift;
+    my $mapper = shift;
+
+    my $rel_val = $self->relation_value($mapper);
+    my $rel_mapper = $self->mapper;
+    my @cond;
+    for my $r ( keys %$rel_val ) {
+        next unless defined $rel_val->{$r};
+        push @cond, $rel_mapper->table->c( $r ) == $rel_val->{$r};
+    }
+    return @cond;
+}
+
 sub cascade_update {
     my $self = shift;
     my $mapper = shift;
@@ -189,11 +216,12 @@ sub cascade_update {
 
     my $uniq_cond = $mapper->relation_condition->{$self->name};
     my $modified_data = $mapper->modified_data;
+
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
+    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
 
     my %sets;
-    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
     for my $i ( 0 .. $#{$fk->{keys}} ) {
         if( my $m = $modified_data->{$fk->{refs}->[$i]} ) {
             $sets{$fk->{keys}->[$i]} = $m;
@@ -211,15 +239,10 @@ sub cascade_save {
 
     return unless $self->is_cascade_save_update;
 
-    my $class_mapper = $mapper->instance->__class_mapper__;
-    my $rel_mapper = $self->mapper;
-
     my %sets;
-    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        $instance->__mapper__->set_val(
-            $fk->{keys}->[$i] => $mapper->get_val( $fk->{refs}->[$i] )
-        );
+    my $rel_val = $self->relation_value($mapper);
+    for my $r ( keys %$rel_val ) {
+        $instance->__mapper__->set_val( $r => $rel_val->{$r} );
     }
 
     $mapper->unit_of_work->add($instance);

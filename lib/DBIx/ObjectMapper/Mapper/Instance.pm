@@ -547,6 +547,13 @@ sub add_multi_val {
         my $mapper_addr = refaddr($obj);
         $self->_regist_many_to_many_event( $name, $mapper_addr, 'save' );
     }
+    else {
+        my $rel_val = $prop->{isa}->relation_value($self);
+        for my $r ( keys %$rel_val ) {
+            $obj->__mapper__->set_val( $r => $rel_val->{$r} );
+        }
+        $self->unit_of_work->flush if $self->unit_of_work->autoflush;
+    }
 }
 
 sub remove_multi_val {
@@ -566,7 +573,17 @@ sub remove_multi_val {
         $self->_regist_many_to_many_event($name, $mapper_addr, 'remove');
     }
     elsif( $self->is_persistent ) {
-        $self->unit_of_work->delete($obj);
+        if( $prop->{isa}->is_cascade_delete_orphan ) {
+            $self->unit_of_work->delete($obj);
+        }
+        else {
+            my $rel_val = $prop->{isa}->relation_value($self);
+            for my $r ( keys %$rel_val ) {
+                $obj->__mapper__->set_val_trigger( $r => undef );
+                $obj->__mapper__->set_val( $r => undef );
+            }
+        }
+        $self->unit_of_work->flush if $self->unit_of_work->autoflush;
     }
 }
 

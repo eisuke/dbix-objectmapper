@@ -29,7 +29,11 @@ ok $mapper->maps(
             children => +{
                 isa => $mapper->relation(
                     has_many => 'Child',
-                    { order_by => $mapper->metadata->t('child')->c('id')->desc }
+                    {
+                        order_by =>
+                            $mapper->metadata->t('child')->c('id')->desc,
+                        cascade => 'all,delete_orphan',
+                    }
                 ),
             }
         }
@@ -76,6 +80,57 @@ ok $mapper->maps(
 
 };
 
+{
+    my $session = $mapper->begin_session;
+    ok my $parent = $session->get( 'Parent' => 1 );
+    push @{$parent->children}, Child->new( id => 6 );
+};
+
+{
+    my $session = $mapper->begin_session;
+    ok my $parent = $session->get( 'Parent' => 1 );
+    is @{$parent->children}, 6;
+};
+
+{
+    my $session = $mapper->begin_session;
+    ok my $parent = $session->get( 'Parent' => 1 );
+    shift(@{$parent->children});
+};
+
+{
+    my $session = $mapper->begin_session;
+    ok my $parent = $session->get( 'Parent' => 1 );
+    is @{$parent->children}, 5;
+    is $session->search('Child')->count, 5; # delete_orphan
+};
+
+#### autoflush = true
+
+{
+    my $session = $mapper->begin_session( autoflush => 1 );
+    ok my $parent = $session->get( 'Parent' => 1 );
+    push @{$parent->children}, Child->new( id => 7 );
+};
+
+{
+    my $session = $mapper->begin_session( autoflush => 1 );
+    ok my $parent = $session->get( 'Parent' => 1 );
+    is @{$parent->children}, 6;
+};
+
+{
+    my $session = $mapper->begin_session( autoflush => 1 );
+    ok my $parent = $session->get( 'Parent' => 1 );
+    shift(@{$parent->children});
+};
+
+{
+    my $session = $mapper->begin_session( autoflush => 1 );
+    ok my $parent = $session->get( 'Parent' => 1 );
+    is @{$parent->children}, 5;
+    is $session->search('Child')->count, 5; # delete_orphan
+};
 
 done_testing;
 

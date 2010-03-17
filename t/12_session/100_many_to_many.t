@@ -203,5 +203,71 @@ subtest 'autoflush_add' => sub {
     done_testing;
 };
 
+subtest 'autoflush_remove' => sub {
+    {
+        my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+        ok my $p = $session->get( 'MyTest14::Parent' => 2 );
+        is @{$p->children}, 5;
+        shift(@{$p->children});
+    };
+
+    my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+    ok my $p = $session->get( 'MyTest14::Parent' => 2 );
+    is @{$p->children}, 4;
+
+    done_testing;
+};
+
+subtest 'eagerload_add' => sub {
+    {
+        my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+
+        for ( 26 .. 30 ) {
+            $session->add(MyTest14::Child->new( id => $_  ));
+        }
+
+        my $attr = $mapper->attribute('MyTest14::Child');
+        my $child = $session->search('MyTest14::Child')->filter(
+            $attr->p('id')->between(26,30)
+        )->execute;
+
+        my $p = MyTest14::Parent->new({ id => 3 });
+        $session->add($p);
+        for ( @$child ) {
+            push @{$p->children}, $_;
+        }
+    };
+
+    my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+    ok my $p = $session->get(
+        'MyTest14::Parent' => 3,
+        { eagerload => 'children'}
+    );
+    is @{$p->children}, 5;
+    is $session->uow->query_cnt, 1;
+
+    done_testing;
+};
+
+subtest 'eagerload_remove' => sub {
+    {
+        my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+        ok my $p = $session->get( 'MyTest14::Parent' => 3, { eagerload => 'children'} );
+        is @{$p->children}, 5;
+        is $session->uow->query_cnt, 1;
+        shift(@{$p->children});
+    };
+
+    my $session = $mapper->begin_session( autoflush => 1, autocommit => 1 );
+    ok my $p = $session->get(
+        'MyTest14::Parent' => 3,
+        { eagerload => 'children'}
+    );
+    is @{$p->children}, 4;
+    is $session->uow->query_cnt, 1;
+
+    done_testing;
+};
+
 
 done_testing;

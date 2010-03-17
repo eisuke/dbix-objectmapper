@@ -347,7 +347,7 @@ my $mapper = MyTest11->mapper;
     my $session = $mapper->begin_session;
     my $artist = $session->get( 'MyTest11::Artist' => 1 );
     my $new_cd = MyTest11::Cd->new(
-        id => 1,
+        id => 11,
         artist_id => $artist->id,
         title => 'Led Zeppelin',
     );
