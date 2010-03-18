@@ -158,6 +158,7 @@ sub change_status {
                     }
                 }
             }
+            $self->_clear_cache;
         }
         elsif( $status_name eq 'expired' ) {
             my $class_mapper = $self->instance->__class_mapper__;
@@ -181,13 +182,22 @@ sub change_status {
                     }
                 }
             }
+            $self->_clear_cache;
         }
         else {
             #warn $status_name;
         }
     }
     else {
-        confess "Can't change status : " . $self->status . " => $status_name";
+        if( $self->status eq 'expired' ) {
+            $self->reflesh;
+            $self->change_status($status_name);
+        }
+        else {
+            confess "Can't change status : "
+                . $self->status
+                . " => $status_name";
+        }
     }
 }
 
@@ -217,14 +227,19 @@ sub reducing {
 
 sub reflesh {
     my $self = shift;
+    return unless $self->is_expired;
+
     my $class_mapper = $self->instance->__class_mapper__;
     my ( $key, @cond )
         = $class_mapper->get_unique_condition( $self->identity_condition );
-    my $new_val = $class_mapper->table->_find(@cond) || return;
+    my $new_val = $class_mapper->table->_find(@cond) || do {
+        $self->change_status('detached');
+        return;
+    };
 
     $self->change_status('persistent');
-    $self->unit_of_work->_set_cache($self);
     $self->_modify( $new_val );
+    $self->unit_of_work->_set_cache($self);
 
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $prop = $class_mapper->attributes->property_info($prop_name);
@@ -233,8 +248,8 @@ sub reflesh {
             if( my $instance = $self->get_val($prop_name) ) {
                 my @instance
                     = ref $instance eq 'ARRAY'
-                        ? @$instance
-                            : ($instance);
+                    ? @$instance
+                    : ($instance);
                 $_->__mapper__->reflesh for @instance;
             }
         }
@@ -350,7 +365,7 @@ sub set_val_trigger {
         )
     ) {
         $self->{is_modified} = 1;
-        $self->{modified_data}->{ $prop->name } = $val;
+        $self->{modified_data}->{ $name } = $val;
     }
 
     $self->demolish if $self->is_transient;
@@ -386,17 +401,19 @@ sub set_val {
     local $call = 1;
     my $class_mapper = $self->instance->__class_mapper__;
     if( my $setter = $class_mapper->accessors->generic_setter ) {
-        return $self->instance->$setter($name => $val);
+        $self->instance->$setter($name => $val);
     }
     else {
         my $prop = $class_mapper->attributes->property_info($name);
         if( my $setter = $prop->setter ) {
-            return $self->instance->$setter($val);
+            $self->instance->$setter($val);
         }
         else {
-            return $self->instance->{$prop->name || $name} = $val;
+            $self->instance->{$prop->name || $name} = $val;
         }
     }
+
+    return $val;
 }
 
 sub is_modified   {
@@ -413,7 +430,7 @@ sub is_modified   {
         my $val = $self->get_val($prop_name);
         next unless $prop->type eq 'column' and ref $val;
         if( $self->unit_of_work->change_checker->is_changed( $val ) ) {
-            $modified_data->{$col} = $val;
+            $modified_data->{$prop_name} = $val;
             $is_modified = 1;
         }
     }
@@ -433,23 +450,40 @@ sub update {
     my $class_mapper = $self->instance->__class_mapper__;
 
     my $result;
-    my $new_val;
-
     try {
+        my @after_cascade;
+        for my $prop_name ( $class_mapper->attributes->property_names ) {
+            my $prop = $class_mapper->attributes->property_info($prop_name);
+            next unless $prop->type eq 'relation';
+            if( $prop->{isa}->is_cascade_save_update() ) {
+                if (ref( $prop->{isa} ) eq
+                    'DBIx::ObjectMapper::Relation::BelongsTo' )
+                {
+                    $prop->{isa}->cascade_update( $self );
+                }
+                else {
+                    push @after_cascade, $prop;
+                }
+            }
+        }
+
+        my $new_val;
         if( keys %$modified_data ) {
-            $result = $class_mapper->update( $modified_data, $uniq_cond );
+            my %mod_data;
+            for ( keys %$modified_data ) {
+                my $prop = $class_mapper->attributes->property_info($_);
+                $mod_data{$prop->name} = $modified_data->{$_};
+            }
+
+            $result = $class_mapper->update( \%mod_data, $uniq_cond );
             $new_val = DBIx::ObjectMapper::Utils::merge_hashref(
                 $reduce_data,
                 $modified_data
             );
         }
 
-        for my $prop_name ( $class_mapper->attributes->property_names ) {
-            my $prop = $class_mapper->attributes->property_info($prop_name);
-            next unless $prop->type eq 'relation';
-            if( $prop->{isa}->is_cascade_save_update() ) {
-                $prop->{isa}->cascade_update( $self );
-            }
+        for my $c ( @after_cascade ) {
+            $c->{isa}->cascade_update( $self );
         }
 
         $self->_release_many_to_many_event;
@@ -470,28 +504,52 @@ sub save {
     my ( $self ) = @_;
 
     confess 'it need to be "pending" status.' unless $self->is_pending;
-    my $reduce_data = $self->reducing;
     my $class_mapper = $self->instance->__class_mapper__;
-    my $data = { %$reduce_data, %{$class_mapper->default_value} };
 
     try {
+        my @after_cascade;
+        for my $prop_name ( $class_mapper->attributes->property_names ) {
+            my $prop = $class_mapper->attributes->property_info($prop_name);
+            if (    $prop->type eq 'relation'
+                and $prop->{isa}->is_cascade_save_update() )
+            {
+                if (ref( $prop->{isa} ) eq
+                    'DBIx::ObjectMapper::Relation::BelongsTo' )
+                {
+                    if ( my $instance = $self->get_val($prop_name) ) {
+                        my @instances
+                            = ref $instance eq 'ARRAY'
+                            ? @$instance
+                            : ($instance);
+                        for my $i (@instances) {
+                            $prop->{isa}->cascade_save( $self, $i );
+                        }
+                    }
+                }
+                else {
+                    push @after_cascade, $prop;
+                }
+            }
+        }
+
+        my $reduce_data = $self->reducing;
+        my $data = { %$reduce_data, %{$class_mapper->default_value} };
         my $comp_result = $class_mapper->insert(%$data);
         $self->_modify($comp_result);
         $self->initialize;
 
-        for my $prop_name ( $class_mapper->attributes->property_names ) {
-            my $prop = $class_mapper->attributes->property_info($prop_name);
-            next unless $prop->type eq 'relation';
-            if( $prop->{isa}->is_cascade_save_update() ) {
-                if( my $instance = $self->get_val($prop_name) ) {
-                    my @instances
-                        = ref $instance eq 'ARRAY' ? @$instance : ( $instance );
-                    for my $i (@instances) {
-                        $prop->{isa}->cascade_save( $self, $i );
-                    }
+        for my $c ( @after_cascade ) {
+            if ( my $instance = $self->get_val($c->name) ) {
+                my @instances
+                    = ref $instance eq 'ARRAY'
+                    ? @$instance
+                    : ($instance);
+                for my $i (@instances) {
+                    $c->{isa}->cascade_save( $self, $i );
                 }
             }
         }
+
     } catch {
         $self->change_status('detached');
         confess $_[0];
@@ -504,26 +562,39 @@ sub save {
 sub delete {
     my $self = shift;
     confess 'it need to be "persistent" status.' unless $self->is_persistent;
+
+    my $deleted_key = shift || +{};
     my $uniq_cond = $self->identity_condition;
     my $class_mapper = $self->instance->__class_mapper__;
 
     my $result;
     try {
+        my @after_cascade;
+        $deleted_key->{$self->primary_cache_key} = 1;
         for my $prop_name ( $class_mapper->attributes->property_names ) {
             my $prop = $class_mapper->attributes->property_info($prop_name);
-            next unless $prop->type eq 'relation';
-            my $name = $prop->name || $prop_name;
-            if( $prop->{isa}->is_cascade_delete() ) {
-                if( my $instance = $self->get_val($prop_name) ) {
-                    my @instance
-                        = ref $instance eq 'ARRAY' ? @$instance : ($instance);
-                    $self->unit_of_work->detach($_) for @instance;
+            if (    $prop->type eq 'relation'
+                and $prop->{isa}->is_cascade_delete() )
+            {
+                if (ref( $prop->{isa} ) eq
+                    'DBIx::ObjectMapper::Relation::BelongsTo' )
+                {
+                    push @after_cascade, $prop;
                 }
-                $prop->{isa}->cascade_delete($self);
+                else {
+                    $self->_cascade_delete($prop, $deleted_key);
+                }
+            }
+            elsif( $prop->is_multi ) {
+                $prop->{isa}->deleted_parent($self);
             }
         }
 
         $result = $class_mapper->delete(@$uniq_cond);
+
+        for my $c ( @after_cascade ) {
+            $self->_cascade_delete($c, $deleted_key);
+        }
     } catch {
         $self->change_status('detached');
         confess $_[0];
@@ -531,6 +602,24 @@ sub delete {
 
     $self->change_status('detached');
     return $result;
+}
+
+sub _cascade_delete {
+    my ( $self, $prop, $deleted_key ) = @_;
+
+    $prop->{isa}->cascade_delete($self, $deleted_key);
+    if ( my $instance = $self->get_val($prop->name) ) {
+        my @instance
+            = ref $instance eq 'ARRAY'
+            ? @$instance
+            : ($instance);
+        $self->unit_of_work->detach($_) for @instance;
+    }
+}
+
+sub _clear_cache {
+    my $self = shift;
+    $self->unit_of_work->_clear_cache($self);
 }
 
 sub add_multi_val {
@@ -542,7 +631,7 @@ sub add_multi_val {
     my $prop = $class_mapper->attributes->property_info($name) || return;
     return unless $prop->type eq 'relation';
 
-    $self->unit_of_work->add($obj);
+    $self->unit_of_work->add($obj) unless $obj->__mapper__->is_persistent;
     if ( $prop->{isa}->type eq 'many_to_many' ) {
         my $mapper_addr = refaddr($obj);
         $self->_regist_many_to_many_event( $name, $mapper_addr, 'save' );
@@ -550,6 +639,7 @@ sub add_multi_val {
     else {
         my $rel_val = $prop->{isa}->relation_value($self);
         for my $r ( keys %$rel_val ) {
+            $obj->__mapper__->set_val_trigger( $r => $rel_val->{$r} );
             $obj->__mapper__->set_val( $r => $rel_val->{$r} );
         }
         $self->unit_of_work->flush if $self->unit_of_work->autoflush;

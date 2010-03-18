@@ -1,5 +1,2 @@
 * SQL - exists,any,in support
-* autoflush=1の動きを確認
-
-===
-http://www.sqlalchemy.org/docs/05/mappers.html#composite-column-types
+* passive_(delete|update)

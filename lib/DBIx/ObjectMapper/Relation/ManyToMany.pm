@@ -131,14 +131,20 @@ sub cascade_update {
     my $modified_data = $mapper->modified_data;
     my $class_mapper = $mapper->instance->__class_mapper__;
 
-    my %sets;
     my $fk =
         $self->assc_table->get_foreign_key_by_table( $class_mapper->table );
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        $sets{ $fk->{keys}->[$i] } = $modified_data->{ $fk->{refs}->[$i] }
-            if $modified_data->{ $fk->{refs}->[$i] };
+    my %foreign_key =
+        map{ $fk->{refs}->[$_] => $fk->{keys}->[$_] } 0 .. $#{$fk->{keys}};
+
+    my %sets;
+    for my $mkey ( keys %$modified_data ) {
+        my $prop = $class_mapper->attributes->property_info( $mkey );
+        if( $foreign_key{$prop->name} ) {
+            $sets{$foreign_key{$prop->name}} = $modified_data->{$mkey};
+        }
     }
     return unless keys %sets;
+
     $self->assc_table->update->set(%sets)->where(@$uniq_cond)->execute;
 }
 

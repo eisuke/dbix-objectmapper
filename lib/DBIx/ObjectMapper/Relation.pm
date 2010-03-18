@@ -128,13 +128,8 @@ sub foreign_key {}
 sub get_one {
     my $self = shift;
     my $mapper = shift;
-
     my $cond = $mapper->relation_condition->{$self->name} || return;
-    $mapper->set_val(
-        $self->name => $mapper->unit_of_work->get(
-            $self->rel_class => $cond
-        )
-    );
+    return $mapper->unit_of_work->get( $self->rel_class => $cond );
 }
 
 sub get_multi {
@@ -153,31 +148,22 @@ sub get_multi {
             @{ $rel_mapper->table->primary_key };
     }
 
-    my @new_val
-        = $mapper->unit_of_work->search( $self->rel_class )->filter(@$cond)
+    return $mapper->unit_of_work->search( $self->rel_class )->filter(@$cond)
         ->order_by(@order_by)->execute->all;
-
-    $mapper->set_val(
-        $self->name => DBIx::ObjectMapper::Session::Array->new(
-            $self->name,
-            $mapper,
-            @new_val
-        )
-    );
 }
-
 
 sub relation_condition {}
 
 sub cascade_delete {
     my $self = shift;
-    my $mapper = shift;
-
     return unless $self->is_cascade_delete;
-
-    my @cond = $self->identity_condition($mapper);
-    return if !@cond || ( @cond == 1 and !defined $cond[0]->[2] );
-    $self->mapper->delete(@cond);
+    my $mapper = shift;
+    my $deleted_key = shift;
+    for my $child ( $self->_get($mapper) ) {
+        unless( $deleted_key->{$child->__mapper__->primary_cache_key} ) {
+            $child->__mapper__->delete($deleted_key);
+        }
+    }
 }
 
 sub relation_value {
@@ -187,10 +173,18 @@ sub relation_value {
     my $rel_mapper = $self->mapper;
 
     my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
+    my %foreign_key =
+        map{ $fk->{refs}->[$_] => $fk->{keys}->[$_] } 0 .. $#{$fk->{keys}};
+
     my %val;
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        $val{$fk->{keys}->[$i]} = $mapper->get_val( $fk->{refs}->[$i] );
+    for my $prop_name ( $class_mapper->attributes->property_names ) {
+        my $prop = $class_mapper->attributes->property_info( $prop_name );
+        next unless $prop->type eq 'column';
+        if( $foreign_key{$prop->name} ) {
+            $val{$foreign_key{$prop->name}} = $mapper->get_val( $prop_name );
+        }
     }
+
     return \%val;
 }
 
@@ -220,11 +214,14 @@ sub cascade_update {
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
     my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
+    my %foreign_key =
+        map{ $fk->{refs}->[$_] => $fk->{keys}->[$_] } 0 .. $#{$fk->{keys}};
 
     my %sets;
-    for my $i ( 0 .. $#{$fk->{keys}} ) {
-        if( my $m = $modified_data->{$fk->{refs}->[$i]} ) {
-            $sets{$fk->{keys}->[$i]} = $m;
+    for my $mkey ( keys %$modified_data ) {
+        my $prop = $class_mapper->attributes->property_info( $mkey );
+        if( $foreign_key{$mkey} ) {
+            $sets{$foreign_key{$mkey}} = $modified_data->{$mkey};
         }
     }
     return unless keys %sets;
@@ -257,6 +254,37 @@ sub validation {
         my ( $val ) = @_;
         return $rel_class eq ( ref($val) || '' );
     };
+}
+
+sub deleted_parent {
+    my $self = shift;
+    my $mapper = shift;
+
+    return unless $self->is_multi;
+
+    my $class_mapper = $mapper->instance->__class_mapper__;
+    my $rel_mapper = $self->mapper;
+    my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
+    my %foreign_key =
+        map{ $fk->{keys}->[$_] => $fk->{refs}->[$_] } 0 .. $#{$fk->{keys}};
+
+    my @delete_name;
+    for my $prop_name ( $rel_mapper->attributes->property_names ) {
+        my $prop = $rel_mapper->attributes->property_info( $prop_name );
+        next unless $prop->type eq 'column';
+        if( $foreign_key{$prop->name} ) {
+            push @delete_name, $prop_name;
+        }
+    }
+
+    my @children = $self->_get($mapper);
+    for my $c ( @children ) {
+        for my $name (@delete_name) {
+            $c->__mapper__->set_val_trigger( $name => undef );
+            $c->__mapper__->set_val( $name => undef );
+        }
+        $c->__mapper__->update;
+    }
 }
 
 sub DESTROY {

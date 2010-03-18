@@ -7,7 +7,22 @@ sub initial_is_multi { 1 };
 
 sub get {
     my $self = shift;
-    $self->get_multi(@_);
+    my $mapper = shift;
+    my @val = $self->_get($mapper);
+
+    $mapper->set_val(
+        $self->name => DBIx::ObjectMapper::Session::Array->new(
+            $self->name,
+            $mapper,
+            @val
+        )
+    );
+}
+
+sub _get {
+    my $self = shift;
+    my $mapper = shift;
+    return $self->get_multi($mapper);
 }
 
 sub foreign_key {

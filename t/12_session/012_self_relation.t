@@ -33,10 +33,14 @@ ok $mapper->maps(
     attributes  => {
         properties => {
             parent => {
-                isa => $mapper->relation( 'belongs_to' => 'MyTest12::BBS' ),
+                isa => $mapper->relation(
+                    'belongs_to' => 'MyTest12::BBS',
+                ),
             },
             children => {
-                isa => $mapper->relation( 'has_many' => 'MyTest12::BBS' ),
+                isa => $mapper->relation(
+                    'has_many' => 'MyTest12::BBS',
+                ),
             }
         }
     }
@@ -113,5 +117,114 @@ subtest 'join nested' => sub {
     is $session->uow->query_cnt, 8;
     done_testing;
 };
+
+subtest 'delete' => sub {
+    my $session = $mapper->begin_session;
+    my $p = $session->get( 'MyTest12::BBS' => 1 );
+    my $attr = $mapper->attribute('MyTest12::BBS');
+
+    is $session->search('MyTest12::BBS')->filter( $attr->p('parent_id') == undef )->count, 2;
+    $session->delete($p);
+    is $session->search('MyTest12::BBS')->count, 4;
+    is $session->search('MyTest12::BBS')->filter( $attr->p('parent_id') == undef )->count, 3;
+
+    done_testing;
+};
+
+ok $mapper->maps(
+    $bbs => 'MyTest12::BBS2',
+    constructor => { auto => 1 },
+    accessors   => { auto => 1 },
+    attributes  => {
+        properties => {
+            parent => {
+                isa => $mapper->relation(
+                    'belongs_to' => 'MyTest12::BBS2',
+                    { cascade => 'all' },
+                ),
+            },
+            children => {
+                isa => $mapper->relation(
+                    'has_many' => 'MyTest12::BBS2',
+                    { cascade => 'all' },
+                ),
+            }
+        }
+    }
+);
+
+subtest 'cascade' => sub {
+    $mapper->metadata->t('bbs')->delete->execute;
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $attr = $mapper->attribute('MyTest12::BBS2');
+
+    # cascade_save
+    my $bbs = MyTest12::BBS2->new( comment => 'cascade_save' );
+    my @children = (
+        map{ MyTest12::BBS2->new( comment => 'cascade_save child' . $_ ) }
+            ( 1 .. 5 )
+    );
+    $bbs->children(\@children);
+    $session->add($bbs);
+    is $session->search('MyTest12::BBS2')->count, 6;
+
+    # cascade_update
+    $bbs->id(100);
+    ok my $parent = $session->get( 'MyTest12::BBS2' => 100 );
+    is @{$parent->children}, 5;
+
+    # orphan
+    my $orphan = shift @{$parent->children};
+    is @{$parent->children}, 4;
+    is $session->search('MyTest12::BBS2')->filter(
+        $attr->p('parent_id') == undef
+    )->count, 2;
+
+    # add orphan
+    push @{$parent->children}, $orphan;
+    is @{$parent->children}, 5;
+    is $session->search('MyTest12::BBS2')->filter(
+        $attr->p('parent_id') == undef
+    )->count, 1;
+
+    # cascade delete
+    $session->delete($parent);
+    is $session->search('MyTest12::BBS2')->count, 0;
+
+    done_testing;
+};
+
+subtest 'many_to_one_cascade_save' => sub {
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $attr = $mapper->attribute('MyTest12::BBS2');
+
+    # save
+    my $child1 = MyTest12::BBS2->new( comment => 'many_to_one child' );
+    my $parent = MyTest12::BBS2->new( comment => 'many_to_one parent' );
+    $child1->parent($parent);
+    $session->add($child1);
+
+    is $session->search('MyTest12::BBS2')->count, 2;
+    ok $parent->id;
+    is $child1->parent_id, $parent->id;
+    is $child1->parent->id, $parent->id;
+
+    # update
+    $child1->parent_id(100);
+    is $session->search('MyTest12::BBS2')->filter($attr->p('parent_id') == 100 )->count, 1;
+    is @{$parent->children}, 0;
+    push @{$parent->children()}, $child1;
+    is $session->search('MyTest12::BBS2')->count, 2;
+    is $child1->parent_id, $parent->id;
+
+    # delete
+    $session->delete($child1);
+    is $session->search('MyTest12::BBS2')->count, 0;
+
+    done_testing;
+};
+
+
+
 
 done_testing();

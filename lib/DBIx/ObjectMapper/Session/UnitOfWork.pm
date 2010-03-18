@@ -89,7 +89,8 @@ sub add_storage_object {
 sub add {
     my ( $self, $obj ) = @_;
     my $mapper = $obj->__mapper__;
-    $mapper->change_status( 'pending', $self ) unless $mapper->is_persistent;
+
+    $mapper->change_status( 'pending', $self ) if $mapper->is_transient;
     # detached,expiredの場合はflushのところで無視される
     unless( exists $self->{map_objects}->{refaddr($obj)} ) {
         $self->_set_cache($mapper);
@@ -102,8 +103,13 @@ sub add {
 
 sub delete {
     my ( $self, $obj ) = @_;
-    my $elm = $self->{map_objects}->{refaddr($obj)};
-    $self->{del_objects}->{refaddr($obj)} = $elm;
+
+    my $id = refaddr($obj);
+    my $elm = $self->{map_objects}->{$id};
+    $self->{objects}->[$elm] = undef;
+    push @{$self->{objects}}, $obj;
+    $self->{map_objects}->{$id} = $self->{del_objects}->{$id} = $elm;
+
     return $obj;
 }
 
@@ -111,30 +117,36 @@ sub detach {
     my ( $self, $obj ) = @_;
     my $mapper = $obj->__mapper__;
     $mapper->change_status('detached');
-    $self->_clear_cache($mapper);
 }
 
 sub flush {
     my ( $self ) = @_;
+
+    my @delete;
+    my %delete_check;
     for my $obj (@{$self->{objects}}) {
         next unless $obj;
         my $mapper = $obj->__mapper__;
         my $id = refaddr($obj);
         if( $mapper->is_pending ) {
             $mapper->save();
-            $self->_clear_cache($mapper);
         }
         elsif( $mapper->is_persistent ) {
             if( exists $self->{del_objects}->{$id} ) {
                 delete $self->{del_objects}->{$id};
-                $mapper->delete();
-                $self->_clear_cache($mapper);
+                unless( $delete_check{$mapper->primary_cache_key} ) {
+                    push @delete, $mapper;
+                    $delete_check{$mapper->primary_cache_key} = 1;
+                }
             }
             elsif( $mapper->is_modified ) {
                 $mapper->update();
-                $self->_clear_cache($mapper);
             }
         }
+    }
+
+    for my $del_mapper ( @delete ) {
+        $del_mapper->delete();
     }
 }
 

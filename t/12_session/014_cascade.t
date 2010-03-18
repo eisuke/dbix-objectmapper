@@ -37,30 +37,27 @@ subtest 'cascade_detach' => sub {
 };
 
 subtest 'cascade_delete' => sub {
-    my $session = $mapper->begin_session;
+    my $session = $mapper->begin_session( autocommit => 0 );
 
     my $cd     = $mapper->metadata->t('cd');
-    my $track  = $mapper->metadata->t('track');
-    my $cd1 = $session->get( 'MyTest11::Cd' => 1 );
-    $session->delete($cd1);
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    $session->delete($artist);
     $session->flush;
 
     # check
-    ok !$session->get( 'MyTest11::Cd' => 1 );
-    my $attr = $mapper->attribute('MyTest11::Track');
-    my $cd1_tracks
-        = $session->search('MyTest11::Track')->filter( $attr->p('cd_id') == 1 )
-        ->execute;
-    is scalar(@$cd1_tracks), 0;
+    ok !$session->get( 'MyTest11::Artist' => 1 );
+    is $session->search('MyTest11::Cd')->count, 0;
+
+    is $session->search('MyTest11::Track')->count, 0;
+    is $session->search('MyTest11::Linernote')->count, 0;
 
     done_testing;
 };
 
+
 subtest 'cascade_update' => sub {
     my $session = $mapper->begin_session;
 
-    my $cd     = $mapper->metadata->t('cd');
-    my $track  = $mapper->metadata->t('track');
     my $cd2 = $session->get( 'MyTest11::Cd' => 2 );
     my @cd2_tracks = @{$cd2->tracks};
     $cd2->id(100);
@@ -84,8 +81,6 @@ subtest 'cascade_update' => sub {
 
 subtest 'cascade_save' => sub {
     my $session = $mapper->begin_session( autocommit => 0 );
-    my $cd     = $mapper->metadata->t('cd');
-    my $track  = $mapper->metadata->t('track');
     ok my $jimi = MyTest11::Artist->new( name => 'Jimi Hendrix' );
     is_deeply $jimi->cds, [];
     $session->add($jimi);

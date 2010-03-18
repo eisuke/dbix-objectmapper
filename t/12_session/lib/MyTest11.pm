@@ -129,6 +129,13 @@ sub mapping_with_foreign_key {
         $linernote => 'MyTest11::Linernote',
         constructor => { auto => 1 },
         accessors   => { auto => 1 },
+        attributes => {
+            properties => {
+                cd => {
+                    isa => $mapper->relation( has_one => 'MyTest11::Cd' ),
+                }
+            }
+        }
     );
 }
 

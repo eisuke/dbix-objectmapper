@@ -110,8 +110,10 @@ sub transaction {
 sub commit {
     my $self = shift;
     $self->flush;
-    $self->transaction->commit unless $self->autocommit;
-    $self->transaction;
+    unless( $self->autocommit ) {
+        $self->transaction->commit;
+        $self->transaction;
+    }
 }
 
 sub rollback {

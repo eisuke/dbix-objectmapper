@@ -7,7 +7,15 @@ sub initial_is_multi { 0 }
 
 sub get {
     my $self = shift;
-    $self->get_one(@_);
+    my $mapper = shift;
+    my $obj = $self->_get($mapper) || return;
+    return $mapper->set_val( $self->name => $obj );
+}
+
+sub _get {
+    my $self = shift;
+    my $mapper = shift;
+    return $self->get_one($mapper);
 }
 
 sub foreign_key {
