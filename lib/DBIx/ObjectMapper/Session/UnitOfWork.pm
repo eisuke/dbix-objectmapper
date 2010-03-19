@@ -70,6 +70,7 @@ sub get {
 
 sub add_storage_object {
     my ( $self, $obj ) = @_;
+    confess "the parameter should be a blessed object." unless blessed $obj;
 
     my $mapper = $obj->__mapper__;
     my $cache_key = $mapper->primary_cache_key;
@@ -88,8 +89,9 @@ sub add_storage_object {
 
 sub add {
     my ( $self, $obj ) = @_;
-    my $mapper = $obj->__mapper__;
+    confess "the parameter should be a blessed object." unless blessed $obj;
 
+    my $mapper = $obj->__mapper__;
     $mapper->change_status( 'pending', $self ) if $mapper->is_transient;
     # detached,expiredの場合はflushのところで無視される
     unless( exists $self->{map_objects}->{refaddr($obj)} ) {
@@ -103,6 +105,7 @@ sub add {
 
 sub delete {
     my ( $self, $obj ) = @_;
+    confess "the parameter should be a blessed object." unless blessed $obj;
 
     my $id = refaddr($obj);
     my $elm = $self->{map_objects}->{$id};
@@ -115,6 +118,7 @@ sub delete {
 
 sub detach {
     my ( $self, $obj ) = @_;
+    confess "the parameter should be a blessed object." unless blessed $obj;
     my $mapper = $obj->__mapper__;
     $mapper->change_status('detached');
 }
