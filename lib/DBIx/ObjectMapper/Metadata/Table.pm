@@ -620,6 +620,9 @@ sub _get_column_object_from_query {
             return $self->_get_column_object_from_query($val);
         }
     }
+    elsif( ref($c) eq $self->column_metaclass . '::Func' ) {
+        return $c;
+    }
     elsif( !ref($c) && $self->c($c) ) {
         return $self->c($c)
     }

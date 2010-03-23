@@ -7,6 +7,7 @@ use base qw(DBIx::ObjectMapper::Metadata::Table);
 use Params::Validate qw(:all);
 use Scalar::Util;
 use List::MoreUtils;
+use DBIx::ObjectMapper::Metadata::Table::Column::Type::Undef;
 
 sub new {
     my $class = shift;
@@ -18,20 +19,11 @@ sub new {
         { type => HASHREF, optional => 1 },
     );
 
-    my $columns = [ map { $_->as_alias($name) } @{$query->builder->column} ];
-    my %column_map;
-    for my $i ( 0 .. $#{$columns} ) {
-        my $col_name = $columns->[$i]->name;
-        confess "$col_name already exists. use alias."
-            if $column_map{$col_name};
-        $column_map{$col_name} = $i + 1;
-    }
-
-    return bless {
+    my $self = bless {
         table_name  => $name,
         query       => $query,
-        columns     => $columns,
-        column_map  => \%column_map,
+        columns     => [],
+        column_map  => +{},
         engine      => $param->{engine} || $query->engine || undef,
         query_class => $param->{query_class} || $class->DEFAULT_QUERY_CLASS(),
         column_metaclass => $class->DEFAULT_COLUMN_METACLASS,
@@ -39,6 +31,61 @@ sub new {
         foreign_key => $param->{foreign_key} || [],
         unique_key  => $param->{unique_key}  || [],
     }, $class;
+
+    my @columns;
+    my %column_map;
+    for my $c ( @{$query->builder->column} ) {
+        my $col_obj = $self->_build_column($c)->as_alias($name);
+        my $col_name = $col_obj->name;
+        confess "$col_name already exists. use alias."
+            if $column_map{$col_name};
+        push @columns, $col_obj;
+        $column_map{$col_name} = $#columns + 1;
+    }
+
+    $self->{columns} = \@columns;
+    $self->{column_map} = \%column_map;
+
+    return $self;
+}
+
+sub _build_column {
+    my ( $self, $c ) = @_;
+
+    if( ref $c eq $self->column_metaclass ) {
+        return $c;
+    }
+    elsif( ref $c eq 'ARRAY' ) { # alias
+        my $col_obj = $self->_build_column($c->[0]);
+        $col_obj->{name} = $c->[1];
+        return $col_obj;
+    }
+    elsif( ref $c eq 'HASH' ) { # function
+        my $key = ( keys %$c )[0];
+        return $self->column_metaclass->new(
+            name  => $key,
+            table => 'unknown',
+            sep   => '.',
+            type =>
+                DBIx::ObjectMapper::Metadata::Table::Column::Type::Undef->new,
+            is_nullable => 1,
+        );
+    }
+    elsif( ref $c eq $self->column_metaclass . '::Func' ){
+        my @funcs = @{$c->{func}};
+        return $self->column_metaclass->new(
+            name  => $funcs[$#funcs],
+            table => 'unknown',
+            sep   => '.',
+            type =>
+                DBIx::ObjectMapper::Metadata::Table::Column::Type::Undef->new,
+            is_nullable => 1,
+        );
+    }
+    else {
+        confess "Can't convert column object: $c";
+    }
+
 }
 
 =head2 table_name
