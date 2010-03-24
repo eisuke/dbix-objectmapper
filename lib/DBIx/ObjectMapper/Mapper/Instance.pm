@@ -619,7 +619,7 @@ sub _cascade_delete {
 
 sub _clear_cache {
     my $self = shift;
-    $self->unit_of_work->_clear_cache($self);
+    $self->unit_of_work->_clear_cache($self) if $self->unit_of_work;
 }
 
 sub add_multi_val {
