@@ -227,6 +227,7 @@ my $address = $meta->table( address => 'autoload' );
         address => 'address1',
     };
 
+    ok !$address->find({ id => 0 });
 };
 
 { # sub query

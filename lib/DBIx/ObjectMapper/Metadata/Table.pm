@@ -654,7 +654,9 @@ sub get_unique_condition {
 
     if ( ref $cond eq 'HASH' ) {
         my $ok = 0;
-        if( List::MoreUtils::all { $cond->{$_} } @{ $self->primary_key } ) {
+        if ( List::MoreUtils::all { exists $cond->{$_} }
+            @{ $self->primary_key } )
+        {
             return (
                 undef,
                 map { $self->c($_) == $cond->{$_} } @{ $self->primary_key }
@@ -662,7 +664,10 @@ sub get_unique_condition {
         }
         else {
             for my $uinfo ( @{ $self->unique_key } ) {
-                if( List::MoreUtils::all { $cond->{$_} } @{$uinfo->[1]} ) {
+                if ( List::MoreUtils::all { exists $cond->{$_} }
+                    @{ $uinfo->[1] } )
+                {
+
                     return (
                         $uinfo->[0],
                         map { $self->c($_) == $cond->{$_} } @{ $uinfo->[1] }
