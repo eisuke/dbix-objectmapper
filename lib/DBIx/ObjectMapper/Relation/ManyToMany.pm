@@ -60,6 +60,19 @@ sub relation_condition {
 sub get {
     my $self = shift;
     my $mapper = shift;
+    my @val = $self->_get($mapper);
+    return $mapper->set_val(
+        $self->name => DBIx::ObjectMapper::Session::Array->new(
+            $self->name,
+            $mapper,
+            @val
+        )
+    );
+}
+
+sub _get {
+    my $self = shift;
+    my $mapper = shift;
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
     my $attr = $rel_mapper->attributes;
@@ -79,14 +92,7 @@ sub get {
             @{ $rel_mapper->table->primary_key } );
     push @{$query->{join}}, [ $self->assc_table => \@assc_cond ];
 
-    my @val = $query->execute->all;
-    $mapper->set_val(
-        $self->name => DBIx::ObjectMapper::Session::Array->new(
-            $self->name,
-            $mapper,
-            @val
-        )
-    );
+    return $query->execute->all;
 }
 
 sub cascade_save {
@@ -195,5 +201,7 @@ sub validation {
         return 0;
     };
 }
+
+sub deleted_parent {}
 
 1;

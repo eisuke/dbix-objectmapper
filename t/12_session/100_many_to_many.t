@@ -140,7 +140,7 @@ subtest 'cascade_delete' => sub {
 
     # check
     ok !$session->get( 'MyTest14::Parent' => 10 );
-    ok $association->select->where( $association->c('left_id') == 10 )->count == 0;
+    is $association->select->where( $association->c('left_id') == 10 )->count, 0;
     for my $cid ( @child_ids ) {
         ok $session->get( 'MyTest14::Child' => $cid );
     }
