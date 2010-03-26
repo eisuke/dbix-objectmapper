@@ -106,7 +106,6 @@ MANIFEST			This list of files
 MANIFEST.SKIP
 META.yml
 README
-README.pod
 t/00_compile.t
 t/01_sql.t
 t/03_utils.t
@@ -147,6 +146,7 @@ t/12_session/012_self_relation.t
 t/12_session/013_lazyload.t
 t/12_session/014_cascade.t
 t/12_session/015_default_condition.t
+t/12_session/016_belongs_to_cascade.t
 t/12_session/017_default_value.t
 t/12_session/018_no_cache.t
 t/12_session/019_transaction.t
@@ -160,6 +160,8 @@ t/12_session/026_init_using_accessor_object.t
 t/12_session/027_no_data_rel.t
 t/12_session/028_single_table_inheritance.t
 t/12_session/029_class_table_inheritance.t
+t/12_session/030_inherit_polymorphic_tree.t
+t/12_session/031_pager.t
 t/12_session/100_many_to_many.t
 t/12_session/200_die.t
 t/12_session/lib/MyTest11.pm
@@ -168,6 +170,7 @@ t/20_misc/002_pg.t
 t/20_misc/003_mysql.t
 t/20_misc/004_fork.t
 t/20_misc/005_thread.t
+t/20_misc/006_meta_query_with_func.t
 t/21_example/lib/MapperExample/Product.pm
 t/21_example/lib/MapperExample/ShoppingCart.pm
 t/21_example/shopping_cart.t
