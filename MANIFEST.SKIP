@@ -35,3 +35,4 @@ nytprof
 \.out$
 
 ^Debian_CPANTS.txt$
+^README.pod$
