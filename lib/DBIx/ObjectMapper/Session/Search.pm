@@ -350,13 +350,19 @@ sub first {
     }
 }
 
-sub pager {
+sub page {
     my $self = shift;
     if( @{ $self->{eager} } and $self->{is_multi} ) {
-        confess "the pager method is not suppurted with eagerloading.";
+        confess "the page method is not suppurted with eagerloading.";
+    }
+    elsif( !$self->{limit} ) {
+        confess "the page method requies limit number.";
     }
     else {
-        return $self->_exec_query( $self->_finalize, 'pager' );
+        my $query = $self->_finalize;
+        my $pager = $query->pager(@_);
+        my $it    = $self->_exec_query( $query, 'execute' );
+        return ( $it, $pager );
     }
 }
 

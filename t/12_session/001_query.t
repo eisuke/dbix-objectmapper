@@ -72,12 +72,10 @@ $mapper->maps(
     my $attr = $mapper->attribute('MyTest11::Artist');
     my $query   = $session->search('MyTest11::Artist')
         ->order_by( $attr->p('id') )->limit(2);
-    my $pager = $query->pager(1);
+    my ( $it, $pager ) = $query->page(1);
     is ref($pager), 'Data::Page';
     is $pager->current_page, 1;
     is $pager->total_entries, 7;
-
-    my $it = $query->execute;
     my $loop_cnt = 0;
     while( my $a = $it->next ) {
         is $a->id, ++$loop_cnt;

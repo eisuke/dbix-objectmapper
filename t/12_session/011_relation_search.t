@@ -321,9 +321,9 @@ my $mapper = MyTest11->mapper;
 
 
     eval {
-        $session->search('MyTest11::Artist')->eager($attr->p('cds'))->pager;
+        $session->search('MyTest11::Artist')->eager($attr->p('cds'))->page(1);
     };
-    ok $@ =~ /the pager method is not suppurted/;
+    ok $@ =~ /the page method is not suppurted/;
 };
 
 { # has_many modify
