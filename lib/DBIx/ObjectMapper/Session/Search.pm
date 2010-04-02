@@ -21,6 +21,7 @@ sub new {
         order_by         => [],
         group_by         => [],
         joined_table     => {},
+        eager_table      => {},
         join             => [],
         limit            => undef,
         offset           => undef,
@@ -121,6 +122,7 @@ sub eager {
                     @via
                 );
                 push @eager_column, @{$eager->table->clone($alias)->columns};
+                $self->{eager_table}->{$alias} = 1;
             }
             else {
                 push @eager_column, $eager->mapper->load_properties;
@@ -380,7 +382,7 @@ sub _join_result_to_object {
     my ( $self, $r ) = @_;
     my $uow    = $self->unit_of_work;
     my $mapper = $self->mapper;
-    for my $key ( reverse sort keys %{ $self->{joined_table} } ) {
+    for my $key ( reverse sort keys %{ $self->{eager_table} } ) {
         next unless $r->{$key};
         my $rel = $self->{joined_table}->{$key};
         my $obj = delete $r->{$key};
@@ -403,30 +405,58 @@ sub _join_result_to_object {
 }
 
 sub _marge {
-    my ( $self, $check, $data, $input, $mapper ) = @_;
-    my $checkkey = $mapper->primary_cache_key($input);
+    my ( $self, $check, $data, $input, $mapper, $name ) = @_;
+    my $checkkey = $mapper->primary_cache_key($input) . ( $name || '' );
 
     if( exists $check->{$checkkey} ) {
         my $master = $data->[$check->{$checkkey}];
-        for my $key ( keys %$master ) {
-            my $prop = $mapper->attributes->property_info($key) || next;
-            if ( $prop->type eq 'relation'
-                and ref( $master->{$key} ) eq 'ARRAY' )
+        for my $prop_name ( $mapper->attributes->property_names ) {
+            my $prop = $mapper->attributes->property_info($prop_name) || next;
+            my $next_key = $name ? $name . '_' . $prop_name : $prop_name;
+            if ( exists $master->{$prop_name} and $prop->type eq 'relation'
+                and ref( $master->{$prop_name} ) eq 'ARRAY' )
             {
-                for ( @{ $input->{$key} } ) {
+                for ( @{ $input->{$prop_name} } ) {
                     $self->_marge(
-                        $check, $master->{$key}, $_, $prop->mapper );
+                        $check,
+                        $master->{$prop_name},
+                        $_,
+                        $prop->mapper,
+                        $next_key
+                    );
                 }
+            }
+            elsif ( $self->{eager_table}->{$next_key}
+                and $prop->type eq 'relation'
+                and $prop->is_multi )
+            {
+                $input->{$prop_name} = [];
             }
         }
     }
     else {
-        for my $key ( %$input ) {
-            my $prop = $mapper->attributes->property_info($key) || next;
-            if( $prop->type eq 'relation' and ref($input->{$key}) eq 'ARRAY') {
-                for( @{$input->{$key}} ) {
-                    $self->_marge($check, [], $_, $prop->mapper);
+        for my $prop_name ( $mapper->attributes->property_names ) {
+            my $prop = $mapper->attributes->property_info($prop_name) || next;
+            my $next_key = $name ? $name . '_' . $prop_name : $prop_name;
+            if (    exists $input->{$prop_name}
+                and ref( $input->{$prop_name} ) eq 'ARRAY'
+                and $prop->type eq 'relation' )
+            {
+                for ( @{ $input->{$prop_name} } ) {
+                    $self->_marge(
+                        $check,
+                        [],
+                        $_,
+                        $prop->mapper,
+                        $next_key,
+                    );
                 }
+            }
+            elsif ( $self->{eager_table}->{$next_key}
+                and $prop->type eq 'relation'
+                and $prop->is_multi )
+            {
+                $input->{$prop_name} = [];
             }
         }
 

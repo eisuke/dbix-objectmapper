@@ -16,7 +16,6 @@ use DBIx::ObjectMapper::Mapper::Constructor;
 use DBIx::ObjectMapper::Mapper::Accessor;
 use DBIx::ObjectMapper::Mapper::Attribute;
 use DBIx::ObjectMapper::Metadata::Query;
-use DBIx::ObjectMapper::Session::Array;
 
 {
     my %INITIALIZED_CLASSES;
@@ -446,6 +445,7 @@ sub mapping {
     my $type = $self->constructor->arg_type;
 
     my $param;
+    my %relation;
     for my $prop_name ( $self->attributes->property_names ) {
         my $prop = $self->attributes->property_info($prop_name);
         my $name = $prop->name || $prop_name;
@@ -453,11 +453,13 @@ sub mapping {
 
         if( $prop->type eq 'relation' and defined $val ) {
             if( $prop->is_multi ) {
-                $val = [ map { $prop->mapper->mapping($_, $uow) } @$val ];
+                $relation{$prop_name}
+                    = [ map { $prop->mapper->mapping( $_, $uow ) } @$val ];
             }
             else {
-                $val = $prop->mapper->mapping($val, $uow);
+                $relation{$prop_name} = $prop->mapper->mapping($val, $uow);
             }
+            next;
         }
 
         if( $type eq 'HASH' or $type eq 'HASHREF' ) {
@@ -468,7 +470,6 @@ sub mapping {
             $param ||= +[];
             push @$param, $val;
         }
-
         $uow->change_checker->regist($val) if $uow and ref $val;
     }
 
@@ -480,6 +481,23 @@ sub mapping {
     );
 
     $obj->__mapper__->initialize; # initialized mapper
+
+    for my $name ( keys %relation ) {
+        my $mapper = $obj->__mapper__;
+        if( ref $relation{$name} eq 'ARRAY' ) {
+            $mapper->set_val(
+                $name => DBIx::ObjectMapper::Session::Array->new(
+                    $name,
+                    $mapper,
+                    @{$relation{$name}},
+                )
+            );
+        }
+        else {
+            $mapper->set_val( $name => $relation{$name} );
+        }
+    }
+
     return $uow ? $uow->add_storage_object($obj) : $obj;
 }
 

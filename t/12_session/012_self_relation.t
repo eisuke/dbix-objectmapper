@@ -109,6 +109,29 @@ subtest 'eagerload2' => sub {
     done_testing;
 };
 
+subtest 'eagerload_search' => sub {
+    my $session = $mapper->begin_session;
+    my $attr = $mapper->attribute('MyTest12::BBS');
+    ok my $s = $session->search('MyTest12::BBS')->eager(
+        $attr->p('children'), $attr->p('parent.children'),
+        $attr->p('children.children') );
+    my $it = $s->execute;
+
+    my $loop_cnt = 0;
+    while( my $b = $it->next ) {
+        ok $b;
+        ok $b->children;
+        for my $c ( @{$b->children} ) {
+            $c->children;
+        }
+        $loop_cnt++;
+    }
+    is $loop_cnt, 5;
+    is $session->uow->query_cnt, 1;
+
+    done_testing;
+};
+
 subtest 'join nested' => sub {
     my $session = $mapper->begin_session;
     my $attr = $mapper->attribute('MyTest12::BBS');
