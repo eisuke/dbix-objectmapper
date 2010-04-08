@@ -40,8 +40,6 @@ sub new {
         }
     );
 
-    $attr{transaction}
-        = $attr{autocommit} ? undef : $attr{engine}->transaction;
     $attr{unit_of_work}
         = DBIx::ObjectMapper::Session::UnitOfWork->new(
         ( $attr{no_cache} ? undef : $attr{cache} ),
@@ -77,6 +75,7 @@ sub add {
     my $self = shift;
     my $obj  = shift || return;
     $self->uow->add($obj);
+    $self->start_transaction;
     $self->flush() if $self->autoflush;
     return $obj;
 }
@@ -89,6 +88,7 @@ sub add_all {
 
 sub flush {
     my $self = shift;
+    $self->start_transaction;
     $self->uow->flush();
 }
 
@@ -96,15 +96,24 @@ sub delete {
     my $self = shift;
     my $obj  = shift;
     $self->uow->delete($obj);
+    $self->start_transaction;
     $self->flush() if $self->autoflush;
     return $obj;
 }
 
 sub transaction {
     my $self = shift;
-    return $self->{transaction}
-        if $self->{transaction} and !$self->{transaction}->complete;
-    return $self->{transaction} = $self->engine->transaction;
+    if( $self->{transaction} and !$self->{transaction}->complete ) {
+        return $self->{transaction};
+    }
+    return;
+}
+
+sub start_transaction {
+    my $self = shift;
+    if( !$self->autocommit and !$self->transaction ) {
+        return $self->{transaction} = $self->engine->transaction;
+    }
 }
 
 sub commit {
@@ -112,7 +121,6 @@ sub commit {
     $self->flush;
     unless( $self->autocommit ) {
         $self->transaction->commit;
-        $self->transaction;
     }
 }
 
@@ -123,9 +131,10 @@ sub rollback {
         cluck "Can't rollback. autocommit is TRUE this session.";
         return;
     }
-
-    $self->flush;
-    $self->transaction->rollback;
+    elsif( $self->transaction ) {
+        $self->flush;
+        $self->transaction->rollback;
+    }
 }
 
 sub txn {
