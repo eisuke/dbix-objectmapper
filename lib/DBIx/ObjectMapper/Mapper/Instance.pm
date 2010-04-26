@@ -510,9 +510,7 @@ sub save {
         my @after_cascade;
         for my $prop_name ( $class_mapper->attributes->property_names ) {
             my $prop = $class_mapper->attributes->property_info($prop_name);
-            if (    $prop->type eq 'relation'
-                and $prop->{isa}->is_cascade_save_update() )
-            {
+            if ( $prop->type eq 'relation' ) {
                 if (ref( $prop->{isa} ) eq
                     'DBIx::ObjectMapper::Relation::BelongsTo' )
                 {
@@ -522,11 +520,16 @@ sub save {
                             ? @$instance
                             : ($instance);
                         for my $i (@instances) {
-                            $prop->{isa}->cascade_save( $self, $i );
+                            if( $prop->{isa}->is_cascade_save_update() ) {
+                                $prop->{isa}->cascade_save( $self, $i );
+                            }
+                            else {
+                                $prop->{isa}->set_val_from_object( $self, $i );
+                            }
                         }
                     }
                 }
-                else {
+                elsif( $prop->{isa}->is_cascade_save_update() ) {
                     push @after_cascade, $prop;
                 }
             }

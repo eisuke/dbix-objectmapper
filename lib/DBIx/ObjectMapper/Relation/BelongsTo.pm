@@ -71,23 +71,28 @@ sub cascade_save {
     my $instance = shift;
 
     return unless $self->is_cascade_save_update;
-
     if( $instance->__mapper__->is_transient ) {
         $mapper->unit_of_work->add($instance);
         $instance->__mapper__->save;
     }
 
+    $self->set_val_from_object($mapper, $instance);
+}
+
+sub set_val_from_object {
+    my $self = shift;
+    my $mapper = shift;
+    my $instance = shift;
+
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
-
     my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
     for my $i ( 0 .. $#{$fk->{keys}} ) {
         my $key = $fk->{keys}->[$i];
-        my $val = $instance->__mapper__->get_val( $fk->{refs}->[$i] );
+        my $val = $instance->__mapper__->get_val( $fk->{refs}->[$i] ) || next;
         $mapper->set_val_trigger( $key => $val );
         $mapper->set_val( $key => $val );
     }
 }
-
 
 1;

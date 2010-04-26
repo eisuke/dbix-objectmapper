@@ -47,6 +47,14 @@ sub new {
         $column_map{$col_name} = $i + 1;
     }
 
+    my @foreignkeys;
+    push @foreignkeys, @{$parent->foreign_key};
+    push @foreignkeys, @{$child->foreign_key};
+
+    my @uniquekeys;
+    push @uniquekeys, @{$parent->unique_key};
+    push @uniquekeys, @{$child->unique_key};
+
     return return bless {
         table_name  => $parent->table_name,
         columns     => \@columns,
@@ -56,8 +64,8 @@ sub new {
             || $class->DEFAULT_QUERY_CLASS(),
         column_metaclass    => $class->DEFAULT_COLUMN_METACLASS,
         primary_key         => $parent->primary_key || [],
-        foreign_key         => $parent->foreign_key || [],
-        unique_key          => $parent->unique_key || [],
+        foreign_key         => \@foreignkeys,
+        unique_key          => \@uniquekeys,
         polymorphic_columns => \@columns,
         rel_cond            => \@rel_cond,
         parent_table        => $parent,
