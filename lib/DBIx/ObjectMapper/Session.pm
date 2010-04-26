@@ -159,12 +159,13 @@ sub detach {
 
 sub DESTROY {
     my $self = shift;
-    local $@;
+
+    local $@ = undef;
     eval {
         $self->rollback unless $self->autocommit;
-        $self->uow->demolish;
+        $self->uow->demolish if $self->uow;
     };
-    warn $@ if $@; ## can't die in DESTROY...
+    warn $@ if $@;    ## can't die in DESTROY...
 
     $self->{unit_of_work} = undef;
     warn "DESTROY $self" if $ENV{MAPPER_DEBUG};
