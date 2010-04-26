@@ -455,15 +455,20 @@ sub update {
         for my $prop_name ( $class_mapper->attributes->property_names ) {
             my $prop = $class_mapper->attributes->property_info($prop_name);
             next unless $prop->type eq 'relation';
-            if( $prop->{isa}->is_cascade_save_update() ) {
-                if (ref( $prop->{isa} ) eq
-                    'DBIx::ObjectMapper::Relation::BelongsTo' )
-                {
-                    $prop->{isa}->cascade_update( $self );
+            if (ref( $prop->{isa} ) eq
+                'DBIx::ObjectMapper::Relation::BelongsTo' )
+            {
+                if ( $prop->{isa}->is_cascade_save_update() ) {
+                    $prop->{isa}->cascade_update($self);
                 }
-                else {
-                    push @after_cascade, $prop;
-                }
+
+                $prop->{isa}->set_val_from_object(
+                    $self,
+                    $self->get_val($prop_name),
+                );
+            }
+            elsif ( $prop->{isa}->is_cascade_save_update() ) {
+                push @after_cascade, $prop;
             }
         }
 
