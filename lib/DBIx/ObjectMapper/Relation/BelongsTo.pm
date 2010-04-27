@@ -87,11 +87,14 @@ sub set_val_from_object {
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
     my $fk = $self->foreign_key($class_mapper->table, $rel_mapper->table);
+    my $modified_data = $mapper->modified_data;
 
     for my $i ( 0 .. $#{$fk->{keys}} ) {
         my $key = $fk->{keys}->[$i];
         my $val = $instance->__mapper__->get_val( $fk->{refs}->[$i] ) || next;
-        unless( defined $mapper->get_val( $key ) ) {
+        unless ( defined $mapper->get_val($key)
+            and exists $modified_data->{$key} )
+        {
             $mapper->set_val_trigger( $key => $val );
             $mapper->set_val( $key => $val );
         }

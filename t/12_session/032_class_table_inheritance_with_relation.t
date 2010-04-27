@@ -110,4 +110,11 @@ $session->commit;
 is $engineer1->language_id, 1;
 is $engineer1->language->id, 1;
 
+my $lang2 = $session->get( 'My::Language' => 2 );
+$engineer1->language( $lang2 );
+$session->commit;
+
+is $engineer1->language_id, 2;
+is $engineer1->language->id, 2;
+
 done_testing;

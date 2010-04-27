@@ -462,10 +462,12 @@ sub update {
                     $prop->{isa}->cascade_update($self);
                 }
 
-                $prop->{isa}->set_val_from_object(
-                    $self,
-                    $self->get_val($prop_name),
-                );
+                if( $modified_data->{$prop_name} ) {
+                    $prop->{isa}->set_val_from_object(
+                        $self,
+                        $self->get_val($prop_name),
+                    );
+                }
             }
             elsif ( $prop->{isa}->is_cascade_save_update() ) {
                 push @after_cascade, $prop;
