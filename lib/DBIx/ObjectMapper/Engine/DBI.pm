@@ -5,6 +5,7 @@ use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Scalar::Util qw(refaddr);
 use DBI;
 use Data::Dumper;
+use Data::Dump;
 use Digest::MD5;
 
 use base qw(DBIx::ObjectMapper::Engine);
@@ -522,13 +523,10 @@ sub log_sql {
 
 sub _format_output_sql {
     my ( $sql, @bind ) = @_;
-    my $string = $sql;
-    if( @bind ) {
-        $string .= ': (';
-        $string .= join( ', ', map { defined $_ ? $_ : 'undef' } @bind );
-        $string .= ')';
-    }
-    return $string;
+    my @output;
+    push @output, $sql;
+    push @output, \@bind if @bind;
+    return Data::Dump::dump(@output);
 }
 
 sub log_connect {
