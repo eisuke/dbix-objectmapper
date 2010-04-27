@@ -240,6 +240,7 @@ sub reflesh {
     $self->change_status('persistent');
     $self->_modify( $new_val );
     $self->unit_of_work->_set_cache($self);
+    $self->initialize;
 
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $prop = $class_mapper->attributes->property_info($prop_name);
