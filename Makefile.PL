@@ -28,6 +28,7 @@ requires 'List::MoreUtils';
 requires 'DateTime';
 requires 'Sub::Exporter';
 requires 'Capture::Tiny';
+requires 'Data::Dump';
 
 build_requires 'Test::More'     => 0.88;
 test_requires 'Test::Builder'   => 0.33;

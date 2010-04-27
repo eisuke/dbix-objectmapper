@@ -35,6 +35,7 @@ requires:
   Class::MOP: 0
   DBD::SQLite: 1.14
   DBI: 1.4
+  Data::Dump: 0
   Data::Page: 2
   DateTime: 0
   DateTime::Format::SQLite: 0
