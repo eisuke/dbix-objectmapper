@@ -259,10 +259,15 @@ sub _initialize {
     );
 
     ## Mo[ou]se Class
+    my $maybe_moouse = 0;
     if( my $exmeta = Class::MOP::get_metaclass_by_name($self->mapped_class) ) {
         $meta = $exmeta;
         if( my %ex_immutable_options = $meta->immutable_options ) {
             %immutable_options = %ex_immutable_options;
+        }
+
+        if ( ref($meta) =~ /Mo[ou]se::Meta::Class/ ) {
+            $maybe_moouse = 1;
         }
         $meta->make_mutable if $meta->is_immutable;
     }
@@ -423,11 +428,22 @@ sub _initialize {
         }
     };
 
-    if ( $meta->find_all_methods_by_name('DESTROY') ) {
-        $meta->add_after_method_modifier('DESTROY' => $destroy );
+    if( $maybe_moouse ) {
+        if( $meta->find_method_by_name('DEMOLISH') ) {
+            $meta->add_after_method_modifier( 'DEMOLISH' => $destroy );
+        }
+        else {
+            $meta->add_method( 'DEMOLISH' => $destroy );
+        }
     }
-    else {
-        $meta->add_method( 'DESTROY' => $destroy );
+    else{
+        my $has_destroy = $meta->find_all_methods_by_name('DESTROY');
+        if( $has_destroy ) {
+            $meta->add_before_method_modifier('DESTROY' => $destroy );
+        }
+        else {
+            $meta->add_method( 'DESTROY' => $destroy );
+        }
     }
     $immutable_options{inline_destructor} = 0;
 
