@@ -26,6 +26,7 @@ recommends:
   Bit::Vector: 0
   DateTime::Format::MySQL: 0
   DateTime::Format::Pg: 0
+  Log::Any::Adapter::Dispatch: 0
   Mouse: 0.42
 requires:
   Capture::Tiny: 0

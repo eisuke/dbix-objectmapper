@@ -38,6 +38,7 @@ test_requires 'Test::Base';
 recommends 'DateTime::Format::Pg';
 recommends 'DateTime::Format::MySQL';
 recommends 'Bit::Vector';
+recommends 'Log::Any::Adapter::Dispatch';
 
 eval "require Mouse";
 unless($@ and $Mouse::VERSION < 0.42 ) {
