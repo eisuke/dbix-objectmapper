@@ -225,6 +225,7 @@ sub _finalize {
             }
             else {
                 next if $polymorphic_table{$table};
+                push @column, @{$table->columns};
                 push @column, $table->c($mapper->polymorphic_on);
                 $polymorphic_table{$table} = 1;
             }
