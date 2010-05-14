@@ -71,7 +71,10 @@ BEGIN {
 my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBI:SQLite:',
     on_connect_do => [
-        q{CREATE TABLE players ( id INTEGER PRIMARY KEY, name TEXT, club TEXT, batting_average INT, bowling_average INT, type VARCHAR(16) )}
+        q{CREATE TABLE players ( id INTEGER PRIMARY KEY, name TEXT, type VARCHAR(16))},
+        q{CREATE TABLE footballers ( id INT PRIMARY KEY REFERENCES players(id), club TEXT)},
+        q{CREATE TABLE cricketers ( id INT PRIMARY KEY REFERENCES players(id), batting_average INT )},
+        q{CREATE TABLE bowlers ( id INT PRIMARY KEY REFERENCES players(id), bowling_average INT )},
     ]
 });
 
@@ -88,7 +91,7 @@ $mapper->maps(
 );
 
 $mapper->maps(
-    $mapper->metadata->table('players') => 'Footballer',
+    $mapper->metadata->table('footballers') => 'Footballer',
     inherits => 'Player',
     polymorphic_identity => 'footballer',
     attributes => {
@@ -97,7 +100,7 @@ $mapper->maps(
 );
 
 $mapper->maps(
-    $mapper->metadata->table('players') => 'Cricketer',
+    $mapper->metadata->table('cricketers') => 'Cricketer',
     inherits => 'Player',
     polymorphic_identity => 'cricketer',
     attributes => {
@@ -106,7 +109,7 @@ $mapper->maps(
 );
 
 $mapper->maps(
-    $mapper->metadata->table('players') => 'Bowler',
+    $mapper->metadata->table('bowlers') => 'Bowler',
     inherits => 'Cricketer',
     polymorphic_identity => 'bowler',
     attributes => {
@@ -123,7 +126,8 @@ my $footballer = Footballer->new(
 
 $session->add($footballer);
 $session->commit;
-# INSERT INTO player ( name, club, type ) VALUES( 'Franz Anton Beckenbauer', 'Bayern München', 'footballer' );
+# INSERT INTO player ( id, name, type ) VALUES( 1, 'Franz Anton Beckenbauer', 'footballer' );
+# INSERT INTO fooballers ( id, club ) VALUES( 1, 'Bayern München');
 
 my $cricketer = Cricketer->new(
     name => 'Hoge',
@@ -131,7 +135,8 @@ my $cricketer = Cricketer->new(
 );
 $session->add($cricketer);
 $session->commit;
-# INSERT INTO player ( name, batting_average, type ) VALUES( 'Hoge', 10, 'cricketer' );
+# INSERT INTO player ( id, name, type ) VALUES( 2, 'Hoge', 'cricketer' );
+# INSERT INTO cricketers ( id, batting_average ) VALUES( 2, 10 )
 
 my $bowler = Bowler->new(
     name => 'Fuga',
@@ -141,7 +146,8 @@ my $bowler = Bowler->new(
 
 $session->add($bowler);
 $session->commit;
-# INSERT INTO player ( name, bowling_average, type ) VALUES( 'Fuga', 20, 'bowler' );
+# INSERT INTO player ( id, name, type ) VALUES( 3, 'Fuga', 'bowler' );
+# INSERT INTO bowlers ( id, bowling_average ) VALUES( 3, 20 );
 
 my $it = $session->search('Player')->execute;
 # SELECT id,name FROM players;
@@ -153,16 +159,18 @@ while( my $p = $it->next ) {
 is $cnt, 3;
 
 my $it2 = $session->search('Footballer')->execute;
-# SELECT id,name,club FROM players WHERE type = 'footballer';
+# SELECT player.id,player.name,fooballer.club FROM players LEFT JOIN footballer ON footballer.id = player.id WHERE type = 'footballer';
 my $cnt2 = 0;
 while( my $f = $it2->next ){
     ok $f;
     is ref($f), 'Footballer';
     $cnt2++;
 }
+
 is $cnt2, 1;
 
 my $it3 = $session->search('Player')->with_polymorphic('*')->execute;
+# SELECT player.id,player.name,footballer.club,cricketer.batting_average, bowler.bowling_average FROM pleyers LEFT JOIN footballer ON footballer.id = player.id LEFT JOIN cricketers ON cricketers.id = player.id
 my %ref_cnt;
 while( my $p2 = $it3->next ) {
     ok $p2;
@@ -174,4 +182,3 @@ is $ref_cnt{Cricketer}, 1;
 is $ref_cnt{Bowler}, 1;
 
 done_testing;
-
