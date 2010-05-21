@@ -30,7 +30,7 @@ sub new {
     return $self;
 }
 
-sub db_schema { $_[0]->{db_schena} }
+sub db_schema { $_[0]->{db_schema} }
 sub query     { $_[0]->{query} }
 sub log       { $_[0]->{log} }
 sub namesep   { $_[0]->{namesep} }
