@@ -14,7 +14,7 @@ sub size {
     my $self = shift;
 
     if( @_ ) {
-        if( @_ == 1 and $_[0] =~ /,/ ) {
+        if( @_ == 1 and defined $_[0] and $_[0] =~ /,/ ) {
             # pg's "size" is "$precision,$scale", but mysql is "$precision" ....
             my ( $precision, $scale ) = split ',', $_[0];
             $self->{precision} = $precision;
@@ -27,7 +27,7 @@ sub size {
             $self->{scale}     = $scale;
             $self->{size} = "$precision,$scale";
         }
-        else {
+        elsif( defined $_[0] ) {
             $self->{size} = $_[0];
         }
     }
