@@ -35,11 +35,23 @@ my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
     is_deeply $c->eq('eqcheck'), [ 'b.type', '=', 'eqcheck'], 'eq';
 
     is_deeply $c == 'a', [ 'b.type', '=', 'a' ], '==';
+    is_deeply $c eq 'a', [ 'b.type', '=', 'a' ], 'eq';
+
     is_deeply $c !=  1 , [ 'b.type', '!=', 1 ], '!=';
+    is_deeply $c ne  1 , [ 'b.type', '!=', 1 ], 'ne';
+
     is_deeply $c <=  2 , [ 'b.type', '<=', 2 ], '<=';
+    is_deeply $c le  2 , [ 'b.type', '<=', 2 ], 'le';
+
     is_deeply $c >=  3 , [ 'b.type', '>=', 3 ], '>=';
+    is_deeply $c ge  3 , [ 'b.type', '>=', 3 ], 'ge';
+
     is_deeply $c >   4 , [ 'b.type', '>', 4 ], '>';
+    is_deeply $c gt  4 , [ 'b.type', '>', 4 ], 'gt';
+
     is_deeply $c <   5 , [ 'b.type', '<', 5], '<';
+    is_deeply $c lt  5 , [ 'b.type', '<', 5], 'lt';
+
     is_deeply $c->between(1, 2), [ 'b.type', 'BETWEEN', [1 , 2 ]], 'between';
     is_deeply $c->in(1,2,3,4), [ 'b.type', 'IN', [1 ,2 ,3 ,4] ], 'IN';
     is_deeply $c->not_in(1,2,3,4), [ 'b.type', 'NOT IN', [1 ,2 ,3 ,4] ], 'NOT IN';
