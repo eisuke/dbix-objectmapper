@@ -1,11 +1,16 @@
 package DBIx::ObjectMapper::Engine;
 use strict;
 use warnings;
+use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Log::Any qw($log);
 use DBIx::ObjectMapper::Log;
 
 sub new {
     my $class = shift;
+#    if( $class eq __PACKAGE__ ) {
+#        confess __PACKAGE__ . " can't direct use.";
+#    }
+
     my $self = bless {}, $class;
     $self->_init(@_);
     return $self;
@@ -38,7 +43,7 @@ __END__
 
 =head1 NAME
 
-DBIx::ObjectMapper::Engine - engine base class
+DBIx::ObjectMapper::Engine - An engine base class
 
 =head1 DESCRIPTION
 
@@ -85,7 +90,7 @@ Eisuke Oishi
 
 =head1 COPYRIGHT
 
-Copyright 2009 Eisuke Oishi
+Copyright 2010 Eisuke Oishi
 
 =head1 LICENSE
 

@@ -636,9 +636,11 @@ DBIx::ObjectMapper::Mapper - map the metadata to a class.
          exclude    => [],
          prefix     => '',
          properties => +{
-             isa               => undef,
-             lazy              => 0,
-             validation        => 0,
+             col1 => {
+                 isa               => undef,
+                 lazy              => 0,
+                 validation        => 0,
+             },
          }
      },
      accessors => +{

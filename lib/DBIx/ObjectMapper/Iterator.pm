@@ -25,3 +25,26 @@ sub size { scalar( @{ $_[0]->{data} } ) }
 sub all  { map { $_[0]->callback($_) } @{ $_[0]->{data} } }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::ObjectMapper::Iterator - An iterator for returning query results.
+
+=head1 DESCRIPTION
+
+this class is subclass of L<DBIx::ObjectMapper::Iterator::Base>.
+
+=head1 AUTHOR
+
+Eisuke Oishi
+
+=head1 COPYRIGHT
+
+Copyright 2010 Eisuke Oishi
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+
