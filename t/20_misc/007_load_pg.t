@@ -3,7 +3,6 @@ use warnings;
 use Test::More;
 use DBIx::ObjectMapper::Engine::DBI;
 use DBIx::ObjectMapper;
-use Data::Dump qw(dd);
 
 my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 
