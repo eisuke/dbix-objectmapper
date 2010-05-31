@@ -93,5 +93,44 @@ $mapper->maps(
     is $query->count, 7;
 };
 
+{ # or search
+    my $session = $mapper->begin_session;
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    ok my $it = $session->search('MyTest11::Artist')
+        ->filter( { or => [ $attr->p('id') == 1, $attr->p('id') == 2 ] })
+        ->execute;
+    is scalar(@$it), 2;
+
+    ok my $it2 = $session->search('MyTest11::Artist')->filter(
+        {
+            or => [ $attr->p('id') == 1, $attr->p('id') == 2 ],
+        },
+        {
+            and => [ $attr->p('name')->like('_') ],
+        },
+    )->execute;
+    is scalar(@$it2), 2;
+
+    ok my $it3 = $session->search('MyTest11::Artist')->filter(
+        {
+            or => [ $attr->p('id') == 1, $attr->p('id') == 2 ],
+        },
+        $attr->p('name')->like('_'),
+    )->execute;
+    is scalar(@$it3), 2;
+};
+
+{ # scalar search
+    my $session = $mapper->begin_session;
+    my $attr = $mapper->attribute('MyTest11::Artist');
+    ok my $it = $session->search('MyTest11::Artist')
+        ->filter( \'id = 2' )
+        ->execute;
+    is scalar(@$it), 1;
+    is $it->[0]->id, 2;
+};
+
+
+
 done_testing;
 __END__

@@ -88,6 +88,18 @@ sub filter {
 
     my @filters;
     for my $filter ( @_ ) {
+        if( my $r_filter = $self->_filter($filter) ) {
+            push @filters, $r_filter;
+        }
+    }
+    push @{$self->{filter}}, @filters;
+
+    return $self;
+}
+
+sub _filter {
+    my ( $self, $filter ) = @_;
+    if( ref $filter eq 'ARRAY' ) {
         my ( $col, $op, $val ) = @$filter;
         if( $col->{via} and my @via = @{$col->{via}} ) {
             my $alias = $self->_via(
@@ -96,16 +108,22 @@ sub filter {
                 0,
                 @via
             );
-            push @filters, [ $col->as_alias($alias), $op, $val ];
+            return [ $col->as_alias($alias), $op, $val ];
         }
         else {
-            push @filters, $filter;
+            return $filter;
         }
     }
-
-    push @{$self->{filter}}, @filters;
-
-    return $self;
+    elsif( ref $filter eq 'HASH' ) {
+        my %filters;
+        for my $k ( keys %$filter ) {
+            $filters{$k} = [ map { $self->_filter($_) } @{$filter->{$k}} ];
+        }
+        return \%filters;
+    }
+    else {
+        return $filter;
+    }
 }
 
 sub eager {

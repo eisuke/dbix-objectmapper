@@ -192,6 +192,31 @@ my $mapper = MyTest11->mapper;
     is $loop_cnt, 1;
 };
 
+{ # nest join 2
+    my $session = $mapper->begin_session;
+    my $attr = $mapper->attribute('MyTest11::Artist');
+
+    my $it = $session->search('MyTest11::Artist')
+    ->filter(
+        {
+            OR => [
+                $attr->p('cds.title')->like('Led Zeppelin%'),
+                $attr->p('id') == 1,
+            ]
+        },
+        $attr->p('cds.tracks.track_no') > 8,
+    )->execute;
+
+    my $loop_cnt = 0;
+    while( my $a = $it->next ) {
+        $loop_cnt++;
+        is $a->id, 1;
+        is $a->name, 'Led Zeppelin';
+    }
+
+    is $loop_cnt, 1;
+};
+
 { # nest join eagerload
     my $session = $mapper->begin_session;
     my $attr = $mapper->attribute('MyTest11::Artist');
