@@ -6,9 +6,8 @@ package Test::Exception;
 use Test::Builder;
 use Sub::Uplevel qw( uplevel );
 use base qw( Exporter );
-use Carp;
 
-our $VERSION = '0.27';
+our $VERSION = '0.29';
 our @EXPORT = qw(dies_ok lives_ok throws_ok lives_and);
 
 my $Tester = Test::Builder->new;
@@ -23,7 +22,7 @@ sub import {
     $self->export_to_level( 1, $self, $_ ) foreach @EXPORT;
 }
 
-#line 84
+#line 83
 
 sub _quiet_caller (;$) { ## no critic Prototypes
     my $height = $_[0];
@@ -65,13 +64,15 @@ sub _exception_as_string {
 };
 
 
-#line 169
+#line 168
 
 
 sub throws_ok (&$;$) {
     my ( $coderef, $expecting, $description ) = @_;
-    croak "throws_ok: must pass exception class/object or regex" 
-        unless defined $expecting;
+    unless (defined $expecting) {
+      require Carp;
+      Carp::croak( "throws_ok: must pass exception class/object or regex" ); 
+    }
     $description = _exception_as_string( "threw", $expecting )
     	unless defined $description;
     my $exception = _try_as_caller( $coderef );
@@ -91,7 +92,7 @@ sub throws_ok (&$;$) {
 };
 
 
-#line 215
+#line 216
 
 sub dies_ok (&;$) {
     my ( $coderef, $description ) = @_;
@@ -102,7 +103,7 @@ sub dies_ok (&;$) {
 }
 
 
-#line 254
+#line 255
 
 sub lives_ok (&;$) {
     my ( $coderef, $description ) = @_;
@@ -114,7 +115,7 @@ sub lives_ok (&;$) {
 }
 
 
-#line 294
+#line 295
 
 sub lives_and (&;$) {
     my ( $test, $description ) = @_;
@@ -138,6 +139,6 @@ sub lives_and (&;$) {
     return;
 }
 
-#line 460
+#line 462
 
 1;
