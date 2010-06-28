@@ -172,9 +172,12 @@ t/20_misc/003_mysql.t
 t/20_misc/004_fork.t
 t/20_misc/005_thread.t
 t/20_misc/006_meta_query_with_func.t
+t/20_misc/007_load_pg.t
+t/21_example/class_table_inheritance.t
 t/21_example/lib/MapperExample/Product.pm
 t/21_example/lib/MapperExample/ShoppingCart.pm
 t/21_example/shopping_cart.t
+t/21_example/single_table_inheritance.t
 xt/01_pod.t
 xt/02_podcoverage.t
 xt/03_kwalitee.t
