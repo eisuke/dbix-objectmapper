@@ -1,7 +1,7 @@
 package DBIx::ObjectMapper::Session::ObjectChangeChecker;
 use strict;
 use warnings;
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr blessed);
 use Data::Dumper;
 use Digest::MD5 qw(md5_hex);
 
@@ -25,6 +25,8 @@ sub is_changed {
 sub _hashed {
     my ( $self, $obj ) = @_;
     return unless $obj;
+    return "$obj" if blessed($obj) && overload::Method( $obj, q("") );
+
     local $Data::Dumper::Sortkeys = 1;
     return md5_hex(Data::Dumper::Dumper($obj));
 }

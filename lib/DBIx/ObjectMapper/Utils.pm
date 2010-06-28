@@ -61,11 +61,8 @@ sub is_deeply {
     elsif( ref $X eq 'SCALAR' ) {
         return is_deeply($$X, $$Y);
     }
-    elsif( ref $X eq 'DateTime' ) {
-        return is_deeply( $X . '', $Y . '' ); # to string
-    }
-    elsif( ref($X) =~ /^URI::/ and $X->can('as_string') ) {
-        return is_deeply( $X->as_string, $Y->as_string );
+    elsif( Scalar::Util::blessed($X) && overload::Method( $X, q("") ) ) {
+        return is_deeply( "$X", "$Y" );
     }
     elsif( Scalar::Util::reftype($X) eq 'HASH' ) {
         return is_deeply( {%$X}, {%$Y} );
