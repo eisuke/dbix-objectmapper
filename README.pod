@@ -62,7 +62,8 @@ Get a My::User Object.
 
 DBIx::ObjectMapper is a implementation of the Data Mapper pattern. And abstraction layer for database access.
 
-
+Concepts and interfaces of this module borrowed from SQLAlchemy.
+L<http://www.sqlalchemy.org/>
 
 =head1 METHODS
 
