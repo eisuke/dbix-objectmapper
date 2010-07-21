@@ -1,5 +1,4 @@
 Changes
-DBIx-ObjectMapper-0.1001.tar.gz
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AuthorTests.pm
@@ -21,7 +20,6 @@ inc/Test/Builder.pm
 inc/Test/Builder/Module.pm
 inc/Test/Exception.pm
 inc/Test/More.pm
-inc/Test/Warn.pm
 lib/DateTime/Format/DBIMAPPER_MySQL.pm
 lib/DBIx/ObjectMapper.pm
 lib/DBIx/ObjectMapper/Engine.pm
