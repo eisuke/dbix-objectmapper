@@ -4,7 +4,6 @@ use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use base qw(DBIx::ObjectMapper::Engine::DBI::Driver);
-use DBD::Pg;
 
 sub init {
     my $self = shift;
@@ -109,7 +108,7 @@ sub escape_binary_func {
     my $dbh  = shift;
     return sub {
         my $val = shift;
-        return \$dbh->quote($val, { pg_type => DBD::Pg::PG_BYTEA });
+        return \$dbh->quote($val, { pg_type => DBD::Pg::PG_BYTEA() });
     };
 }
 
