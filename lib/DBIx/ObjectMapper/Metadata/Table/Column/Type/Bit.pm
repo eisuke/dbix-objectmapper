@@ -6,14 +6,11 @@ use Try::Tiny;
 use base qw(DBIx::ObjectMapper::Metadata::Table::Column::Type);
 
 my $enable_bit_vector = 1;
-BEGIN {
-    local $@;
-    try{
-        use Bit::Vector;
-    } catch {
-        cluck "Bit::Vector not installed.";
-        $enable_bit_vector = 0;
-    };
+try{
+    require Bit::Vector;
+} catch {
+    #warn "Bit::Vector not installed.";
+    $enable_bit_vector = 0;
 };
 
 ## copied from Rose::DB

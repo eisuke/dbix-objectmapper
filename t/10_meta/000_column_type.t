@@ -6,10 +6,8 @@ use DBIx::ObjectMapper::Engine::DBI;
 use DateTime::Format::SQLite;
 
 my $CHECK_BIT = 1;
-BEGIN {
-    eval "use Bit::Vector";
-    $CHECK_BIT = 0 if $@;
-};
+eval "require Bit::Vector";
+$CHECK_BIT = 0 if $@;
 
 sub build_pkg($) {
     my $t = shift;
