@@ -215,7 +215,7 @@ sub convert_join_to_sql {
     my ($class, $table, $cond, $type ) = @_;
 
     my @bind;
-    my $stm = uc($type) || 'LEFT OUTER';
+    my $stm = defined $type ? uc($type) : 'LEFT OUTER';
     my ( $table_stm, @table_bind ) = $class->convert_table_to_sql($table);
     $stm .= ' JOIN ' . $table_stm;
     push @bind, @table_bind if @table_bind;
