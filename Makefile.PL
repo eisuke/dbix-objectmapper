@@ -49,6 +49,14 @@ unless($@ and $Mouse::VERSION < 0.42 ) {
 tests "t/*.t t/*/*.t";
 author_tests 'xt';
 
+if ($Module::Install::AUTHOR) {
+    system("pod2text lib/DBIx/ObjectMapper.pm > README");
+}
+realclean_files 'README';
+
+resources 'license'     => 'http://dev.perl.org/licenses/';
+resources 'repository'  => 'git://github.com/eisuke/dbix-objectmapper.git';
+
 use_test_base;
 auto_include;
 auto_install;
