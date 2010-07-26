@@ -1,5 +1,8 @@
 Revision history for Perl extension DBIx::ObjectMapper
 
+0.3010 Mon Jul 26 10:17:00 JST 2010
+    - fix a minor bug.
+
 0.3006 Thu Jul 22 11:21:00 JST 2010
     - fixed failing tests in case of not installed recommend modules.
 
