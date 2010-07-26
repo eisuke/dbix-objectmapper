@@ -7,6 +7,8 @@ readme_pod_from 'lib/DBIx/ObjectMapper.pm';
 
 license 'perl';
 
+requires 'YAML';
+requires 'URI';
 requires 'Scalar::Util';
 requires 'Carp::Clan'       => 0;
 requires 'DBI'              => 1.40;
@@ -29,6 +31,7 @@ requires 'DateTime';
 requires 'Sub::Exporter';
 requires 'Capture::Tiny';
 requires 'Data::Dump';
+requires 'Module::Pluggable';
 
 build_requires 'Test::More'     => 0.88;
 test_requires 'Test::Builder'   => 0.33;
