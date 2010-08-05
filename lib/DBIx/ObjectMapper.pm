@@ -107,7 +107,7 @@ __END__
 
 =head1 NAME
 
-DBIx::ObjectMapper - A implementation of the Data Mapper pattern (object-relational mapper).
+DBIx::ObjectMapper - An implementation of the Data Mapper pattern (object-relational mapper).
 
 =head1 SYNOPSIS
 
