@@ -139,8 +139,16 @@ sub eager {
                     0,
                     @via
                 );
+
                 push @eager_column, @{$eager->table->clone($alias)->columns};
                 $self->{eager_table}->{$alias} = 1;
+                if( my @eager_cond = @{$eager->mapper->default_condition} ) {
+                    for my $cond ( @eager_cond ) {
+                        my ( $col, $op, $val ) = @$cond;
+                         push @{$self->{filter}},
+                             [ $col->as_alias($alias), $op, $val ];
+                    }
+                }
             }
             else {
                 push @eager_column, $eager->mapper->load_properties;
