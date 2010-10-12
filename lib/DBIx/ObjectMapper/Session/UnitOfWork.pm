@@ -165,9 +165,8 @@ sub _set_cache {
 
     return unless $self->cache; # no_cache
 
-    #my $result = $mapper->reducing;
     for my $key ( $mapper->cache_keys ) {
-        $log->info("{UnitOfWork} Cache Set: $key");
+        $log->info("{UnitOfWork} Cache Set: $key") if $ENV{MAPPER_DEBUG};
         $self->cache->set( $key => $mapper->instance );
     }
 }
@@ -177,7 +176,7 @@ sub _clear_cache {
     return unless $self->cache; # no_cache
 
     for my $key ( $mapper->cache_keys ) {
-        $log->info("{UnitOfWork} Cache Remove: $key ");
+        $log->info("{UnitOfWork} Cache Remove: $key ") if $ENV{MAPPER_DEBUG};
         $self->cache->remove( $key );
     }
 }
@@ -217,7 +216,7 @@ Eisuke Oishi
 
 =head1 COPYRIGHT
 
-Copyright 2009 Eisuke Oishi
+Copyright 2010 Eisuke Oishi
 
 =head1 LICENSE
 

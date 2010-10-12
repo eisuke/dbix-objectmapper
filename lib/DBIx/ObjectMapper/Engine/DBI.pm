@@ -63,7 +63,8 @@ sub _init {
     $self->{driver_type}        = undef;
     $self->{driver}             = undef;
     $self->{cache_target_table} = +{};
-    $self->{iterator} ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
+    $self->{iterator}         ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
+    $self->{txn_active}         = 0;
 
     return $self;
 }
@@ -212,6 +213,7 @@ sub txn_begin {
     my $self = shift;
 
     my $dbh = $self->dbh;
+
     if ( $self->{txn_active} == 0 and $dbh->{AutoCommit} ) {
         eval { $dbh->begin_work };
         if ($@) {
@@ -599,9 +601,148 @@ __END__
 
 =head1 NAME
 
-DBIx::ObjectMapper::Engine::DBI - DBI engine
+DBIx::ObjectMapper::Engine::DBI - the DBI engine
+
+=head1 SYNOPSIS
+
+ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
+     dsn => 'DBI:SQLite',
+     username => 'username',
+     password => 'password',
+     AutoCommit         => 1,
+     RaiseError         => 1,
+     PrintError         => 0,
+     ShowErrorStatement => 1,
+     HandleError        => sub{ confess($_[0]) },
+     on_connect_do => [],
+     on_disconnect_do => [],
+     db_schema => 'public',
+     namesep => '.',
+     quote => '"',
+     iterator => '',
+     time_zone => 'UTC',
+     disable_prepare_caching => '',
+     cache => '',
+ });
+
+ # or like a DBI module
+
+ my $engine = DBIx::ObjectMapper::Engine::DBI->new([
+     'DBI:SQLite','username', 'password',
+     {
+        AutoCommit         => 1,
+        RaiseError         => 1,
+        PrintError         => 0,
+        ShowErrorStatement => 1,
+        HandleError        => sub{ confess($_[0]) },
+        on_connect_do => [],
+        on_disconnect_do => [],
+        db_schema => 'public',
+        namesep => '.',
+        quote => '"',
+        iterator => '',
+        time_zone => 'UTC',
+        disable_prepare_caching => '',
+        cache => '',
+     }
+ ]);
+
 
 =head1 DESCRIPTION
+
+=head1 PARAMETERS
+
+=head2 dsn
+
+=head2 username
+
+=head2 password
+
+=head2 on_connect_do
+
+=head2 on_disconnect_do
+
+=head2 db_schema
+
+=head2 namesep
+
+=head2 quote
+
+=head2 iterator
+
+=head2 time_zone
+
+=head2 disable_prepare_caching
+
+=head2 cache
+
+=head1 METHODS
+
+=head2 iterator
+
+=head2 namesep
+
+=head2 datetime_parser
+
+=head2 time_zone
+
+=head2 cache
+
+=head2 driver_type
+
+=head2 query
+
+=head2 driver
+
+=head2 dbh
+
+=head2 connected
+
+=head2 connect
+
+=head2 disconnect
+
+=head2 txn_begin
+
+=head2 txn_commit
+
+=head2 txn_rollback
+
+=head2 txn_do
+
+=head2 svp_do
+
+=head2 dbh_do
+
+=head2 transaction
+
+=head2 get_primary_key
+
+=head2 get_column_info
+
+=head2 get_unique_key
+
+=head2 get_foreign_key
+
+=head2 get_tables
+
+=head2 select
+
+=head2 select_single
+
+=head2 update
+
+=head2 insert
+
+=head2 delete
+
+=head2 log_sql
+
+=head2 log_connect
+
+=head2 log_cache
+
+=head2 get_cache_id
 
 =head1 AUTHOR
 
@@ -609,7 +750,7 @@ Eisuke Oishi
 
 =head1 COPYRIGHT
 
-Copyright 2009 Eisuke Oishi
+Copyright 2010 Eisuke Oishi
 
 =head1 LICENSE
 
