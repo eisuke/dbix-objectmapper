@@ -43,7 +43,7 @@ __END__
 
 =head1 NAME
 
-DBIx::ObjectMapper::Engine - An engine base class
+DBIx::ObjectMapper::Engine - the engine interface
 
 =head1 DESCRIPTION
 

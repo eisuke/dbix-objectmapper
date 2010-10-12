@@ -180,13 +180,106 @@ __END__
 
 DBIx::ObjectMapper::Session
 
+=head1 SYNOPSIS
+
+ my $session = $mapper->begin_session;
+
+=head1 DESCRIPTION
+
+
+=head1 METHODS
+
+=head2 new
+
+create a new session instance.
+
+=head3 ATTRIBUTES
+
+=over
+
+=item * engine
+
+a engine object which subclass of L<DBIx::ObjectMapper::Engine>.
+
+=item * autocommit
+
+Defaults to True. the session will commit changes to the engine after destroy the session object.
+
+if False, you call "commit" methods, then the session will commit changes to the engine,
+
+
+=item * autoflush
+
+=item * share_object
+
+=item * no_cache
+
+=item * cache
+
+=item * search_class
+
+=item * change_checker
+
+=back
+
+=head2 uow
+
+accessor for a L<DBIx::ObjectMapper::Session::UnitOfWork> object.
+
+=head2 engine
+
+accessor for a engine object.
+
+=head2 autocommit
+
+=head2 autoflush
+
+=head2 add
+
+Place an object in the Session.
+
+=head2 add_all
+
+Add the list of objects to this Session.
+
+=head2 delete
+
+Mark a object as deleted.
+The database delete operation occurs on flush().
+
+=head2 detach
+
+Remove the object from this Session.
+
+=head2 search
+
+=head2 get
+
+=head2 flush
+
+Flush all the object changes to the database.
+
+=head2 commit
+
+Flush pending changes and commit the current transaction.
+
+=head2 rollback
+
+rollback the current transaction.
+
+=head2 start_transaction
+
+=head2 txn
+
+=head2 transaction
+
 =head1 AUTHOR
 
 Eisuke Oishi
 
 =head1 COPYRIGHT
 
-Copyright 2009 Eisuke Oishi
+Copyright 2010 Eisuke Oishi
 
 =head1 LICENSE
 

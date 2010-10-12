@@ -1,5 +1,5 @@
 ---
-abstract: 'A implementation of the Data Mapper pattern (object-relational mapper).'
+abstract: 'An implementation of the Data Mapper pattern (object-relational mapper).'
 author:
   - 'Eisuke Oishi'
 build_requires:

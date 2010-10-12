@@ -161,6 +161,7 @@ t/12_session/029_class_table_inheritance.t
 t/12_session/030_inherit_polymorphic_tree.t
 t/12_session/031_pager.t
 t/12_session/032_class_table_inheritance_with_relation.t
+t/12_session/033_earger_search_with_default_condition.t
 t/12_session/100_many_to_many.t
 t/12_session/200_die.t
 t/12_session/lib/MyTest11.pm

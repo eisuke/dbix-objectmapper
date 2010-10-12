@@ -45,7 +45,7 @@ Eisuke Oishi
 
 =head1 COPYRIGHT
 
-Copyright 2009 Eisuke Oishi
+Copyright 2010 Eisuke Oishi
 
 =head1 LICENSE
 

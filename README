@@ -1,5 +1,5 @@
 NAME
-    DBIx::ObjectMapper - A implementation of the Data Mapper pattern
+    DBIx::ObjectMapper - An implementation of the Data Mapper pattern
     (object-relational mapper).
 
 SYNOPSIS
