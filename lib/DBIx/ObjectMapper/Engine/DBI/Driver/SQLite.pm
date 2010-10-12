@@ -26,8 +26,9 @@ sub init {
         confess "Couldn't load DateTime::Format::SQLite: $_";
     };
 
-    my ($x, $y, $z) = split /[.]/ => $DBD::SQLite::sqlite_version || 0;
-    $self->{support_savepoint} = 1 if $x >= 3 && $y >= 6 && $z >= 8;
+    my $version = $DBD::SQLite::sqlite_version || 0;
+    $version =~ s/\.//g;
+    $self->{support_savepoint} = 1 if $version >= 368;
 }
 
 sub get_table_uniq_info {
