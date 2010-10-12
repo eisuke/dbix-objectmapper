@@ -1,5 +1,8 @@
 Revision history for Perl extension DBIx::ObjectMapper
 
+0.3011 Thu Oct 12 11:05:38 JST 2010
+    - fixed bug in checking sqlite_version
+
 0.3010 Mon Jul 26 10:17:00 JST 2010
     - fix a minor bug.
 
