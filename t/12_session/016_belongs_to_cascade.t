@@ -20,14 +20,14 @@ my $mapper = DBIx::ObjectMapper->new(
 $mapper->metadata->autoload_all_tables;
 
 ok $mapper->maps(
-    $mapper->metadata->t('parent') => 'Parent',
+    $mapper->metadata->t('parent') => 'MyTest016::Parent',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             children => +{
                 isa => $mapper->relation(
-                    has_many => 'Child',
+                    has_many => 'MyTest016::Child',
                 ),
             }
         }
@@ -35,14 +35,14 @@ ok $mapper->maps(
 );
 
 ok $mapper->maps(
-    $mapper->metadata->t('child') => 'Child',
+    $mapper->metadata->t('child') => 'MyTest016::Child',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             parent => +{
                 isa => $mapper->relation(
-                    belongs_to => 'Parent',
+                    belongs_to => 'MyTest016::Parent',
                     { cascade => 'save_update,delete' }
                 )
             }
@@ -52,8 +52,8 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my @child = map{ Child->new( name => 'child' . $_ ) } 1 .. 5;
-    my $parent = Parent->new( id => 1, name => 'parent1' );
+    my @child = map{ MyTest016::Child->new( name => 'child' . $_ ) } 1 .. 5;
+    my $parent = MyTest016::Parent->new( id => 1, name => 'parent1' );
     $_->parent($parent) for @child;
     $session->add_all(@child);
     $session->commit;
@@ -63,7 +63,7 @@ ok $mapper->maps(
 {
     my $session = $mapper->begin_session;
 
-    my $it = $session->search('Child')->execute;
+    my $it = $session->search('MyTest016::Child')->execute;
     my $loop_cnt = 0;
     while( my $c = $it->next ) {
         ok $c->id;
@@ -77,8 +77,8 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session( autocommit => 0, autoflush => 1 );
-    my @child = map{ Child->new( name => 'child' . $_ ) } 6 .. 10;
-    my $parent = Parent->new( id => 2, name => 'parent2' );
+    my @child = map{ MyTest016::Child->new( name => 'child' . $_ ) } 6 .. 10;
+    my $parent = MyTest016::Parent->new( id => 2, name => 'parent2' );
     $session->add($parent);
     $_->parent($parent) for @child;
     $session->add_all(@child);
@@ -89,7 +89,7 @@ ok $mapper->maps(
 {
     my $session = $mapper->begin_session;
 
-    my $it = $session->search('Child')->execute;
+    my $it = $session->search('MyTest016::Child')->execute;
     my $loop_cnt = 0;
     while( my $c = $it->next ) {
         ok $c->id;
@@ -108,15 +108,15 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session( autocommit => 0 );
-    $session->get( 'Parent' => 1 );
-    my $c1 = $session->get( 'Child' => 1 );
+    $session->get( 'MyTest016::Parent' => 1 );
+    my $c1 = $session->get( 'MyTest016::Child' => 1 );
     $session->delete($c1);
     $session->commit;
-    ok !$session->get( 'Parent' => 1 );
+    ok !$session->get( 'MyTest016::Parent' => 1 );
 
     # 1 child deleted. and others, parent_id is null
-    my $child_attr = $mapper->attribute('Child');
-    my $children = $session->search('Child')->filter(
+    my $child_attr = $mapper->attribute('MyTest016::Child');
+    my $children = $session->search('MyTest016::Child')->filter(
         $child_attr->p('parent_id') == undef
     )->execute;
     is @$children, 4;
@@ -125,14 +125,14 @@ ok $mapper->maps(
 };
 
 ok $mapper->maps(
-    $mapper->metadata->t('parent') => 'Parent2',
+    $mapper->metadata->t('parent') => 'MyTest016::Parent2',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             children => +{
                 isa => $mapper->relation(
-                    has_many => 'Child2',
+                    has_many => 'MyTest016::Child2',
                     { cascade => 'all' },
                 ),
             }
@@ -141,14 +141,14 @@ ok $mapper->maps(
 );
 
 ok $mapper->maps(
-    $mapper->metadata->t('child') => 'Child2',
+    $mapper->metadata->t('child') => 'MyTest016::Child2',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             parent => +{
                 isa => $mapper->relation(
-                    belongs_to => 'Parent2',
+                    belongs_to => 'MyTest016::Parent2',
                     { cascade => 'save_update,delete' }
                 )
             }
@@ -158,8 +158,8 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my @child = map{ Child2->new( name => 'child' . $_ ) } 11 .. 15;
-    my $parent = Parent2->new( id => 3, name => 'parent3' );
+    my @child = map{ MyTest016::Child2->new( name => 'child' . $_ ) } 11 .. 15;
+    my $parent = MyTest016::Parent2->new( id => 3, name => 'parent3' );
     $_->parent($parent) for @child;
     $session->add_all(@child);
     $session->commit;
@@ -168,16 +168,16 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session( autocommit => 0 );
-    $session->get( 'Parent2' => 3 );
-    my $c11 = $session->get( 'Child2' => 11 );
+    $session->get( 'MyTest016::Parent2' => 3 );
+    my $c11 = $session->get( 'MyTest016::Child2' => 11 );
     $session->delete($c11);
 #    $session->commit;
 
-    ok !$session->get( 'Parent2' => 3 );
+    ok !$session->get( 'MyTest016::Parent2' => 3 );
 
     # all children deleted.
-    my $child_attr = $mapper->attribute('Child2');
-    my $children = $session->search('Child2')->filter(
+    my $child_attr = $mapper->attribute('MyTest016::Child2');
+    my $children = $session->search('MyTest016::Child2')->filter(
         $child_attr->p('parent_id') == 3
     )->execute;
     is @$children, 0;
@@ -187,7 +187,7 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session( autocommit => 0 );
-    my $p = $session->get( 'Parent2' => 3 );
+    my $p = $session->get( 'MyTest016::Parent2' => 3 );
     $session->detach($p);
     ok 'done';
 };

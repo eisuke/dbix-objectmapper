@@ -21,14 +21,14 @@ $mapper->metadata->t('parent')->insert->values(id => 1)->execute();
 $mapper->metadata->t('child')->insert->values({parent_id => 1})->execute() for 0 .. 4;
 
 ok $mapper->maps(
-    $mapper->metadata->t('parent') => 'Parent',
+    $mapper->metadata->t('parent') => 'MyTest010::Parent',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             children => +{
                 isa => $mapper->relation(
-                    has_many => 'Child',
+                    has_many => 'MyTest010::Child',
                     {
                         order_by =>
                             $mapper->metadata->t('child')->c('id')->desc,
@@ -41,20 +41,20 @@ ok $mapper->maps(
 );
 
 ok $mapper->maps(
-    $mapper->metadata->t('child') => 'Child',
+    $mapper->metadata->t('child') => 'MyTest010::Child',
     constructor => +{ auto => 1 },
     accessors   => +{ auto => 1 },
     attributes  => +{
         properties => +{
             parent =>
-                +{ isa => $mapper->relation( belongs_to => 'Parent' ) }
+                +{ isa => $mapper->relation( belongs_to => 'MyTest010::Parent' ) }
             }
     },
 );
 
 {
     my $session = $mapper->begin_session;
-    my $parent = $session->get( Parent => 1 ); # query_cnt++
+    my $parent = $session->get( 'MyTest010::Parent' => 1 ); # query_cnt++
 
     is ref($parent->children), 'ARRAY'; # query_cnt++
 
@@ -65,7 +65,7 @@ ok $mapper->maps(
     }
     is $loop_cnt, 0;
 
-    my $child1 = $session->get( Child => 4 );
+    my $child1 = $session->get( 'MyTest010::Child' => 4 );
     is $child1->parent->id, 1;
 
     my $child_child = $child1->parent->children;
@@ -82,54 +82,54 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    ok my $parent = $session->get( 'Parent' => 1 );
-    push @{$parent->children}, Child->new( id => 6 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
+    push @{$parent->children}, MyTest010::Child->new( id => 6 );
 };
 
 {
     my $session = $mapper->begin_session;
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     is @{$parent->children}, 6;
 };
 
 {
     my $session = $mapper->begin_session;
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     shift(@{$parent->children});
 };
 
 {
     my $session = $mapper->begin_session;
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     is @{$parent->children}, 5;
-    is $session->search('Child')->count, 5; # delete_orphan
+    is $session->search('MyTest010::Child')->count, 5; # delete_orphan
 };
 
 #### autoflush = true
 
 {
     my $session = $mapper->begin_session( autoflush => 1 );
-    ok my $parent = $session->get( 'Parent' => 1 );
-    push @{$parent->children}, Child->new( id => 7 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
+    push @{$parent->children}, MyTest010::Child->new( id => 7 );
 };
 
 {
     my $session = $mapper->begin_session( autoflush => 1 );
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     is @{$parent->children}, 6;
 };
 
 {
     my $session = $mapper->begin_session( autoflush => 1 );
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     shift(@{$parent->children});
 };
 
 {
     my $session = $mapper->begin_session( autoflush => 1 );
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
     is @{$parent->children}, 5;
-    is $session->search('Child')->count, 5; # delete_orphan
+    is $session->search('MyTest010::Child')->count, 5; # delete_orphan
 };
 
 done_testing;

@@ -21,7 +21,7 @@ $mapper->metadata->t('parent')->insert->values(id => 1)->execute();
 $mapper->metadata->t('child')->insert->values({parent_id => 1})->execute() for 0 .. 4;
 
 {
-    package Parent;
+    package MyTest023::Parent;
     use strict;
     use warnings;
 
@@ -48,7 +48,7 @@ $mapper->metadata->t('child')->insert->values({parent_id => 1})->execute() for 0
 };
 
 {
-    package Child;
+    package MyTest023::Child;
     use strict;
     use warnings;
 
@@ -85,14 +85,14 @@ my $parent = $mapper->metadata->t('parent');
 my $child = $mapper->metadata->t('child');
 
 ok $mapper->maps(
-    $parent => 'Parent',
+    $parent => 'MyTest023::Parent',
     constructor => +{ arg_type => 'ARRAY' },
     attributes  => +{
         properties => [
             +{ isa => $parent->c('id') },
             +{
                 isa => $mapper->relation(
-                    has_many => 'Child',
+                    has_many => 'MyTest023::Child',
                     { order_by => $child->c('id')->desc },
                 ),
                 name => 'children',
@@ -102,7 +102,7 @@ ok $mapper->maps(
 );
 
 ok $mapper->maps(
-    $child => 'Child',
+    $child => 'MyTest023::Child',
     constructor => +{ arg_type => 'ARRAYREF' },
     accessors   => +{ generic_setter => 'param', generic_getter => 'param' },
     attributes  => +{
@@ -110,7 +110,7 @@ ok $mapper->maps(
             +{ isa => $child->c('id') },
             +{ isa => $child->c('parent_id') },
             +{
-                isa    => $mapper->relation( belongs_to => 'Parent' ),
+                isa    => $mapper->relation( belongs_to => 'MyTest023::Parent' ),
                 name => 'parent',
             }
         ]
@@ -119,7 +119,7 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    ok my $parent = $session->get( 'Parent' => 1 );
+    ok my $parent = $session->get( 'MyTest023::Parent' => 1 );
     is $parent->id, 1;
     ok my $children = $parent->children;
     is @$children, 5;
@@ -134,7 +134,7 @@ ok $mapper->maps(
 {
     my $session = $mapper->begin_session;
     ok my $parent = $session->get(
-        'Parent' => 1,
+        'MyTest023::Parent' => 1,
         { eagerload => 'children' },
     );
 
@@ -152,8 +152,8 @@ ok $mapper->maps(
 
 {
     my $session = $mapper->begin_session;
-    my $attr = $mapper->attribute('Parent');
-    my $it = $session->search('Parent')
+    my $attr = $mapper->attribute('MyTest023::Parent');
+    my $it = $session->search('MyTest023::Parent')
         ->filter( $attr->p('children.parent_id') == 1 )->execute;
     is $it->next->id, 1;
     ok !$it->next;
