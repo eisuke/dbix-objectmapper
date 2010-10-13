@@ -59,7 +59,9 @@ $table->insert(
     is $d->{created}, $now;
     is MIME::Base64::encode($d->{photo}), $GIF;
     is $d->{num},  10.276529;
-    is $d->{float},0.92819092;
+
+    is int( $d->{float} * 100000000 ), 92819092;
+
     is_deeply $d->{storable}, { a => 1, b => 2, c => 3 };
     is_deeply $d->{yaml}, [ qw(perl python ruby) ];
     is ref($d->{uri}), 'URI::http';
