@@ -116,11 +116,11 @@ Create a engine and a mapper object.
  use DBIx::ObjectMapper;
  use DBIx::ObjectMapper::Engine::DBI;
 
- my $engine = DBIx::ObjectMapper::Engine::DBI->new(
+ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     dsn => 'DBD:SQLite:',
     username => undef,
     password => undef,
- );
+ });
 
  my $mapper = DBIx::ObjectMapper->new( engine => $engine );
 
@@ -142,7 +142,7 @@ Get/Define metadata of the table.
  my $user_meta = $mapper->metadata->table(
      'user' => [
          Col( id => Int(), PrimaryKey ),
-         Col( name => String(128) NotNull ),
+         Col( name => String(128), NotNull ),
      ]
  );
 
