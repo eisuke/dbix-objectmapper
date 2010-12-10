@@ -104,6 +104,11 @@ sub cascade_save {
     my $class_mapper = $mapper->instance->__class_mapper__;
     my $rel_mapper = $self->mapper;
 
+    $mapper->unit_of_work->add($instance);
+    if( $instance->__mapper__->is_pending ) {
+        $instance->__mapper__->save;
+    }
+
     my %values;
     my $fk1 =
         $self->assc_table->get_foreign_key_by_table( $rel_mapper->table );
@@ -116,11 +121,6 @@ sub cascade_save {
         $self->assc_table->get_foreign_key_by_table( $class_mapper->table );
     for my $i ( 0 .. $#{$fk2->{keys}} ) {
         $values{ $fk2->{keys}->[$i] } = $mapper->get_val( $fk2->{refs}->[$i] );
-    }
-
-    $mapper->unit_of_work->add($instance);
-    if( $instance->__mapper__->is_pending ) {
-        $instance->__mapper__->save;
     }
 
     $self->assc_table->insert->values(\%values)->execute;
@@ -181,10 +181,18 @@ sub many_to_many_remove {
 
     my $fk1 =
         $self->assc_table->get_foreign_key_by_table( $rel_mapper->table );
+
     for my $i ( 0 .. $#{$fk1->{keys}} ) {
         push @cond,
             $self->assc_table->c( $fk1->{keys}->[$i] )
                 == $instance->__mapper__->get_val($fk1->{refs}->[$i]);
+    }
+
+    my ( $type, @uniq_cond ) = $self->assc_table->get_unique_condition(\@cond);
+    if( !@uniq_cond and my $primary_key = $self->assc_table->primary_key ) {
+        my $row = $self->assc_table->select->where(@cond)
+            ->order_by( $primary_key )->first;
+        @cond = map { $self->assc_table->c($_) == $row->{$_} } @$primary_key;
     }
 
     $self->assc_table->delete->where(@cond)->execute;

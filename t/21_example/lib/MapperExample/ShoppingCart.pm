@@ -64,6 +64,7 @@ sub _remove {
     for my $i ( reverse ( 0 .. $#{$self->items} ) ) {
         if( $self->items->[$i]->prodkey eq $key ) {
             splice(@{$self->items}, $i, 1);
+            return;
         }
     }
 }
