@@ -117,7 +117,7 @@ Create a engine and a mapper object.
  use DBIx::ObjectMapper::Engine::DBI;
 
  my $engine = DBIx::ObjectMapper::Engine::DBI->new({
-    dsn => 'DBD:SQLite:',
+    dsn => 'dbi:SQLite:',
     username => undef,
     password => undef,
  });
