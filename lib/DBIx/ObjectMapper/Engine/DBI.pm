@@ -7,6 +7,7 @@ use DBI;
 use Data::Dumper;
 use Data::Dump;
 use Digest::MD5;
+use Try::Tiny;
 
 use base qw(DBIx::ObjectMapper::Engine);
 use DBIx::ObjectMapper::SQL;
@@ -64,7 +65,8 @@ sub _init {
     $self->{driver}             = undef;
     $self->{cache_target_table} = +{};
     $self->{iterator}         ||= 'DBIx::ObjectMapper::Engine::DBI::Iterator';
-    $self->{txn_active}         = 0;
+    $self->{txn_depth}          = 0;
+    $self->{savepoints}         = [];
 
     return $self;
 }
@@ -190,7 +192,7 @@ sub _connect {
 
     $self->dbh_do( $dbh, $self->{connect_do} );
 
-    $self->{txn_active} = $dbh->{AutoCommit} ? 0 : 1 ;
+    $self->{txn_depth} = $dbh->{AutoCommit} ? 0 : 1 ;
     $self->{_dbh_gen}++;
 
     return $dbh;
@@ -200,7 +202,9 @@ sub disconnect {
     my ($self) = @_;
     if( my $dbh = $self->{_dbh} ) {
         $self->dbh_do( $dbh, $self->{disconnect_do} );
-        $self->_txn_rollback unless $dbh->{AutoCommit};
+        while( $self->{txn_depth} > 0 ) {
+            $self->_txn_rollback;
+        }
         $dbh->disconnect;
         $self->log_connect('DISCONNECT');
         $self->{_dbh} = undef;
@@ -214,7 +218,7 @@ sub txn_begin {
 
     my $dbh = $self->dbh;
 
-    if ( $self->{txn_active} == 0 and $dbh->{AutoCommit} ) {
+    if ( $self->{txn_depth} == 0 ) {
         eval { $dbh->begin_work };
         if ($@) {
             confess "begin_work failed:" . $@;
@@ -223,15 +227,11 @@ sub txn_begin {
             $self->log_sql('BEGIN');
         }
     }
-    elsif ( $self->{txn_active} > 0 ) {
-        cluck "Already in transaction";
-        return;
-    }
     else {
-        confess 'AutoCommit is true and txn_active is false.';
+        $self->svp_begin;
     }
 
-    return $self->{txn_active}++;
+    return $self->{txn_depth}++;
 }
 
 sub txn_commit {
@@ -251,14 +251,19 @@ sub _txn_end {
     my $dbh = $self->dbh
         or confess "$meth called without a stored handle--begin_work?";
 
-    if( $self->{txn_active} > 0 and !$dbh->{AutoCommit} ) {
+    if( $self->{txn_depth} == 1 ) {
         eval { $dbh->$meth() };
         confess "$meth failed for driver $self: $@" if $@;
         $self->log_sql( uc($meth) );
-        $self->{txn_active} = 0;
+        $self->{txn_depth} = 0;
+    }
+    elsif( $self->{txn_depth} > 1 ) {
+        $self->svp_rollback if $meth eq 'rollback';
+        $self->svp_release;
+        $self->{txn_depth}--;
     }
     else {
-        $self->log->warn('no transaction in progress.');
+        confess 'Refusing to commit without a started transaction';
     }
 
     return 1;
@@ -269,7 +274,7 @@ sub txn_do {
     my $code = shift;
     confess "it must be CODE reference" unless ref $code eq 'CODE';
 
-    return $self->svp_do( $code, @_ ) if $self->{txn_active};
+    return $self->svp_do( $code, @_ ) if $self->{txn_depth};
 
     my @res;
     eval {
@@ -286,31 +291,79 @@ sub txn_do {
     return wantarray ? @res : $res[0];
 }
 
+sub svp_begin {
+    my ( $self, $name ) = @_;
+    confess "You can't use savepoints outside a transaction"
+        unless $self->{txn_depth};
+    $name ||= 'savepoint_' . scalar(@{$self->{savepoints}});
+    push @{ $self->{savepoints} }, $name;
+    $self->log_sql('SAVEPOINT ' . $name );
+    return $self->driver->set_savepoint( $self->dbh, $name);
+}
+
+sub svp_release {
+    my ($self, $name) = @_;
+
+    confess "You can't use savepoints outside a transaction"
+        unless $self->{txn_depth};
+
+    if (defined $name) {
+        confess "Savepoint '$name' does not exist"
+            unless grep { $_ eq $name } @{ $self->{savepoints} };
+        my $svp;
+        do { $svp = pop @{ $self->{savepoints} } } while $svp ne $name;
+    } else {
+        $name = pop @{ $self->{savepoints} };
+    }
+
+    $self->log_sql( 'RELEASE SAVEPOINT ' . $name );
+    return $self->driver->release_savepoint( $self->dbh, $name );
+}
+
+sub svp_rollback {
+    my ($self, $name) = @_;
+
+    confess "You can't use savepoints outside a transaction"
+        unless $self->{txn_depth};
+
+    if (defined $name) {
+        unless(grep({ $_ eq $name } @{ $self->{savepoints} })) {
+            confess "Savepoint '$name' does not exist!";
+        }
+
+        while(my $s = pop(@{ $self->{savepoints} })) {
+            last if($s eq $name);
+        }
+        # Add the savepoint back to the stack, as a rollback doesn't remove the
+        # named savepoint, only everything after it.
+        push(@{ $self->{savepoints} }, $name);
+    } else {
+        # We'll assume they want to rollback to the last savepoint
+        $name = $self->{savepoints}->[-1];
+    }
+
+    $self->log_sql( 'ROLLBACK TO SAVEPOINT ' . $name );
+    return $self->driver->rollback_savepoint( $self->dbh, $name );
+}
+
+
 sub svp_do {
     my $self = shift;
     my $code = shift;
     confess "it must be CODE reference" unless ref $code eq 'CODE';
 
-    ++$self->{_svp_depth};
-    my $name = "savepoint_$self->{_svp_depth}";
-
     my $dbh    = $self->dbh;
     my $driver = $self->driver;
     my @ret;
     eval {
-        $self->log_sql('SAVEPOINT ' . $name );
-        $driver->set_savepoint($dbh, $name);
+        $self->svp_begin;
         @ret = $code->();
-        $driver->release_savepoint($dbh, $name);
-        $self->log_sql( 'RELEASE SAVEPOINT ' . $name );
+        $self->svp_release;
     };
-    --$self->{_svp_depth};
 
     if (my $err = $@) {
-        $self->log_sql( 'ROLLBACK TO SAVEPOINT ' . $name );
-        $driver->rollback_savepoint($self->dbh, $name);
-        $driver->release_savepoint($dbh, $name);
-        $self->log_sql( 'RELEASE SAVEPOINT ' . $name );
+        $self->svp_rollback;
+        $self->svp_release;
         confess $err;
     }
 
