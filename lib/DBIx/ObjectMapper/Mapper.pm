@@ -521,7 +521,6 @@ sub find {
     my $self = shift;
     my $where = shift;
     my @where = @$where;
-    push @where, @{$self->default_condition};
     my $it = $self->select->where(@where)->execute;
     return unless $it;
     return $self->mapping($it->next || undef, @_);
@@ -567,9 +566,15 @@ sub delete {
 sub get_unique_condition {
     my ( $self, $id ) = @_;
 
-    my ( $type, @cond ) = $self->table->get_unique_condition($id);
-    confess "condition is not unique." unless @cond;
-    return $self->create_cache_key($type, @cond), @cond;
+    my @cond = $self->table->cast_condition($id);
+    if( my @default_cond = @{$self->default_condition} ) {
+        push @cond, @default_cond;
+    }
+    confess "invalid condition." unless @cond;
+
+    my ( $type, @uniq_cond ) = $self->table->get_unique_condition(\@cond);
+    confess "condition is not unique." unless @uniq_cond;
+    return $self->create_cache_key($type, @uniq_cond), @cond;
 }
 
 sub create_cache_key {

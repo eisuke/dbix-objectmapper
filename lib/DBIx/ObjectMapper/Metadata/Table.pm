@@ -639,8 +639,9 @@ sub count {
 sub find {
     my $self = shift;
     my $cond = shift;
-    my ( $type, @cond ) = $self->get_unique_condition($cond);
-    confess "condition is not unique." unless @cond;
+    my @cond = $self->cast_condition($cond);
+    my ( $type, @uniq_cond ) = $self->get_unique_condition(\@cond);
+    confess "condition is not unique." unless @uniq_cond;
     $self->_find(@cond);
 }
 
@@ -649,63 +650,58 @@ sub _find {
     return $self->select->where(@_)->execute->first;
 }
 
-sub get_unique_condition {
+sub cast_condition {
     my ( $self, $cond ) = @_;
 
-    if ( ref $cond eq 'HASH' ) {
-        my $ok = 0;
-        if ( List::MoreUtils::all { exists $cond->{$_} }
-            @{ $self->primary_key } )
-        {
-            return (
-                undef,
-                map { $self->c($_) == $cond->{$_} } @{ $self->primary_key }
-            );
-        }
-        else {
-            for my $uinfo ( @{ $self->unique_key } ) {
-                if ( List::MoreUtils::all { exists $cond->{$_} }
-                    @{ $uinfo->[1] } )
-                {
-
-                    return (
-                        $uinfo->[0],
-                        map { $self->c($_) == $cond->{$_} } @{ $uinfo->[1] }
-                    );
-                }
-            }
-        }
+    if ( !ref $cond and defined $cond and @{ $self->primary_key } == 1 ) {
+        return  map { $self->c($_) == $cond } @{ $self->primary_key };
+    }
+    elsif ( ref $cond eq 'HASH' ) {
+        return map { $self->c($_) == $cond->{$_} } keys %$cond;
     }
     elsif ( ref $cond eq 'ARRAY'
         and !ref $cond->[0]
         and @$cond == @{ $self->primary_key } )
     {
-        return (
-            undef,
-            map { $self->c($_) == shift(@$cond) } @{ $self->primary_key }
-        );
+        return  map { $self->c($_) == shift(@$cond) } @{ $self->primary_key };
     }
     elsif ( ref $cond eq 'ARRAY'
         and ref $cond->[0] eq 'ARRAY'
         and ref $cond->[0][0] eq $self->column_metaclass )
     {
-        my %col;
-        for my $c (@$cond) {
-            return unless $c->[1] eq '=';
-            $col{ $c->[0]->name } = $c->[2];
-        }
-        return $self->get_unique_condition( \%col );
+        return @$cond;
     }
-    elsif ( !ref $cond and defined $cond ) {
-        if( @{ $self->primary_key } == 1 ) {
-            return (
-                undef,
-                map { $self->c($_) == $cond } @{ $self->primary_key }
-            );
+    else {
+        return;
+    }
+}
+
+sub get_unique_condition {
+    my ( $self, $casted_cond ) = @_;
+
+    confess "use cast_condition()." unless ref $casted_cond eq 'ARRAY';
+
+    my %col;
+    for my $c (@$casted_cond) {
+        return unless $c->[1] eq '=';
+        $col{ $c->[0]->name } = $c->[2];
+    }
+
+    my ( $type, @cond );
+    if ( List::MoreUtils::all { exists $col{$_} } @{ $self->primary_key } ) {
+        $type = undef;
+        @cond = map{ $self->c($_) == $col{$_} } @{$self->primary_key};
+    }
+    else {
+        for my $uinfo ( @{ $self->unique_key } ) {
+            if ( List::MoreUtils::all { exists $col{$_} } @{ $uinfo->[1] } ) {
+                $type = $uinfo->[0];
+                @cond = map { $self->c($_) == $col{$_} } @{ $uinfo->[1] };
+            }
         }
     }
 
-    return;
+    return( $type, @cond );
 }
 
 sub insert {
