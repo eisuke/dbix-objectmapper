@@ -53,4 +53,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/eisuke/dbix-objectmapper.git
-version: 0.3012
+version: 0.3013

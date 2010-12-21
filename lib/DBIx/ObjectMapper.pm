@@ -2,7 +2,7 @@ package DBIx::ObjectMapper;
 use strict;
 use warnings;
 use 5.008_001;
-our $VERSION = '0.3012';
+our $VERSION = '0.3013';
 
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
@@ -238,6 +238,10 @@ Returns the session_class.
 =head1 AUTHOR
 
 Eisuke Oishi
+
+=head1 CONTRIBUTORS
+
+nekokak: Atsushi Kobayashi
 
 =head1 COPYRIGHT
 

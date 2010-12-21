@@ -132,6 +132,10 @@ Returns the session_class.
 
 Eisuke Oishi
 
+=head1 CONTRIBUTORS
+
+nekokak: Atsushi Kobayashi
+
 =head1 COPYRIGHT
 
 Copyright 2010 Eisuke Oishi
