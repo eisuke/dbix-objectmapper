@@ -191,7 +191,7 @@ sub many_to_many_remove {
     my ( $type, @uniq_cond ) = $self->assc_table->get_unique_condition(\@cond);
     if( !@uniq_cond and my $primary_key = $self->assc_table->primary_key ) {
         my $row = $self->assc_table->select->where(@cond)
-            ->order_by( $primary_key )->first;
+            ->order_by( @$primary_key )->first;
         @cond = map { $self->assc_table->c($_) == $row->{$_} } @$primary_key;
     }
 
