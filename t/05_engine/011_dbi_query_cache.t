@@ -6,7 +6,6 @@ use Test::Exception;
 use DBIx::ObjectMapper::Engine;
 use DBIx::ObjectMapper::Engine::DBI;
 use DBIx::ObjectMapper::Session::Cache;
-$DBIx::ObjectMapper::Session::Cache::weaken = 0;
 
 ok my $engine = DBIx::ObjectMapper::Engine::DBI->new(
     [
@@ -59,7 +58,7 @@ sub get_it {
     get_it('DBIx::ObjectMapper::Engine::DBI::Iterator');
     get_it('DBIx::ObjectMapper::Iterator') for 1 .. 3;
     is $engine->{sql_cnt}, 13;
-    $engine->cache->clear;
+    $engine->{cache} = DBIx::ObjectMapper::Session::Cache->new;
 };
 
 {
@@ -71,7 +70,7 @@ sub get_it {
 {
     get_it('DBIx::ObjectMapper::Iterator');
     is $engine->{sql_cnt}, 14;
-    $engine->cache->clear;
+    $engine->{cache} = DBIx::ObjectMapper::Session::Cache->new;
 };
 
 {
@@ -82,7 +81,7 @@ sub get_it {
 
     get_it('DBIx::ObjectMapper::Iterator');
     is $engine->{sql_cnt}, 15;
-    $engine->cache->clear;
+    $engine->{cache} = DBIx::ObjectMapper::Session::Cache->new;
 };
 
 done_testing;

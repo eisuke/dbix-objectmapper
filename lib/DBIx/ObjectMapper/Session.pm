@@ -24,9 +24,8 @@ sub new {
                 type      => OBJECT,
                 callbacks => {
                     'ducktype' => sub {
-                        ( grep { $_[0]->can($_) } qw(get set remove clear) )
-                            == 4;
-                        }
+                        ( grep { $_[0]->can($_) } qw(get set remove) ) == 3;
+                    }
                 },
                 default => DBIx::ObjectMapper::Session::Cache->new()
             },

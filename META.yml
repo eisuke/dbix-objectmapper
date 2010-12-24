@@ -25,6 +25,7 @@ recommends:
   Log::Any::Adapter::Dispatch: 0
   Mouse: 0.42
 requires:
+  Cache::LRU: 0
   Capture::Tiny: 0
   Carp::Clan: 0
   Class::Data::Inheritable: 0
