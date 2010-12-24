@@ -41,7 +41,7 @@ requires:
   Hash::Merge: 0.12
   List::MoreUtils: 0
   Log::Any: 0
-  Module::Pluggable: 0
+  Module::Find: 0
   Params::Validate: 0
   Scalar::Util: 0
   Sub::Exporter: 0

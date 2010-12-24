@@ -31,7 +31,7 @@ requires 'DateTime';
 requires 'Sub::Exporter';
 requires 'Capture::Tiny';
 requires 'Data::Dump';
-requires 'Module::Pluggable';
+requires 'Module::Find';
 
 build_requires 'Test::More'     => 0.88;
 test_requires 'Test::Builder'   => 0.33;

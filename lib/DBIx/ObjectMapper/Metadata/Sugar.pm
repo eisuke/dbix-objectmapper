@@ -2,7 +2,8 @@ package DBIx::ObjectMapper::Metadata::Sugar;
 use strict;
 use warnings;
 use Sub::Exporter;
-use Module::Pluggable::Object;
+use Module::Find;
+use DBIx::ObjectMapper::Utils;
 
 our @ATTRS = qw(Col PrimaryKey NotNull OnUpdate Default ToStorage Unique
                 FromStorage ServerDefault Readonly ForeignKey ServerCheck
@@ -39,13 +40,11 @@ sub ServerCheck    { server_check   => $_[0] }
 our @TYPES;
 {
     my $namespace = 'DBIx::ObjectMapper::Metadata::Table::Column::Type';
-    my $loader = Module::Pluggable::Object->new(
-        search_path => [ $namespace ],
-        require     => 1,
-    );
+    my @type_classes = Module::Find::findallmod($namespace);
 
     my $pkg = __PACKAGE__;
-    for my $type_class ( $loader->plugins ) {
+    for my $type_class ( @type_classes ) {
+        DBIx::ObjectMapper::Utils::load_class($type_class);
         my $name = $type_class;
         $name =~ s/^$namespace\:://;
         no strict 'refs';
