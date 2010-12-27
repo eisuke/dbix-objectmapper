@@ -42,7 +42,7 @@ eval {
 
 my ($stdout, $stderr) = Capture::Tiny::capture {
     { ## can't die in DESTROY method....
-        my $session = $mapper->begin_session();
+        my $session = $mapper->begin_session( autocommit => 0 );
         $session->add( MyTest17::Player->new( id => 'a' ) );
     };
 };

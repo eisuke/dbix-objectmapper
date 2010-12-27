@@ -215,4 +215,48 @@ $mapper->maps(
     is $session->search('MyTest18::Books')->count, 10;
 };
 
+# XXX SQLite's bug? BegunWork is still true.
+$mapper->engine->disconnect;
+
+
+{
+    my $session = $mapper->begin_session( autocommit => 0 );
+    $session->add( MyTest18::Books->new( title => 'title', id => 1 ) );
+    $session->commit;
+    my $book = $session->get( 'MyTest18::Books' => 1 );
+    $session->rollback;
+    $book->title( 'title title' );
+    $session->commit;
+};
+
+
+{
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $book = $session->get( 'MyTest18::Books' => 1 );
+    is $book->title, 'title title';
+    $session->rollback;
+    $book->title('title');
+    # rollback
+};
+
+{
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $book = $session->get( 'MyTest18::Books' => 1 );
+    is $book->title, 'title title';
+};
+
+{
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $book = $session->get( 'MyTest18::Books' => 1 );
+    $session->delete($book);
+    $session->add( MyTest18::Books->new( title => 't', id => 1 ) );
+    $session->commit;
+};
+
+{
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $book = $session->get( 'MyTest18::Books' => 1 );
+    is $book->title, 't';
+};
+
 done_testing;
