@@ -83,10 +83,10 @@ sub op {
     }
     else {
         if( (ref $val || '') eq 'ARRAY' ) {
-            $val = [ map { $self->type->to_storage($_) } @$val ];
+            $val = [ map { $self->_to_storage($_) } @$val ];
         }
         else {
-            $val = $self->type->to_storage($val);
+            $val = $self->_to_storage($val);
         }
         return [ $self, $op, $val ];
     }
@@ -170,10 +170,15 @@ sub to_storage {
         }
     }
 
+    return $self->_to_storage($val);
+}
+
+sub _to_storage {
+    my $self = shift;
+    my $val = shift;
     if( defined $val and my $to_storage = $self->{to_storage} ) {
         $val = $to_storage->($val);
     }
-
     return $self->type->to_storage($val);
 }
 

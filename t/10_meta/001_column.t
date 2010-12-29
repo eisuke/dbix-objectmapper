@@ -31,32 +31,32 @@ my $c = DBIx::ObjectMapper::Metadata::Table::Column->new(
 };
 
 { # oprator
-    is_deeply $c->op('%%', 'opcheck'), [ 'b.type', '%%', 'opcheck'], 'custom operator';
-    is_deeply $c->eq('eqcheck'), [ 'b.type', '=', 'eqcheck'], 'eq';
+    is_deeply $c->op('%%', 'opcheck'), [ 'b.type', '%%', 'opcheck-deflate'], 'custom operator';
+    is_deeply $c->eq('eqcheck'), [ 'b.type', '=', 'eqcheck-deflate'], 'eq';
 
-    is_deeply $c == 'a', [ 'b.type', '=', 'a' ], '==';
-    is_deeply $c eq 'a', [ 'b.type', '=', 'a' ], 'eq';
+    is_deeply $c == 'a', [ 'b.type', '=', 'a-deflate' ], '==';
+    is_deeply $c eq 'a', [ 'b.type', '=', 'a-deflate' ], 'eq';
 
-    is_deeply $c !=  1 , [ 'b.type', '!=', 1 ], '!=';
-    is_deeply $c ne  1 , [ 'b.type', '!=', 1 ], 'ne';
+    is_deeply $c !=  1 , [ 'b.type', '!=', '1-deflate' ], '!=';
+    is_deeply $c ne  1 , [ 'b.type', '!=', '1-deflate' ], 'ne';
 
-    is_deeply $c <=  2 , [ 'b.type', '<=', 2 ], '<=';
-    is_deeply $c le  2 , [ 'b.type', '<=', 2 ], 'le';
+    is_deeply $c <=  2 , [ 'b.type', '<=', '2-deflate' ], '<=';
+    is_deeply $c le  2 , [ 'b.type', '<=', '2-deflate' ], 'le';
 
-    is_deeply $c >=  3 , [ 'b.type', '>=', 3 ], '>=';
-    is_deeply $c ge  3 , [ 'b.type', '>=', 3 ], 'ge';
+    is_deeply $c >=  3 , [ 'b.type', '>=', '3-deflate' ], '>=';
+    is_deeply $c ge  3 , [ 'b.type', '>=', '3-deflate' ], 'ge';
 
-    is_deeply $c >   4 , [ 'b.type', '>', 4 ], '>';
-    is_deeply $c gt  4 , [ 'b.type', '>', 4 ], 'gt';
+    is_deeply $c >   4 , [ 'b.type', '>', '4-deflate' ], '>';
+    is_deeply $c gt  4 , [ 'b.type', '>', '4-deflate' ], 'gt';
 
-    is_deeply $c <   5 , [ 'b.type', '<', 5], '<';
-    is_deeply $c lt  5 , [ 'b.type', '<', 5], 'lt';
+    is_deeply $c <   5 , [ 'b.type', '<', '5-deflate'], '<';
+    is_deeply $c lt  5 , [ 'b.type', '<', '5-deflate'], 'lt';
 
-    is_deeply $c->between(1, 2), [ 'b.type', 'BETWEEN', [1 , 2 ]], 'between';
-    is_deeply $c->in(1,2,3,4), [ 'b.type', 'IN', [1 ,2 ,3 ,4] ], 'IN';
-    is_deeply $c->not_in(1,2,3,4), [ 'b.type', 'NOT IN', [1 ,2 ,3 ,4] ], 'NOT IN';
-    is_deeply $c->like('%Led%'), [ 'b.type', 'LIKE', '%Led%'], 'LIKE';
-    is_deeply $c->not_like('%Led%'), [ 'b.type', 'NOT LIKE', '%Led%'], 'NOT LIKE';
+    is_deeply $c->between(1, 2), [ 'b.type', 'BETWEEN', ['1-deflate' , '2-deflate' ]], 'between';
+    is_deeply $c->in(1,2,3,4), [ 'b.type', 'IN', ['1-deflate' ,'2-deflate' ,'3-deflate' ,'4-deflate'] ], 'IN';
+    is_deeply $c->not_in(1,2,3,4), [ 'b.type', 'NOT IN', ['1-deflate' ,'2-deflate' ,'3-deflate' ,'4-deflate'] ], 'NOT IN';
+    is_deeply $c->like('%Led%'), [ 'b.type', 'LIKE', '%Led%-deflate'], 'LIKE';
+    is_deeply $c->not_like('%Led%'), [ 'b.type', 'NOT LIKE', '%Led%-deflate'], 'NOT LIKE';
 
     is $c->desc, 'b.type DESC', 'DESC';
 
