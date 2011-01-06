@@ -253,8 +253,9 @@ sub select {
     my $self = shift;
     my $parent_join = $self->parent_table->select->builder->join;
     return $self->query_object->select( $self->_select_query_callback )
-        ->column(@{$self->columns})->from( $self )
-        ->add_join(@$parent_join, [ $self->child_table => $self->rel_cond ]);
+        ->column( @{ $self->columns } )->from($self)
+        ->join( @$parent_join,
+        [ $self->child_table => $self->rel_cond => 'INNER' ] );
 }
 
 sub _select_query_callback_core {
