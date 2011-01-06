@@ -68,6 +68,7 @@ sub new {
         unique_key          => \@uniquekeys,
         polymorphic_columns => \@columns,
         rel_cond            => \@rel_cond,
+        rel_key             => $fk,
         parent_table        => $parent,
         child_table         => $child,
         shared_column       => \%shared_column,
@@ -135,6 +136,27 @@ sub column {
 sub columns    { $_[0]->{columns} }
 sub column_map { $_[0]->{column_map} }
 
+sub individual_find {
+    my $self = shift;
+    my $hashref_data = shift;
+    my $uow = shift;
+
+    if( ref($self->parent_table) eq ref($self) ) {
+        $hashref_data = $self->parent_table->individual_find(
+            $hashref_data, $uow);
+    }
+
+    my %rel_cond;
+    my $fk = $self->{rel_key};
+    for my $i ( 0 .. $#{ $fk->{keys} } ) {
+        $rel_cond{ $fk->{keys}->[$i] }
+            = $hashref_data->{ $fk->{refs}->[$i] };
+    }
+
+    my $child_data = $self->child_table->find(\%rel_cond);
+    $uow->{query_cnt}++;
+    return { %$hashref_data, %$child_data };
+}
 
 sub insert {
     my $self = shift;
@@ -218,11 +240,11 @@ sub delete {
 
     my @query;
 
-    my @parent_where = $self->cast_cond( 'parent', \@where );
-    push @query,  $self->parent_table->delete(@parent_where);
-
     my @child_where = $self->cast_cond( 'child', \@where );
     push @query, $self->child_table->delete(@child_where);
+
+    my @parent_where = $self->cast_cond( 'parent', \@where );
+    push @query,  $self->parent_table->delete(@parent_where);
 
     return @query;
 }

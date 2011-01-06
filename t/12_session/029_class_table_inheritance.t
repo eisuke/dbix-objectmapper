@@ -12,8 +12,8 @@ my $mapper = DBIx::ObjectMapper->new(
         password => '',
         on_connect_do => [
             q{CREATE TABLE employee(id integer primary key, type text)},
-            q{CREATE TABLE engineer(id integer primary key, language text, FOREIGN KEY(id) REFERENCES person(id))},
-            q{CREATE TABLE manager(id integer primary key, golf_swing text, FOREIGN KEY(id) REFERENCES person(id))},
+            q{CREATE TABLE engineer(id integer primary key REFERENCES employee(id), language text, FOREIGN KEY(id) REFERENCES person(id))},
+            q{CREATE TABLE manager(id integer primary key REFERENCES employee(id), golf_swing text, FOREIGN KEY(id) REFERENCES person(id))},
         ],
     }),
 );
@@ -121,74 +121,135 @@ for my $i ( 1 .. 10 ) {
 
 for my $i ( 1 .. 10 ) {
     push @persons, My::Engineer->new({
+        id       => $i + 10,
         language => $languages[$i - 1]
     });
 }
 
 for my $i ( 1 .. 10 ) {
     push @persons, My::Manager->new({
+        id       => $i + 20,
         golf_swing => $golf_swings[$i - 1]
     });
 }
 
 for my $person ( @persons ) {
     $session->add($person);
-    $session->commit();
 }
+$session->commit();
 
 is @{$session->search('My::Employee')->execute}, 30;
 is @{$session->search('My::Engineer')->execute}, 10;
 is @{$session->search('My::Manager')->execute}, 10;
 
-ok !$session->get('My::Engineer' => 1 );
-ok my $e = $session->get('My::Engineer' => 11 );
-$e->language('Java');
-$e->id('10000');
-$session->commit;
-
-my $attr = $mapper->attribute('My::Engineer');
-my $perl_monk = $session->search('My::Engineer')->filter(
-    $attr->p('language') == 'Perl',
-)->execute;
-
-while( my $p = $perl_monk->next ) {
-    is $p->language, 'Perl';
-}
-
-
-my $it = $session->search('My::Employee')->with_polymorphic('*')->execute;
-my %result;
-while( my $e = $it->next ) {
-    $result{ref($e)}++;
-    if( ref($e) eq 'My::Employee' ) {
-        ok $e->id <= 10;
+{
+    $session = $mapper->begin_session;
+    my $emp = $session->search('My::Employee')->execute;
+    my %classes;
+    while( my $m = $emp->next ) {
+        $classes{ref($m)}++;
     }
-    elsif( ref($e) eq 'My::Engineer' ) {
-        ok $e->language;
+    is $classes{'My::Employee'}, 10;
+    is $classes{'My::Engineer'}, 10;
+    is $classes{'My::Manager'}, 10;
+    is $session->uow->query_cnt, 21;
+};
+
+{
+    $session = $mapper->begin_session;
+    my $it = $session->search('My::Employee')->with_polymorphic('*')->execute;
+    my %result;
+    while( my $e = $it->next ) {
+        $result{ref($e)}++;
+        if( ref($e) eq 'My::Employee' ) {
+            ok $e->id <= 10;
+        }
+        elsif( ref($e) eq 'My::Engineer' ) {
+            ok $e->language;
+        }
+        elsif( ref($e) eq 'My::Manager' ) {
+            ok $e->golf_swing;
+        }
     }
-    elsif( ref($e) eq 'My::Manager' ) {
-        ok $e->golf_swing;
+    is $result{'My::Employee'}, 10;
+    is $result{'My::Engineer'}, 10;
+    is $result{'My::Manager'}, 10;
+    $session->uow->query_cnt, 1;
+};
+
+
+{
+    $session = $mapper->begin_session;
+    my $emp = $session->get( 'My::Employee' => 1 );
+    is ref($emp), 'My::Employee';
+    is $session->uow->query_cnt, 1;
+};
+
+{
+    $session = $mapper->begin_session;
+    my $eng = $session->get( 'My::Employee' => 11 );
+    is ref($eng), 'My::Engineer';
+    is $session->uow->query_cnt, 2;
+};
+
+{
+    $session = $mapper->begin_session;
+    my $eng = $session->get( 'My::Employee' => 21 );
+    is ref($eng), 'My::Manager';
+    is $session->uow->query_cnt, 2;
+};
+
+{
+    $session = $mapper->begin_session;
+    my $eng = $session->get( 'My::Engineer' => 11 );
+    is ref($eng), 'My::Engineer';
+    is $session->uow->query_cnt, 1;
+};
+
+{
+    $session = $mapper->begin_session;
+    ok !$session->get( 'My::Engineer' => 1 );
+};
+
+{
+    $session = $mapper->begin_session;
+    ok my $e = $session->get('My::Engineer' => 11 );
+    $e->language('Java');
+    $e->id('10000');
+    $session->commit;
+
+    my $attr = $mapper->attribute('My::Engineer');
+    my $perl_monk = $session->search('My::Engineer')->filter(
+        $attr->p('language') == 'Perl',
+    )->execute;
+
+    while( my $p = $perl_monk->next ) {
+        is $p->language, 'Perl';
     }
-}
+};
 
-is $result{'My::Employee'}, 10;
-is $result{'My::Engineer'}, 10;
-is $result{'My::Manager'}, 10;
 
-my $managers = $session->search('My::Manager')->execute;
-while( my $m = $managers->next ) {
-    $session->delete($m);
-}
+{
+    $session = $mapper->begin_session;
+    my $managers = $session->search('My::Manager')->execute;
+    while( my $m = $managers->next ) {
+        $session->delete($m);
+    }
 
-my $emp = $session->search('My::Employee')->execute;
-while( my $m = $emp->next ) {
-    $session->delete($m);
-}
+    my $emp = $session->search('My::Employee')->execute;
+    while( my $m = $emp->next ) {
+        $session->delete($m);
+    }
+    $session->commit;
 
-$session->commit;
+    is $session->search('My::Employee')->count, 0;
+    is $session->search('My::Manager')->count, 0;
+    is $session->search('My::Engineer')->count, 0;
 
-is $session->search('My::Employee')->count, 0;
-is $session->search('My::Manager')->count, 0;
-is $session->search('My::Engineer')->count, 0;
+    is $mapper->metadata->t('employee')->count->execute, 0;
+    is $mapper->metadata->t('manager')->count->execute, 0;
+    is $mapper->metadata->t('engineer')->count->execute, 0;
+};
 
 done_testing;
+

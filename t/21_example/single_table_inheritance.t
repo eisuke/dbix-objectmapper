@@ -146,10 +146,16 @@ $session->commit;
 my $it = $session->search('Player')->execute;
 # SELECT id,name FROM players;
 my $cnt = 0;
+my %ref_cnt;
 while( my $p = $it->next ) {
     ok $p;
+    $ref_cnt{ref($p)}++;
     $cnt++;
 }
+
+is $ref_cnt{Footballer}, 1;
+is $ref_cnt{Cricketer}, 1;
+is $ref_cnt{Bowler}, 1;
 is $cnt, 3;
 
 my $it2 = $session->search('Footballer')->execute;
@@ -163,15 +169,15 @@ while( my $f = $it2->next ){
 is $cnt2, 1;
 
 my $it3 = $session->search('Player')->with_polymorphic('*')->execute;
-my %ref_cnt;
+my %ref_cnt2;
 while( my $p2 = $it3->next ) {
     ok $p2;
-    $ref_cnt{ref($p2)}++;
+    $ref_cnt2{ref($p2)}++;
 }
 
-is $ref_cnt{Footballer}, 1;
-is $ref_cnt{Cricketer}, 1;
-is $ref_cnt{Bowler}, 1;
+is $ref_cnt2{Footballer}, 1;
+is $ref_cnt2{Cricketer}, 1;
+is $ref_cnt2{Bowler}, 1;
 
 done_testing;
 

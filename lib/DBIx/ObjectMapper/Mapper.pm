@@ -42,14 +42,18 @@ use DBIx::ObjectMapper::Metadata::Query;
 
     sub get_polymorphic_tree {
         my $self = shift;
-        my $tree = $POLYMORPHIC_TREE{$self->mapped_class} || +{};
+        my $tree = $self->polymorphic_tree;
         my @tree = map{ [ $_ => $tree->{$_} ] } keys %$tree;
         for my $child_class ( keys %$tree ) {
-            my @child_tree
-                = $child_class->__class_mapper__->get_polymorphic_tree;
-            unshift @tree, @child_tree;
+            unshift @tree,
+                $child_class->__class_mapper__->get_polymorphic_tree;
         }
         return @tree;
+    }
+
+    sub polymorphic_tree {
+        my $self = shift;
+        return $POLYMORPHIC_TREE{$self->mapped_class} || +{};
     }
 
     sub set_polymorphic_tree {
@@ -457,6 +461,48 @@ sub mapping {
 
     return unless $hashref_data;
 
+    my @polymorphic = $self->get_polymorphic_tree;
+    for my $p ( @polymorphic ) {
+        my $mapper = $p->[0]->__class_mapper__;
+        my $table  = $mapper->table;
+
+        if ( $mapper->polymorphic_on
+            and $hashref_data->{ $mapper->polymorphic_on }
+            and $hashref_data->{ $mapper->polymorphic_on } eq
+            $mapper->polymorphic_identity )
+        {
+            if( $table->{polymorphic_columns} ) {
+                my $complete_data = $table->individual_find(
+                    $hashref_data, $uow);
+                return $mapper->mapping( $complete_data, $uow );
+            }
+            else {
+                my $not_exsits = 0;
+                for my $prop_name ( $mapper->attributes->property_names ) {
+                    my $prop = $mapper->attributes->property_info($prop_name);
+                    my $name = $prop->name || $prop_name;
+                    if( !$prop->lazy and !exists $hashref_data->{$name} ) {
+                        $not_exsits = 1;
+                        last;
+                    }
+                }
+
+                if( $not_exsits ) {
+                    my @cond = $table->cast_condition($hashref_data);
+                    my ( $type, @uniq_cond )
+                        = $table->get_unique_condition( \@cond );
+                    return $mapper->mapping(
+                        $table->find(\@uniq_cond),
+                        $uow,
+                    );
+                }
+                else {
+                    return $mapper->mapping( $hashref_data, $uow );
+                }
+            }
+        }
+    }
+
     my $constructor = $self->constructor->name;
     my $type = $self->constructor->arg_type;
 
@@ -530,11 +576,18 @@ sub load_properties {
     my $self = shift;
 
     my @column;
+    my %set_column;
     for my $prop_name ( $self->attributes->property_names ) {
         my $prop = $self->attributes->property_info($prop_name);
         next unless $prop->type eq 'column' and !$prop->lazy;
         push @column, $prop->{isa};
+        $set_column{$prop->{isa}->name} = 1;
     }
+
+    if( $self->polymorphic_on and !$set_column{$self->polymorphic_on} ) {
+        push @column, $self->table->c( $self->polymorphic_on );
+    }
+
     return @column;
 }
 
