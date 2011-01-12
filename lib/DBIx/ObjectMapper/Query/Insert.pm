@@ -4,10 +4,12 @@ use warnings;
 use base qw(DBIx::ObjectMapper::Query::Base);
 
 sub new {
-    my $class = shift;
-    my $engine = shift;
+    my $class    = shift;
+    my $self = $class->SUPER::new( @_ );
+    my $engine   = shift;
     my $callback = shift;
-    my $self = $class->SUPER::new($engine, $callback);
+    my $before = shift;
+    my $after = shift;
     $self->{primary_keys} = shift || [];
     $self->builder( $self->engine->query->insert );
     return $self;
@@ -29,9 +31,12 @@ sub execute {
     my $self = shift;
     my $primary_key
         = @{ $self->{primary_keys} } ? $self->{primary_keys} : shift || undef;
-    return $self->engine->insert( $self->builder, $self->callback,
+    $self->{before}
+        ->( $self->metadata, $self->builder, $self->builder->{into}->[0] );
+    my $res = $self->engine->insert( $self->builder, $self->callback,
         $primary_key );
+    $self->{after}->( $self->metadata, $res, $self->builder->{into}->[0] );
+    return $res;
 }
 
 1;
-

@@ -5,6 +5,7 @@ use Test::Exception;
 
 use Scalar::Util qw(blessed);
 use DBIx::ObjectMapper::Engine::DBI;
+use DBIx::ObjectMapper::Metadata;
 BEGIN { use_ok('DBIx::ObjectMapper::Query') }
 
 my $engine = DBIx::ObjectMapper::Engine::DBI->new({
@@ -21,7 +22,9 @@ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $query = DBIx::ObjectMapper::Query->new($engine);
+my $meta = DBIx::ObjectMapper::Metadata->new( engine => $engine );
+
+my $query = DBIx::ObjectMapper::Query->new($meta);
 ok blessed($query->select);
 is ref($query->select), 'DBIx::ObjectMapper::Query::Select';
 ok blessed($query->update);

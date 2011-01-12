@@ -41,6 +41,7 @@ sub table {
         my $col        = shift || [];
         my $attr       = shift || +{};
         $attr->{engine} ||= $self->engine if $self->engine;
+        $attr->{metadata} = $self;
         $self->{tables}{$table_name} =
             DBIx::ObjectMapper::Metadata::Table->new(
                 $table_name, $col, $attr
@@ -75,7 +76,7 @@ sub load_from_declaration {
 
 sub query_object {
     my $self = shift;
-    return $self->{query_object} ||= $self->{query_class}->new($self->engine);
+    return $self->{query_object} ||= $self->{query_class}->new($self);
 }
 
 sub select { $_[0]->query_object->select }

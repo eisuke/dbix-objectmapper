@@ -3,6 +3,7 @@ use warnings;
 use Test::More;
 use DBIx::ObjectMapper::Engine::DBI;
 use DBIx::ObjectMapper::Query;
+use DBIx::ObjectMapper::Metadata;
 
 my ($dsn, $user, $pass) = @ENV{map { "MAPPER_TEST_PG_${_}" } qw/DSN USER PASS/};
 
@@ -17,7 +18,8 @@ my $engine = DBIx::ObjectMapper::Engine::DBI->new({
     ],
 });
 
-my $query = DBIx::ObjectMapper::Query->new($engine);
+my $meta = DBIx::ObjectMapper::Metadata->new( engine => $engine );
+my $query = DBIx::ObjectMapper::Query->new($meta);
 
 {
     my @name = qw(a b c d e f g);

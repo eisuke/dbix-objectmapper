@@ -1,16 +1,27 @@
 package DBIx::ObjectMapper::Query::Base;
 use strict;
 use warnings;
+use Scalar::Util qw(weaken);
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 
 sub new {
     my $class = shift;
-    my $engine = shift || confess 'usage: ' . $class . '->new($engine)';
+    my $metadata = shift || confess 'usage: ' . $class . '->new($metadata)';
     my $callback = shift || undef;
-    bless { engine => $engine, callback => $callback }, $class;
+    my ( $before, $after ) = @_;
+    my $self = bless {
+        metadata => $metadata,
+        callback => $callback,
+        before   => $before || sub { },
+        after    => $after || sub { },
+    }, $class;
+
+    weaken($self->{metadata});
+    return $self;
 }
 
-sub engine   { $_[0]->{engine} }
+sub metadata { $_[0]->{metadata} }
+sub engine   { $_[0]->metadata->engine }
 sub callback { $_[0]->{callback} }
 
 sub builder {

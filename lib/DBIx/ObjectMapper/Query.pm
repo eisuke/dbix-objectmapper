@@ -9,10 +9,10 @@ use DBIx::ObjectMapper::Query::Update;
 use DBIx::ObjectMapper::Query::Delete;
 use DBIx::ObjectMapper::Query::Count;
 
-sub select { DBIx::ObjectMapper::Query::Select->new( shift->engine, @_ ) }
-sub insert { DBIx::ObjectMapper::Query::Insert->new( shift->engine, @_ ) }
-sub update { DBIx::ObjectMapper::Query::Update->new( shift->engine, @_ ) }
-sub delete { DBIx::ObjectMapper::Query::Delete->new( shift->engine, @_ ) }
-sub count  { DBIx::ObjectMapper::Query::Count->new( shift->engine, @_ ) }
+sub select { DBIx::ObjectMapper::Query::Select->new( shift->metadata, @_ ) }
+sub insert { DBIx::ObjectMapper::Query::Insert->new( shift->metadata, @_ ) }
+sub update { DBIx::ObjectMapper::Query::Update->new( shift->metadata, @_ ) }
+sub delete { DBIx::ObjectMapper::Query::Delete->new( shift->metadata, @_ ) }
+sub count  { DBIx::ObjectMapper::Query::Count->new( shift->metadata, @_ ) }
 
 1;

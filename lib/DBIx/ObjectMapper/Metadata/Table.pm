@@ -36,18 +36,25 @@ sub new {
     );
 
     my @init_attr = (
-        +{ table_name  => $table_name },
-        +{ engine      => undef },
-        +{ primary_key => +[] },
-        +{ unique_key  => +[] },
-        +{ foreign_key => +[] },
-        +{ readonly    => +[] },
-        +{ utf8        => +[] },
-        +{ default     => +{} },
-        +{ on_update   => +{} },
-        +{ coerce      => +{} },
-        +{ validation  => +{} },
-        +{ autoload    => undef },
+        table_name    => $table_name,
+        engine        => undef,
+        metadata      => undef,
+        primary_key   => +[],
+        unique_key    => +[],
+        foreign_key   => +[],
+        readonly      => +[],
+        utf8          => +[],
+        default       => +{},
+        on_update     => +{},
+        coerce        => +{},
+        validation    => +{},
+        autoload      => undef,
+        before_insert => sub { },
+        after_insert  => sub { },
+        before_update => sub { },
+        after_update  => sub { },
+        before_delete => sub { },
+        after_delete  => sub { },
     );
 
     my $self = bless +{}, $class;
@@ -62,10 +69,8 @@ sub new {
 
     $self->{query_class} = $param->{query_class} || DEFAULT_QUERY_CLASS();
 
-    for my $attr ( @init_attr ) {
-        my @key = keys %$attr;
-        my $meth = $key[0];
-        $self->{$meth} = $attr->{$meth};
+    while( my ( $meth, $default_val ) = splice( @init_attr, 0, 2 ) ) {
+        $self->{$meth} = $default_val;
         $self->${meth}($param->{$meth}) if exists $param->{$meth};
     }
 
@@ -106,6 +111,22 @@ sub alias_name {
     return;
 }
 
+=head2 metadata
+
+=cut
+
+sub metadata {
+    my $self = shift;
+    if( @_ ) {
+        my ($metadata) = validate_pos(
+            @_,
+            { type => OBJECT, isa => 'DBIx::ObjectMapper::Metadata' }
+        );
+        $self->{metadata} = $metadata;
+        Scalar::Util::weaken($self->{metadata});
+    }
+    return $self->{metadata};
+}
 
 =head2 engine
 
@@ -523,7 +544,7 @@ sub column_metaclass { $_[0]->{column_metaclass} }
 
 sub query_object {
     my $self = shift;
-    return $self->{query_object} ||= $self->{query_class}->new($self->engine);
+    return $self->{query_object} ||= $self->{query_class}->new($self->metadata);
 }
 
 sub select {
@@ -708,6 +729,8 @@ sub insert {
     my $self = shift;
     my $query = $self->query_object->insert(
         $self->_insert_query_callback,
+        $self->before_insert,
+        $self->after_insert,
         $self->primary_key
     )->into( $self->table_name );
     $query->values(@_) if @_;
@@ -741,8 +764,11 @@ sub _insert_query_callback {
 
 sub delete {
     my $self = shift;
-    my $query = $self->query_object->delete( $self->_delete_query_callback )
-        ->table( $self->table_name );
+    my $query = $self->query_object->delete(
+        $self->_delete_query_callback,
+        $self->before_delete,
+        $self->after_delete,
+    )->table( $self->table_name );
     $query->where(@_) if @_;
     return $query;
 }
@@ -752,8 +778,11 @@ sub _delete_query_callback { undef } # TODO cascade delete
 sub update {
     my $self = shift;
     my ( $data, $cond ) = @_;
-    my $query = $self->query_object->update( $self->_update_query_callback )
-        ->table( $self->table_name );
+    my $query = $self->query_object->update(
+        $self->_update_query_callback,
+        $self->before_update,
+        $self->after_update,
+    )->table( $self->table_name );
     $query->set(%$data) if $data;
     $query->where( @$cond ) if $cond;
     return $query;
@@ -776,6 +805,20 @@ sub _update_query_callback {
         }
     };
 }
+
+{
+    no strict 'refs';
+    for my $meth ( qw(before_insert after_insert before_update
+                   after_update before_delete after_delete ) ) {
+        *{"$meth"} = sub {
+            my $self = shift;
+            if( @_ ) {
+                $self->{$meth} = shift;
+            }
+            return $self->{$meth};
+        };
+    }
+};
 
 =head2 clone
 

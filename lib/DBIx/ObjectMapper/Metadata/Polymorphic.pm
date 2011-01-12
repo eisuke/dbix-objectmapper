@@ -55,8 +55,9 @@ sub new {
     push @uniquekeys, @{$parent->unique_key};
     push @uniquekeys, @{$child->unique_key};
 
-    return return bless {
+    my $self = bless {
         table_name  => $parent->table_name,
+        metadata    => $parent->metadata,
         columns     => \@columns,
         column_map  => \%column_map,
         engine      => $parent->engine,
@@ -73,6 +74,9 @@ sub new {
         child_table         => $child,
         shared_column       => \%shared_column,
     }, $class;
+
+    Scalar::Util::weaken($self->{metadata});
+    return $self;
 }
 
 sub parent_table { $_[0]->{parent_table} }

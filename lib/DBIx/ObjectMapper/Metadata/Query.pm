@@ -25,6 +25,7 @@ sub new {
         columns     => [],
         column_map  => +{},
         engine      => $param->{engine} || $query->engine || undef,
+        metadata    => $param->{metadata} || $query->metadata || undef,
         query_class => $param->{query_class} || $class->DEFAULT_QUERY_CLASS(),
         column_metaclass => $class->DEFAULT_COLUMN_METACLASS,
         primary_key => $param->{primary_key} || [],

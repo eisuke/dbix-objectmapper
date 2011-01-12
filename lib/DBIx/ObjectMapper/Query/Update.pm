@@ -6,6 +6,7 @@ use base qw(DBIx::ObjectMapper::Query::Base);
 sub new {
     my $class = shift;
     my $self = $class->SUPER::new(@_);
+    my $callback = shift;
     $self->builder( $self->engine->query->update );
     return $self;
 }
@@ -24,7 +25,11 @@ sub new {
 
 sub execute {
     my $self = shift;
-    return $self->engine->update( $self->builder, $self->callback, @_ );
+    $self->{before}
+        ->( $self->metadata, $self->builder, $self->builder->{table}->[0] );
+    my $res = $self->engine->update( $self->builder, $self->callback, @_ );
+    $self->{after}->( $self->metadata, $res, $self->builder->{table}->[0] );
+    return $res;
 }
 
 1;
