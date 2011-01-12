@@ -122,6 +122,7 @@ t/10_meta/005_cast_column_type.t
 t/10_meta/006_default_and_on_update.t
 t/10_meta/007_declare.t
 t/10_meta/008_insert_skip_default_value.t
+t/10_meta/009_trigger.t
 t/11_mapper/000_mapper.t
 t/11_mapper/001_inherit_mapper_config.t
 t/11_mapper/002_replace_method.t
@@ -176,6 +177,7 @@ t/21_example/class_table_inheritance.t
 t/21_example/lib/MapperExample/Product.pm
 t/21_example/lib/MapperExample/ShoppingCart.pm
 t/21_example/shopping_cart.t
+t/21_example/shopping_cart2.t
 t/21_example/single_table_inheritance.t
 xt/01_pod.t
 xt/02_podcoverage.t
