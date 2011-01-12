@@ -190,7 +190,7 @@ sub _connect {
         push @{ $self->{connect_do} }, $tzq;
     }
 
-    $self->dbh_do( $dbh, $self->{connect_do} );
+    $self->dbh_do( $self->{connect_do}, $dbh );
 
     $self->{txn_depth} = $dbh->{AutoCommit} ? 0 : 1 ;
     $self->{_dbh_gen}++;
@@ -201,7 +201,7 @@ sub _connect {
 sub disconnect {
     my ($self) = @_;
     if( my $dbh = $self->{_dbh} ) {
-        $self->dbh_do( $dbh, $self->{disconnect_do} );
+        $self->dbh_do( $self->{disconnect_do}, $dbh );
         while( $self->{txn_depth} > 0 ) {
             $self->_txn_rollback;
         }
@@ -371,14 +371,15 @@ sub svp_do {
 }
 
 sub dbh_do {
-    my ( $self, $dbh, $code ) = @_;
+    my ( $self, $code, $dbh ) = @_;
+    $dbh ||= $self->dbh;
 
     if( ( ref $code || '' ) eq 'CODE' ) {
         $code->($dbh);
     }
     elsif( ( ref $code || '' ) eq 'ARRAY' ) {
         for my $c ( @$code ) {
-            $self->dbh_do($dbh, $c);
+            $self->dbh_do($c, $dbh);
         }
     }
     else {
