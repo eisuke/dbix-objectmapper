@@ -123,6 +123,7 @@ t/10_meta/006_default_and_on_update.t
 t/10_meta/007_declare.t
 t/10_meta/008_insert_skip_default_value.t
 t/10_meta/009_trigger.t
+t/10_meta/010_polymorphic.t
 t/11_mapper/000_mapper.t
 t/11_mapper/001_inherit_mapper_config.t
 t/11_mapper/002_replace_method.t

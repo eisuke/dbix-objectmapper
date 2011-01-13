@@ -725,6 +725,20 @@ sub get_unique_condition {
     return( $type, @cond );
 }
 
+sub is_unique_keys {
+    my $self = shift;
+    my @keys = @_;
+
+    my %pk = map { $_ => 1 } @{$self->primary_key};
+    return 1 if( (grep{ $pk{$_} } @keys) == @keys );
+    for my $uinfo ( @{ $self->unique_key } ) {
+        my %uk = map { $_ => 1 } @{$uinfo->[1]};
+        return 1 if( (grep{ $uk{$_} } @keys) == @keys );
+    }
+
+    return;
+}
+
 sub insert {
     my $self = shift;
     my $query = $self->query_object->insert(

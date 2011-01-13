@@ -95,6 +95,12 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
             refs => [ 'cd', 'r' ],
         },
     ];
+
+    ok $meta->is_unique_keys('id');
+    ok $meta->is_unique_keys('cd');
+    ok $meta->is_unique_keys('name');
+    ok !$meta->is_unique_keys('created');
+    ok !$meta->is_unique_keys('id', 'name');
 };
 
 {

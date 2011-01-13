@@ -13,6 +13,8 @@ my $mapper = DBIx::ObjectMapper->new(
         on_connect_do => [
             q{CREATE TABLE tab1 (id integer primary key)},
             q{CREATE TABLE tab2 (id integer primary key, tab1_id integer REFERENCES tab1(id) UNIQUE)},
+            q{CREATE TABLE tab3 (id integer primary key)},
+            q{CREATE TABLE tab4 (id integer primary key, parent_id integer REFERENCES tab3(id))},
         ]
     }),
 );
@@ -58,6 +60,48 @@ ok $mapper->maps(
     ok $t1->tab2;
     is $t1->tab2->id, 2;
     is $t1->tab2->tab1_id, 1;
+};
+
+my $tab3 = $mapper->metadata->t('tab3');
+my $tab4 = $mapper->metadata->t('tab4');
+$tab3->insert->values(id => 1)->execute();
+$tab3->insert->values(id => 2)->execute();
+$tab4->insert->values(id => 2, parent_id => 1 )->execute();
+
+ok $mapper->maps(
+    $tab3 => 'MyTest::Tab3',
+    accessors => { auto => 1 },
+    constructor => { auto => 1 },
+    attributes => {
+        properties => {
+            tab4 => {
+                isa => $mapper->relation( has_one => 'MyTest::Tab4' )
+            }
+        }
+    }
+);
+
+ok $mapper->maps(
+    $tab4 => 'MyTest::Tab4',
+    accessors => { auto => 1 },
+    constructor => { auto => 1 },
+    attributes => {
+        properties => {
+            parent => {
+                isa => $mapper->relation( belongs_to => 'MyTest::Tab3' ),
+            }
+        }
+    }
+);
+
+{
+    my $session = $mapper->begin_session;
+    my $t3 = $session->get( 'MyTest::Tab3' => 2 );
+    is $t3->id, 2;
+    ok $t3->tab4;
+    is $t3->tab4->id, 2;
+    ok $t3->tab4->parent;
+    is $t3->tab4->parent->id, 1;
 };
 
 done_testing;

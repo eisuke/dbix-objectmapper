@@ -12,18 +12,20 @@ sub new {
     my $class = shift;
     my ( $parent, $child ) = @_;
 
-    # XXX NATURAL JOIN ?
     my $fk;
     if ( my $fk_tmp = $child->get_foreign_key_by_table( $parent ) ) {
-        $fk = $fk_tmp;
+        if (    $child->is_unique_keys( @{ $fk_tmp->{keys} } )
+            and $parent->is_unique_keys( @{ $fk_tmp->{refs} } ) )
+        {
+            $fk = $fk_tmp;
+        }
     }
-    else {
-        $fk = {
-            keys  => $child->primary_key,
-            refs  => $parent->primary_key,
-            table => $child->table_name,
-        };
-    }
+
+    $fk ||= {
+        keys  => $child->primary_key,
+        refs  => $parent->primary_key,
+        table => $child->table_name,
+    };
 
     my %shared_column;
     my @rel_cond;
@@ -47,13 +49,8 @@ sub new {
         $column_map{$col_name} = $i + 1;
     }
 
-    my @foreignkeys;
-    push @foreignkeys, @{$parent->foreign_key};
-    push @foreignkeys, @{$child->foreign_key};
-
-    my @uniquekeys;
-    push @uniquekeys, @{$parent->unique_key};
-    push @uniquekeys, @{$child->unique_key};
+    my @foreignkeys = ( @{$parent->foreign_key}, @{$child->foreign_key} );
+    my @uniquekeys  = ( @{$parent->unique_key}, @{$child->unique_key} );
 
     my $self = bless {
         table_name  => $parent->table_name,

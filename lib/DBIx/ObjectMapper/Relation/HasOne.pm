@@ -22,15 +22,19 @@ sub foreign_key {
     my ( $self, $my_table, $ref_table ) = @_;
 
     if( my $fk = $ref_table->get_foreign_key_by_table( $my_table ) ) {
-        return $fk;
+        if (    $ref_table->is_unique_keys( @{ $fk->{keys} } )
+            and $my_table->is_unique_keys( @{ $fk->{refs} } ) )
+        {
+            return $fk;
+        }
     }
-    else {
-        return {
-            keys  => $ref_table->primary_key,
-            refs  => $my_table->primary_key,
-            table => $ref_table->table_name,
-        };
-    }
+
+    return {
+        keys  => $ref_table->primary_key,
+        refs  => $my_table->primary_key,
+        table => $ref_table->table_name,
+    };
+
 }
 
 sub relation_condition {
