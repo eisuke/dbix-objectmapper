@@ -96,12 +96,15 @@ sub add {
 
     my $mapper = $obj->__mapper__;
     $mapper->change_status( 'pending', $self ) if $mapper->is_transient;
+    my $id = refaddr($obj);
     # detached,expiredの場合はflushのところで無視される
-    unless( exists $self->{map_objects}->{refaddr($obj)} ) {
+    unless( exists $self->{map_objects}->{$id} ) {
         $self->_set_cache($mapper);
         push @{$self->{objects}}, $obj;
         $self->{map_objects}->{refaddr($obj)} = $#{$self->{objects}};
     }
+
+    delete $self->{del_objects}->{$id} if $self->{del_objects}->{$id};
 
     return $obj;
 }

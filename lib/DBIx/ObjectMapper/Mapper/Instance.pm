@@ -642,7 +642,7 @@ sub add_multi_val {
     my $prop = $class_mapper->attributes->property_info($name) || return;
     return unless $prop->type eq 'relation';
 
-    $self->unit_of_work->add($obj) unless $obj->__mapper__->is_persistent;
+    $self->unit_of_work->add($obj);
     if ( $prop->{isa}->type eq 'many_to_many' ) {
         my $mapper_addr = refaddr($obj);
         $self->_regist_many_to_many_event( $name, $mapper_addr, 'save' );
