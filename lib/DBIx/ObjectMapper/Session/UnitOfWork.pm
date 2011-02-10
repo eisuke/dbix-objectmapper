@@ -114,10 +114,11 @@ sub delete {
     confess "the parameter should be a blessed object." unless blessed $obj;
 
     my $id = refaddr($obj);
-    my $elm = $self->{map_objects}->{$id};
-    $self->{objects}->[$elm] = undef;
-    push @{$self->{objects}}, $obj;
-    $self->{map_objects}->{$id} = $self->{del_objects}->{$id} = $elm;
+    if( defined( my $elm = $self->{map_objects}->{$id} ) ) {
+        $self->{objects}->[$elm] = undef;
+        push @{$self->{objects}}, $obj;
+        $self->{map_objects}->{$id} = $self->{del_objects}->{$id} = $elm;
+    }
 
     return $obj;
 }
