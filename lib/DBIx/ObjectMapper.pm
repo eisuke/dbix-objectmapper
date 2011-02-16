@@ -2,7 +2,7 @@ package DBIx::ObjectMapper;
 use strict;
 use warnings;
 use 5.008_001;
-our $VERSION = '0.3013';
+our $VERSION = '0.3014';
 
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
