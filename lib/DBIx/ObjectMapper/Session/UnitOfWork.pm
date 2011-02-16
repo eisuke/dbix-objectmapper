@@ -50,24 +50,36 @@ sub get {
                     ->filter(@cond)
                     ->execute->first;
     }
-    elsif( my $cached_obj = $self->_get_cache($key) ) {
-        $log->info("{UnitOfWork} Cache Hit: $key");
-        if( $option->{share_object} || $self->{option}{share_object} ) {
-            return $cached_obj;
+    elsif( defined( my $cached_obj = $self->_get_cache($key) ) ) {
+        $log->info( "{UnitOfWork} Cache Hit: "
+                . join( ',', map { join( '', @$_ ) } @cond ) );
+        if ( $cached_obj ) {
+            if ( $option->{share_object} || $self->{option}{share_object} ) {
+                return $cached_obj;
+            }
+            else {
+                my $result = $cached_obj->__mapper__->reducing;
+                return $cached_obj->__class_mapper__->mapping(
+                    $result, $self, );
+            }
         }
         else {
-            my $result = $cached_obj->__mapper__->reducing;
-            return $cached_obj->__class_mapper__->mapping(
-                $result,
-                $self,
-            );
+            return;
         }
     }
     else {
-        my $obj = $class_mapper->find( \@cond, $self )
-            || return;
-        $self->{query_cnt}++;
-        return $self->add_storage_object($obj);
+        if( my $obj = $class_mapper->find( \@cond, $self ) ) {
+            $self->{query_cnt}++;
+            return $self->add_storage_object($obj);
+        }
+        else {
+            if( $self->cache ) {
+                $log->info("{UnitOfWork} Cache Set: $key")
+                    if $ENV{MAPPER_DEBUG};
+                $self->cache->set( $key => 0 );
+            }
+            return;
+        }
     }
 }
 
