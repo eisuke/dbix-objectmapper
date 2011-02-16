@@ -39,6 +39,7 @@ sub create {
         unique_cache_keys   => [],
         save_many_to_many   => [],
         remove_many_to_many => [],
+        rel_val_loaded      => {},
     }, $class;
     $INSTANCES{refaddr($instance)} = $self;
     $self->initialize;
@@ -340,8 +341,11 @@ sub get_val_trigger {
 sub load_rel_val {
     my $self = shift;
     my $name = shift;
+    return if $self->{rel_val_loaded}->{$name};
+
     my $class_mapper = $self->instance->__class_mapper__;
-    $class_mapper->attributes->property_info($name)->get($self);
+    $self->{rel_val_loaded}->{$name} = 1;
+    return $class_mapper->attributes->property_info($name)->get($self);
 }
 
 sub set_val_trigger {
