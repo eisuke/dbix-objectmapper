@@ -50,6 +50,23 @@ $mapper->maps(
     is $session->uow->{query_cnt}, 11;
 };
 
+{ # get no_cache option
+    my $session = $mapper->begin_session();
+    $session->add( MyTest18::Books->new( title => 'title' . $_ ) ) for 1 .. 2;
+    ok $session->get('MyTest18::Books' => 1 );
+    ok $session->get('MyTest18::Books' => 2 );
+    is $session->uow->{query_cnt}, 2;
+
+    ok $session->get('MyTest18::Books' => 1 );
+    ok $session->get('MyTest18::Books' => 2 );
+    is $session->uow->{query_cnt}, 2;
+
+    ok $session->get('MyTest18::Books' => 1, { no_cache => 1 } );
+    is $session->uow->{query_cnt}, 3;
+    ok $session->get('MyTest18::Books' => 2, { no_cache => 1 } );
+    is $session->uow->{query_cnt}, 4;
+};
+
 sub do_test {
     my $session = shift;
     $session->add( MyTest18::Books->new( title => 'title' . $_ ) ) for 1 .. 10;

@@ -50,6 +50,15 @@ sub get {
                     ->filter(@cond)
                     ->execute->first;
     }
+    elsif ( $option->{no_cache} ) {
+        if( my $obj = $class_mapper->find( \@cond, $self ) ) {
+            $self->{query_cnt}++;
+            return $self->add_storage_object($obj);
+        }
+        else {
+            return;
+        }
+    }
     elsif( defined( my $cached_obj = $self->_get_cache($key) ) ) {
         $log->info( "{UnitOfWork} Cache Hit: "
                 . join( ',', map { join( '', @$_ ) } @cond ) );
