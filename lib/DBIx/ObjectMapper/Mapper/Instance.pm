@@ -228,7 +228,7 @@ sub reducing {
 
 sub reflesh {
     my $self = shift;
-    return unless $self->is_expired;
+#    return unless $self->is_expired;
 
     my $class_mapper = $self->instance->__class_mapper__;
     my ( $key, @cond )
@@ -724,6 +724,12 @@ sub _release_many_to_many_event {
             $self->get($rmm->{mapper_addr})->instance,
         );
     }
+}
+
+sub clone {
+    my $self = shift;
+    my $class_mapper = $self->instance->__class_mapper__;
+    return $class_mapper->mapping( $self->reducing, $self->unit_of_work );
 }
 
 sub demolish {

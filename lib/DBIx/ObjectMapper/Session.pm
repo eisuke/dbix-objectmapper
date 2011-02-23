@@ -64,7 +64,6 @@ sub search {
     return $self->uow->search(@_);
 }
 
-
 sub get {
     my $self = shift;
     $self->flush;
@@ -99,6 +98,20 @@ sub delete {
     $self->start_transaction;
     $self->flush() if $self->autoflush;
     return $obj;
+}
+
+sub refresh {
+    my $self = shift;
+    my $obj  = shift;
+    $self->flush;
+    $obj->__mapper__->reflesh();
+}
+
+sub clone {
+    my $self = shift;
+    my $obj  = shift;
+    $self->flush;
+    return $obj->__mapper__->clone;
 }
 
 sub transaction {

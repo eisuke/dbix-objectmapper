@@ -163,13 +163,13 @@ ok $mapper->maps(
             parent => {
                 isa => $mapper->relation(
                     'belongs_to' => 'MyTest12::BBS2',
-                    { cascade => 'all' },
+                    { cascade => 'save_update,delete,detach' },
                 ),
             },
             children => {
                 isa => $mapper->relation(
                     'has_many' => 'MyTest12::BBS2',
-                    { cascade => 'all' },
+                    { cascade => 'save_update,delete,detach' },
                 ),
             }
         }

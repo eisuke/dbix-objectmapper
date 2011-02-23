@@ -193,5 +193,32 @@ $mapper->maps(
     is $artist->id, 1;
 };
 
+{ # reflesh
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    $mapper->metadata->t('artist')->update({ name => 'fuga' })->execute();
+    $session->refresh($artist);
+    is $artist->name, 'fuga';
+};
+
+{ # clone
+    my $session = $mapper->begin_session( autocommit => 0 );
+    my $artist = $session->get( 'MyTest11::Artist' => 1 );
+    $artist->name('fuga');
+    my $artist2 = $session->clone($artist);
+    is $artist->id, $artist2->id;
+    is $artist->name, $artist2->name;
+    ok $artist != $artist2;
+
+    $session->detach($artist2);
+    $artist->name('original');
+    $session->flush;
+    $artist2->name('clone');
+    $session->flush;
+
+    is $session->get( 'MyTest11::Artist' => 1 )->name, 'original';
+};
+
+
 done_testing;
 __END__
