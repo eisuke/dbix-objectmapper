@@ -254,6 +254,19 @@ sub reflesh {
                     : ($instance);
                 $_->__mapper__->reflesh for @instance;
             }
+            elsif( $self->{rel_val_loaded}->{$prop_name} ) {
+                delete $self->{rel_val_loaded}->{$prop_name};
+                if( $self->unit_of_work->cache and !$prop->{isa}->is_multi ) {
+                    my $cond = $self->relation_condition->{$prop_name};
+                    my ( $cache_key, @cond )
+                        = $prop->{isa}->mapper->get_unique_condition($cond);
+                    if( $cache_key ) {
+                        $log->info("{UnitOfWork} Cache Remove: $cache_key ")
+                            if $ENV{MAPPER_DEBUG};
+                        $self->unit_of_work->cache->remove( $cache_key );
+                    }
+                }
+            }
         }
     }
 }
