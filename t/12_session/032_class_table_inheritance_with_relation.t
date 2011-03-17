@@ -14,6 +14,7 @@ my $mapper = DBIx::ObjectMapper->new(
             q{CREATE TABLE language (id integer primary key, name text)},
             q{CREATE TABLE employee(id integer primary key, type text)},
             q{CREATE TABLE engineer(id integer primary key, language_id integer REFERENCES language(id), FOREIGN KEY(id) REFERENCES person(id))},
+            q{CREATE TABLE project (id integer primary key, engineer_id integer REFERENCES engineer(id) )},
         ],
     }),
 );
@@ -21,6 +22,7 @@ my $mapper = DBIx::ObjectMapper->new(
 my $person = $mapper->metadata->t( 'employee' => 'autoload' );
 my $engineer = $mapper->metadata->t( 'engineer' => 'autoload' );
 my $language = $mapper->metadata->t( 'language' => 'autoload' );
+my $project = $mapper->metadata->t( 'project' => 'autoload' );
 
 {
     package My::Employee;
@@ -71,6 +73,30 @@ $mapper->maps(
     $language => 'My::Language',
     accessors => { auto => 1 },
     constructor => { auto => 1 },
+    attributes => {
+        properties => {
+            engineers => {
+                isa => $mapper->relation(
+                    has_many => 'My::Engineer',
+                )
+            }
+        },
+    }
+);
+
+$mapper->maps(
+    $project => 'My::Project',
+    accessors => { auto => 1 },
+    constructor => { auto => 1 },
+    attributes => {
+        properties => {
+            engineer => {
+                isa => $mapper->relation(
+                    belongs_to => 'My::Engineer',
+                ),
+            }
+        }
+    }
 );
 
 my $engineer_map = $mapper->maps(
@@ -116,5 +142,18 @@ $session->commit;
 
 is $engineer1->language_id, 2;
 is $engineer1->language->id, 2;
+
+ok $lang->engineers;
+ok @{$lang->engineers} == 0;
+ok $lang2->engineers;
+ok @{$lang2->engineers} == 1;
+is $lang2->engineers->[0]->id, $engineer1->id;
+
+my $proj = My::Project->new( engineer_id => $engineer1->id );
+$session->add($proj);
+$session->commit;
+
+ok $proj->engineer;
+is $proj->engineer->id, $engineer1->id;
 
 done_testing;

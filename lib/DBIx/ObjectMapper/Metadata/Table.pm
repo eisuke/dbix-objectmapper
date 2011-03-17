@@ -275,10 +275,21 @@ sub get_foreign_key_by_table {
     my $table = shift || return;
 
     my $table_name = $table->table_name;
+    my $foreign_key;
     for my $fk ( @{$self->{foreign_key}} ) {
-        return $fk if $fk->{table} eq $table_name;
+        $foreign_key = $fk if $fk->{table} eq $table_name;
     }
-    return;
+
+    if ( !$foreign_key
+        and ref $table eq 'DBIx::ObjectMapper::Metadata::Polymorphic' )
+    {
+        $table_name = $table->child_table->table_name;
+        for my $fk ( @{$self->{foreign_key}} ) {
+            $foreign_key = $fk if $fk->{table} eq $table_name;
+        }
+    }
+
+    return $foreign_key;
 }
 
 sub __array_accessor {
