@@ -132,6 +132,30 @@ ok $mapper->maps(
     is $session->search('MyTest010::Child')->count, 5; # delete_orphan
 };
 
+### detach
+
+{
+    my $session = $mapper->begin_session();
+    my $parent = $session->get( 'MyTest010::Parent' => 1 );
+    $session->delete($parent);
+    $session->detach($parent);
+};
+
+{
+    my $session = $mapper->begin_session();
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
+    $parent->id(100);
+    shift @{$parent->children};
+    $session->detach($parent);
+};
+
+{
+    my $session = $mapper->begin_session();
+    ok my $parent = $session->get( 'MyTest010::Parent' => 1 );
+    is @{$parent->children}, 5;
+    is $session->search('MyTest010::Child')->count, 5;
+};
+
 done_testing;
 
 __END__

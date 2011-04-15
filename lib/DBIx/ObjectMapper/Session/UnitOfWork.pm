@@ -138,7 +138,8 @@ sub delete {
     if( defined( my $elm = $self->{map_objects}->{$id} ) ) {
         $self->{objects}->[$elm] = undef;
         push @{$self->{objects}}, $obj;
-        $self->{map_objects}->{$id} = $self->{del_objects}->{$id} = $elm;
+        $self->{map_objects}->{$id} = $self->{del_objects}->{$id}
+            = $#{ $self->{objects} };
     }
 
     return $obj;
@@ -147,8 +148,17 @@ sub delete {
 sub detach {
     my ( $self, $obj ) = @_;
     confess "the parameter should be a blessed object." unless blessed $obj;
-    my $mapper = $obj->__mapper__;
-    $mapper->change_status('detached');
+    my $id = refaddr($obj);
+    delete $self->{del_objects}->{$id} if $self->{del_objects}->{$id};
+    $obj->__mapper__->change_status('detached');
+}
+
+sub detach_by_objaddr {
+    my ( $self, $addr ) = @_;
+    my $elm = $self->{map_objects}->{$addr};
+    if( my $obj = $self->{objects}->[$elm] ) {
+        $self->detach($obj);
+    }
 }
 
 sub has_changed {

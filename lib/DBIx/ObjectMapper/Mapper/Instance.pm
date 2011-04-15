@@ -40,6 +40,7 @@ sub create {
         save_many_to_many   => [],
         remove_many_to_many => [],
         rel_val_loaded      => {},
+        removed_multi_val   => [],
     }, $class;
     $INSTANCES{refaddr($instance)} = $self;
     $self->initialize;
@@ -156,6 +157,10 @@ sub change_status {
                             ? @$instance
                             : ($instance);
                         $self->unit_of_work->detach($_) for @instance;
+                    }
+
+                    for my $addr ( @{$self->{removed_multi_val}} ) {
+                        $self->unit_of_work->detach_by_objaddr($addr);
                     }
                 }
             }
@@ -691,6 +696,7 @@ sub remove_multi_val {
         $self->_regist_many_to_many_event($name, $mapper_addr, 'remove');
     }
     elsif( $self->is_persistent ) {
+        push @{$self->{removed_multi_val}}, refaddr($obj);
         if( $prop->{isa}->is_cascade_delete_orphan ) {
             $self->unit_of_work->delete($obj);
         }
