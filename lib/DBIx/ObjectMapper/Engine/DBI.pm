@@ -47,7 +47,7 @@ sub _init {
         = ref $disconnect_do eq 'ARRAY' ? $disconnect_do : [$disconnect_do];
 
     for my $name ( qw(db_schema namesep quote datetime_parser iterator
-                      time_zone disable_prepare_caching cache) ) {
+                      time_zone disable_prepare_caching cache connect_identifier) ) {
         $self->{$name} = delete $option->{$name} || undef;
     }
 
@@ -175,13 +175,14 @@ sub _connect {
     $self->{driver} = DBIx::ObjectMapper::Engine::DBI::Driver->new(
         $driver_type,
         $dbh,
-        db_schema       => $self->{db_schema}       || undef,
-        namesep         => $self->{namesep}         || undef,
-        quote           => $self->{quote}           || undef,
-        query           => $self->query,
-        log             => $self->log,
-        datetime_parser => $self->{datetime_parser} || undef,
-        time_zone       => $self->{time_zone},
+        db_schema          => $self->{db_schema}          || undef,
+        connect_identifier => $self->{connect_identifier} || undef,
+        namesep            => $self->{namesep}            || undef,
+        quote              => $self->{quote}              || undef,
+        query              => $self->query,
+        log                => $self->log,
+        datetime_parser    => $self->{datetime_parser}    || undef,
+        time_zone          => $self->{time_zone},
     );
 
     if ( $self->{time_zone}
@@ -676,6 +677,7 @@ DBIx::ObjectMapper::Engine::DBI - the DBI engine
      on_connect_do => [],
      on_disconnect_do => [],
      db_schema => 'public',
+     connect_identifier => undef,
      namesep => '.',
      quote => '"',
      iterator => '',
@@ -697,6 +699,7 @@ DBIx::ObjectMapper::Engine::DBI - the DBI engine
         on_connect_do => [],
         on_disconnect_do => [],
         db_schema => 'public',
+        connect_identifier => undef,
         namesep => '.',
         quote => '"',
         iterator => '',

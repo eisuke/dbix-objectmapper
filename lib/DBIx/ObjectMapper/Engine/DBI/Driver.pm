@@ -36,6 +36,7 @@ sub log       { $_[0]->{log} }
 sub namesep   { $_[0]->{namesep} }
 sub quote     { $_[0]->{quote} }
 sub time_zone { $_[0]->{time_zone} }
+sub connect_identifier { $_[0]->{connect_identifier} }
 
 sub init { }
 
