@@ -466,7 +466,8 @@ sub select_single {
     else {
         #$result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
         my $sth = $self->_prepare($sql);
-        $sth->execute(@bind) || confess $sth->errstr;
+        my @raw_bind = $self->driver->bind_params($sth, @bind);
+        $sth->execute(@raw_bind) || confess $sth->errstr;
         $result = $sth->fetchrow_arrayref;
         $sth->finish;
         $self->{sql_cnt}++;
@@ -505,7 +506,9 @@ sub update {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->log_sql($sql, @bind);
-    my $ret = $self->dbh->do($sql, {}, @bind);
+    my $sth = $self->dbh->prepare($sql);
+    my @raw_bind = $self->driver->bind_params($sth, @bind);
+    my $ret = $sth->execute(@raw_bind);
     $self->{sql_cnt}++;
     return $ret;
 }
@@ -522,7 +525,9 @@ sub insert {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->log_sql($sql, @bind);
-    $self->dbh->do( $sql, {}, @bind );
+    my $sth = $self->dbh->prepare($sql);
+    my @raw_bind = $self->driver->bind_params($sth, @bind);
+    $sth->execute(@raw_bind);
     $self->{sql_cnt}++;
 
     my $ret_id = ref($query->values) eq 'HASH' ? $query->values : +{};

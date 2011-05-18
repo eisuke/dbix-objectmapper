@@ -229,6 +229,8 @@ sub release_savepoint {}
 
 sub rollback_savepoint {}
 
+sub bind_params { my ($self, $sth, @binds) = @_; @binds }
+
 sub _type_map_data {{
     # String
     'varchar'           => 'String',
