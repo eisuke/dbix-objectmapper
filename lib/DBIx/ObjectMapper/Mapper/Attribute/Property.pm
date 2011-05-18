@@ -27,12 +27,15 @@ sub new {
         }
     );
 
-    bless \%prop, $class;
+    my $self = bless \%prop, $class;
+    $self->{is_column} = $self->type eq 'column';
+    return $self;
 }
 
-sub lazy   { $_[0]->{lazy} }
-sub getter { $_[0]->{getter} }
-sub setter { $_[0]->{setter} }
+sub lazy      {$_[0]->{lazy}}
+sub getter    {$_[0]->{getter}}
+sub setter    {$_[0]->{setter}}
+sub is_column {$_[0]->{is_column}}
 
 ## proxy
 

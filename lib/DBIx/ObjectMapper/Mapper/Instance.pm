@@ -222,7 +222,7 @@ sub reducing {
     my %primary_key = map { $_ => 1 } @{$class_mapper->table->primary_key};
     for my $prop_name ( $class_mapper->attributes->property_names ) {
         my $prop = $class_mapper->attributes->property_info($prop_name);
-        next unless $prop->type eq 'column';
+        next unless $prop->is_column;
         my $col_name = $prop->name;
         my $val = $self->get_val($prop_name);
         next if $primary_key{$col_name} and !defined $val;
@@ -286,7 +286,7 @@ sub _modify {
         my $col = $prop->name
             || $prop_name;
         if( exists $rdata->{$col} ) {
-            if( defined $rdata->{$col} and $prop->type eq 'column' ) {
+            if( defined $rdata->{$col} and $prop->is_column ) {
                 $rdata->{$col} = $prop->{isa}->from_storage( $rdata->{$col} );
             }
             $self->set_val($prop_name => $rdata->{$col});
@@ -451,7 +451,7 @@ sub is_modified   {
         my $prop = $class_mapper->attributes->property_info($prop_name);
         my $col = $prop->name || $prop_name;
         my $val = $self->get_val($prop_name);
-        next unless $prop->type eq 'column' and ref $val;
+        next unless $prop->is_column and ref $val;
         if( $self->unit_of_work->change_checker->is_changed( $val ) ) {
             $modified_data->{$prop_name} = $val;
             $is_modified = 1;
