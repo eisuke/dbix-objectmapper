@@ -127,4 +127,11 @@ sub rollback_savepoint {
     $dbh->pg_rollback_to($name);
 }
 
+sub _type_map_data {
+    my $class = shift;
+    my $map = $class->SUPER::_type_map_data(@_);
+    $map->{bytea} = 'ByteA';
+    return $map;
+}
+
 1;

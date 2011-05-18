@@ -378,9 +378,10 @@ sub autoload {
     $self->foreign_key($foreign_key);
 
     for my $conf ( @{$engine->get_column_info( $self->table_name )} ) {
-        my $type_class
-            = DBIx::ObjectMapper::Metadata::Table::Column::TypeMap->get(
-            $conf->{type} );
+        my $type_class = DBIx::ObjectMapper::Metadata::Table::Column::TypeMap->get(
+            $conf->{type},
+            $self->engine->driver,
+        );
         my $realtype = $conf->{type};
         $conf->{type} = $type_class->new();
         $conf->{type}->size($conf->{size});
