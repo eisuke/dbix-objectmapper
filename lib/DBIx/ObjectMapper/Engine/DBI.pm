@@ -47,7 +47,7 @@ sub _init {
         = ref $disconnect_do eq 'ARRAY' ? $disconnect_do : [$disconnect_do];
 
     for my $name ( qw(db_schema namesep quote datetime_parser iterator
-                      time_zone disable_prepare_caching cache) ) {
+                      time_zone disable_prepare_caching cache connect_identifier) ) {
         $self->{$name} = delete $option->{$name} || undef;
     }
 
@@ -175,13 +175,14 @@ sub _connect {
     $self->{driver} = DBIx::ObjectMapper::Engine::DBI::Driver->new(
         $driver_type,
         $dbh,
-        db_schema       => $self->{db_schema}       || undef,
-        namesep         => $self->{namesep}         || undef,
-        quote           => $self->{quote}           || undef,
-        query           => $self->query,
-        log             => $self->log,
-        datetime_parser => $self->{datetime_parser} || undef,
-        time_zone       => $self->{time_zone},
+        db_schema          => $self->{db_schema}          || undef,
+        connect_identifier => $self->{connect_identifier} || undef,
+        namesep            => $self->{namesep}            || undef,
+        quote              => $self->{quote}              || undef,
+        query              => $self->query,
+        log                => $self->log,
+        datetime_parser    => $self->{datetime_parser}    || undef,
+        time_zone          => $self->{time_zone},
     );
 
     if ( $self->{time_zone}
@@ -466,7 +467,8 @@ sub select_single {
     else {
         #$result = $self->dbh->selectrow_arrayref($sql, +{}, @bind);
         my $sth = $self->_prepare($sql);
-        $sth->execute(@bind) || confess $sth->errstr;
+        my @raw_bind = $self->driver->bind_params($sth, @bind);
+        $sth->execute(@raw_bind) || confess $sth->errstr;
         $result = $sth->fetchrow_arrayref;
         $sth->finish;
         $self->{sql_cnt}++;
@@ -505,7 +507,9 @@ sub update {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->log_sql($sql, @bind);
-    my $ret = $self->dbh->do($sql, {}, @bind);
+    my $sth = $self->dbh->prepare($sql);
+    my @raw_bind = $self->driver->bind_params($sth, @bind);
+    my $ret = $sth->execute(@raw_bind);
     $self->{sql_cnt}++;
     return $ret;
 }
@@ -522,7 +526,9 @@ sub insert {
 
     my ( $sql, @bind ) = $query->as_sql;
     $self->log_sql($sql, @bind);
-    $self->dbh->do( $sql, {}, @bind );
+    my $sth = $self->dbh->prepare($sql);
+    my @raw_bind = $self->driver->bind_params($sth, @bind);
+    $sth->execute(@raw_bind);
     $self->{sql_cnt}++;
 
     my $ret_id = ref($query->values) eq 'HASH' ? $query->values : +{};
@@ -671,6 +677,7 @@ DBIx::ObjectMapper::Engine::DBI - the DBI engine
      on_connect_do => [],
      on_disconnect_do => [],
      db_schema => 'public',
+     connect_identifier => undef,
      namesep => '.',
      quote => '"',
      iterator => '',
@@ -692,6 +699,7 @@ DBIx::ObjectMapper::Engine::DBI - the DBI engine
         on_connect_do => [],
         on_disconnect_do => [],
         db_schema => 'public',
+        connect_identifier => undef,
         namesep => '.',
         quote => '"',
         iterator => '',

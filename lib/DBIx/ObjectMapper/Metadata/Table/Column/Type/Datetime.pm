@@ -26,6 +26,7 @@ sub datetime_type {
     my $self = shift;
     my $real_type = $self->{realtype} || $self->default_type;
     $real_type =~ s/ /_/g;
+    $real_type =~ s/\(.*$//;
     return $real_type;
 }
 

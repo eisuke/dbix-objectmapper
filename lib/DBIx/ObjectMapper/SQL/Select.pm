@@ -13,7 +13,7 @@ __PACKAGE__->initdata({
     limit    => 0,
     offset   => 0,
     having   => [],
-    driver   => undef, # Pg, mysql, SQLite ...
+    driver   => '', # Pg, mysql, SQLite ...
 });
 
 __PACKAGE__->accessors({
@@ -37,7 +37,7 @@ sub as_sql {
     $stm .= ' ' . $join_stm if $join_stm;
     push @bind, @join_bind if @join_bind;
 
-    my ($where_stm, @where_bind) = $self->where_as_sql;
+    my ($where_stm, @where_bind) = $self->where_as_sql($self->{driver} eq 'Oracle');
     $stm .= ' WHERE ' . $where_stm if $where_stm;
     push @bind, @where_bind if @where_bind;
 
@@ -53,7 +53,7 @@ sub as_sql {
         $stm .= ' ORDER BY ' . $order_by;
     }
 
-    if( $self->limit || $self->offset ) {
+    if( ($self->limit || $self->offset) && ($self->{driver} ne 'Oracle') ) {
         my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
         $method = $self->limit_syntax->{default}
             unless $method and $self->can($method);

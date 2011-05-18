@@ -179,7 +179,7 @@ sub _to_storage {
     if( defined $val and my $to_storage = $self->{to_storage} ) {
         $val = $to_storage->($val);
     }
-    return $self->type->to_storage($val);
+    return $self->type->to_storage($val, $self->name);
 }
 
 sub to_storage_on_update {

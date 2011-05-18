@@ -37,9 +37,10 @@ sub sth {
     {
         my ( $sql, @bind ) = $self->query->as_sql;
         my $sth = $self->engine->_prepare($sql);
-        $sth->execute(@bind) or confess $sth->errstr;
+        my @raw_bind = $self->engine->driver->bind_params($sth, @bind);
+        $sth->execute(@raw_bind) or confess $sth->errstr;
         $self->engine->{sql_cnt}++;
-        $self->engine->log_sql($sql, @bind);
+        $self->engine->log_sql($sql, @raw_bind);
         my $size = $sth->rows;
 
 #        unless( $size ) {
