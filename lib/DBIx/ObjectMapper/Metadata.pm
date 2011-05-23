@@ -54,6 +54,11 @@ sub table {
 
 *t = \&table;
 
+sub all_known_tables {
+    my $self = shift;
+    return values %{$self->{tables}};
+}
+
 sub autoload_all_tables {
     my $self   = shift;
     my $engine = $self->engine;

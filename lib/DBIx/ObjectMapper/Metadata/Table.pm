@@ -35,7 +35,7 @@ sub new {
     my ( $table_name, $column, $param ) = validate_pos(
         @_,
         { type => SCALAR|ARRAYREF },
-        { type => ARRAYREF|SCALAR },
+        { type => ARRAYREF|HASHREF|SCALAR },
         { type => HASHREF, optional => 1 },
     );
 
@@ -81,6 +81,14 @@ sub new {
     if( $column and $column eq 'autoload') {
         $self->{autoload} = 1;
         $self->autoload();
+        $column = [];
+    }
+    elsif ($column and ref($column) and ref($column) eq 'HASH') {
+        $self->{autoload} = 1;
+        $self->autoload_data(
+            $self->engine ? (driver => $self->engine->driver) : (),
+            %$column
+        );
         $column = [];
     }
 
@@ -358,6 +366,57 @@ sub validation {
     $class->__hash_accessor('validation', @_);
 }
 
+sub autoloaded_data {
+    sub column_to_autoload_data {
+        my $column = shift;
+        return {
+            name        => $column->name,
+            type        => $column->type->realtype,
+            size        => $column->type->size,
+            is_nullable => $column->is_nullable,
+            default     => $column->server_default,
+        };
+    }
+
+    my $self = shift;
+    return {
+        primary_key => $self->primary_key,
+        unique_key  => $self->unique_key,
+        foreign_key => $self->foreign_key,
+        column_info => [ map {column_to_autoload_data($_)} @{$self->columns} ],
+    };
+}
+
+sub autoload_data {
+    my $self = shift;
+    my %data = @_;
+
+    my $primary_key = $data{primary_key} || [];
+    my $unique_key  = $data{unique_key}  || [];
+    my $foreign_key = $data{foreign_key} || [];
+    my $column_info = $data{column_info} || [];
+    my $driver      = $data{driver};
+
+    confess "autoload_data needs driver." unless $driver;
+
+    $self->{column_map} ||= +{};
+    $self->primary_key($primary_key);
+    $self->unique_key($unique_key);
+    $self->foreign_key($foreign_key);
+
+    for my $conf ( @$column_info ) {
+        my $translated_conf = {%$conf};
+        my $type_class = DBIx::ObjectMapper::Metadata::Table::Column::TypeMap->get(
+            $translated_conf->{type},
+            $driver,
+        );
+        $translated_conf->{type} = $type_class->new();
+        $translated_conf->{type}->size($conf->{size});
+        $translated_conf->{type}->realtype($conf->{type});
+        $translated_conf->{server_default} = delete $translated_conf->{default};
+        $self->column( $translated_conf );
+    }
+}
 
 
 =head2 autoload
@@ -369,30 +428,14 @@ sub autoload {
 
     confess "autoload needs engine."    unless $self->engine;
     confess "autoload needs table_name" unless $self->table_name;
-    my $engine = $self->engine;
-    $self->{column_map} ||= +{};
 
-    my @primary_key = $self->engine->get_primary_key( $self->table_name );
-    $self->primary_key(\@primary_key);
-
-    my $uniq_key = $self->engine->get_unique_key( $self->table_name );
-    $self->unique_key($uniq_key);
-
-    my $foreign_key = $self->engine->get_foreign_key( $self->table_name );
-    $self->foreign_key($foreign_key);
-
-    for my $conf ( @{$engine->get_column_info( $self->table_name )} ) {
-        my $type_class = DBIx::ObjectMapper::Metadata::Table::Column::TypeMap->get(
-            $conf->{type},
-            $self->engine->driver,
-        );
-        my $realtype = $conf->{type};
-        $conf->{type} = $type_class->new();
-        $conf->{type}->size($conf->{size});
-        $conf->{type}->realtype($realtype);
-        $conf->{server_default} = delete $conf->{default};
-        $self->column( $conf );
-    }
+    $self->autoload_data(
+        primary_key => [$self->engine->get_primary_key( $self->table_name )],
+        unique_key  => $self->engine->get_unique_key( $self->table_name ),
+        foreign_key => $self->engine->get_foreign_key( $self->table_name ),
+        column_info => $self->engine->get_column_info( $self->table_name ),
+        driver      => $self->engine->driver,
+    );
 }
 
 sub column {
