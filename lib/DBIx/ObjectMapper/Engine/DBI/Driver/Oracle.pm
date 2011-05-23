@@ -171,9 +171,10 @@ sub bind_params {
 sub _type_map_data {
     my $class = shift;
     my $map = $class->SUPER::_type_map_data(@_);
-    $map->{number} = 'Numeric';
-    $map->{blob}   = 'Blob';
-    $map->{long}   = 'Binary';
+    $map->{number}   = 'Numeric';
+    $map->{blob}     = 'Blob';
+    $map->{long}     = 'Binary';
+    $map->{varchar2} = 'Text';
     return $map;
 }
 
