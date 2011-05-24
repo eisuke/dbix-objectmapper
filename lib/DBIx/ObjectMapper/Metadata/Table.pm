@@ -6,11 +6,18 @@ use overload
     '""' => sub {
         my $self = shift;
         my $table_name = $self->table_name;
+
         my ($connect_identifier) = map {$_->driver->connect_identifier} grep {$_} $self->engine;
         if ($connect_identifier) {
             $table_name .= '@' . $connect_identifier;
         }
-        $table_name .= ' AS ' . $self->alias_name if $self->is_clone;
+
+        my $as_to_sql = ' AS ';
+        if ($self->engine && $self->engine->driver_type eq 'Oracle') {
+            $as_to_sql = ' ';
+        }
+
+        $table_name .= $as_to_sql . $self->alias_name if $self->is_clone;
         return $table_name;
     },
     fallback => 1

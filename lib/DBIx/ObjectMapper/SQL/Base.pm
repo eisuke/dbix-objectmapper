@@ -147,6 +147,8 @@ sub convert_func_to_sql {
       . ')';
 }
 
+sub as_to_sql { $_[0]->{driver} eq 'Oracle' ? ' ' : ' AS ' }
+
 sub convert_column_alias_to_sql {
     my ($class, $param) = @_;
     return $param unless $param;
@@ -156,8 +158,9 @@ sub convert_column_alias_to_sql {
 
     my $col = $class->convert_func_to_sql( $param->[0] );
     my $alias = $param->[1];
+    my $as = $class->as_to_sql;
     if( $col and $alias ) {
-        return $col . ' AS ' . $alias;
+        return "$col$as$alias";
     }
     else {
         return $col;
@@ -184,7 +187,7 @@ sub convert_table_to_sql {
     my ($stm, @bind);
     if( ref $table eq 'ARRAY' ) {
         my ($t_stm, @t_bind) = $class->convert_table_to_sql( $table->[0] );
-        $stm = $t_stm . ' AS ' . $table->[1];
+        $stm = $t_stm . $class->as_to_sql . $table->[1];
 
         push @bind, @t_bind if @t_bind;
     }
