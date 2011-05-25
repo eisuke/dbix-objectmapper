@@ -85,11 +85,17 @@ sub _get {
                 == $rel_mapper->table->c($fk1->{refs}->[$i]);
     }
 
+    my @order_by;
+    if( $self->{order_by} ) {
+        @order_by = @{$self->{order_by}};
+    }
+    else {
+        @order_by = map { $attr->p($_) } @{ $rel_mapper->table->primary_key };
+    }
+
     my $cond = $mapper->relation_condition->{$self->name};
     my $query = $mapper->unit_of_work->search( $self->rel_class )
-        ->filter(@$cond)
-        ->order_by( map { $attr->p($_) }
-            @{ $rel_mapper->table->primary_key } );
+        ->filter(@$cond)->order_by(@order_by);
     push @{$query->{join}}, [ $self->assc_table => \@assc_cond ];
 
     return $query->execute->all;
