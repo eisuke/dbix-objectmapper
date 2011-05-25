@@ -173,7 +173,7 @@ sub convert_tables_to_sql {
     my @bind;
 
     for my $t ( @_ ) {
-        my ($table_stm, @table_bind) = $class->convert_table_to_sql(@_);
+        my ($table_stm, @table_bind) = $class->convert_table_to_sql($t);
         push @stm, $table_stm;
         push @bind, @table_bind if @table_bind;
     }
