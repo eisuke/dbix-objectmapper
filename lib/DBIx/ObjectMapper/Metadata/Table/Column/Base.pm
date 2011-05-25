@@ -37,7 +37,7 @@ sub connc   {
 
 my $ATTRIBUTES = {
     name  => { type => SCALAR },
-    table => { type => SCALAR },
+    table => { type => SCALAR|ARRAYREF },
     sep   => { type => SCALAR },
     type  => {
         type => OBJECT,
@@ -57,7 +57,20 @@ my $ATTRIBUTES = {
 };
 
 sub name           { $_[0]->{name} }
-sub table          { $_[0]->{table} }
+sub table          {
+    my $self = shift;
+    ref $self->{table} ?
+        $self->{table}->[1] || $self->{table}->[0] :
+        $self->{table}
+}
+sub table_name {
+    my $self = shift;
+    ref $self->{table} ? $self->{table}->[0] : $self->{table}
+}
+sub alias_name {
+    my $self = shift;
+    ref $self->{table} ? $self->{table}->[1] : undef;
+}
 sub sep            { $_[0]->{sep} }
 sub type           { $_[0]->{type} }
 sub is_nullable    { $_[0]->{is_nullable} }

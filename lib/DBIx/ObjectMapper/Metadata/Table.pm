@@ -579,7 +579,7 @@ sub _set_column {
 
     my $column_obj = $self->column_metaclass->new(
         name           => $name,
-        table          => $self->table_name,
+        table          => $self->{table_name},
         sep            => $self->namesep,
         type           => $c->{type} || undef,
         is_nullable    => $c->{is_nullable},
@@ -916,7 +916,7 @@ sub clone {
         my @columns;
         for my $c ( @{$obj->columns} ) {
             my $new_col = $c->clone;
-            $new_col->{table} = $alias;
+            $new_col->{table} = [ $obj->table_name, $alias ];
             push @columns, $new_col;
         }
         $obj->{columns} = \@columns;
