@@ -44,7 +44,7 @@ sub get_primary_key {
     my @primary_key = $dbh->primary_key( undef, $self->db_schema, $table );
     @primary_key = $dbh->primary_key( undef, undef, $table )
         unless @primary_key;
-    return @primary_key;
+    return map{ $self->_truncate_quote_and_sep($_) } @primary_key;
 }
 
 # mostly based on DBIx::Class::Loader::DBI

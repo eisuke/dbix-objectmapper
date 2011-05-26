@@ -24,7 +24,7 @@ sub last_insert_id {
 sub get_primary_key {
     my $self = shift;
     my $primary = $self->_mysql_table_get_keys(@_)->{PRIMARY} || return;
-    return @$primary;
+    return map{ $self->_truncate_quote_and_sep($_) } @$primary;
 }
 
 sub get_table_uniq_info {
