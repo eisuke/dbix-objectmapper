@@ -30,7 +30,10 @@ sub as_sql {
 
     my @bind;
     my ($from, @from_bind) = $self->from_as_sql;
-    my $stm = 'SELECT ' . ($self->column_as_sql || '*') . ' FROM ' . $from;
+    my ($col, @col_bind) = $self->column_as_sql;
+
+    my $stm = 'SELECT ' . ($col || '*') . ' FROM ' . $from;
+    push @bind, @col_bind if @col_bind;
     push @bind, @from_bind if @from_bind;
 
     my ($join_stm, @join_bind) = $self->join_as_sql;

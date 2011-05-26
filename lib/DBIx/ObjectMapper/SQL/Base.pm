@@ -124,10 +124,13 @@ sub convert_columns_to_sql {
     my $class = shift;
     return unless @_;
 
-    return join ', ', map {
+    my @converted_columns = map {[
         $class->convert_column_alias_to_sql(
-            $class->convert_func_to_sql($_) );
-    } grep { defined $_ } @_;
+            $class->convert_func_to_sql($_) )
+    ]} grep { defined $_ } @_;
+
+    return (join ', ', map {$_->[0]} @converted_columns),
+           map {@$_[1..$#$_]} @converted_columns;
 }
 
 sub convert_func_to_sql {
@@ -135,6 +138,7 @@ sub convert_func_to_sql {
     return unless $func;
     return $func unless ref $func;
     return $$func if ref $func eq 'SCALAR';
+    return $func->as_sql('parts') if (blessed($func) && $func->can('as_sql'));
     return $func unless ref $func eq 'HASH';
 
     my $key   = ( keys %$func )[0];
@@ -156,14 +160,14 @@ sub convert_column_alias_to_sql {
     return $$param if ref $param eq 'SCALAR';
     return $param unless ref $param eq 'ARRAY';
 
-    my $col = $class->convert_func_to_sql( $param->[0] );
+    my ($col, @binds) = $class->convert_func_to_sql( $param->[0] );
     my $alias = $param->[1];
     my $as = $class->as_to_sql;
     if( $col and $alias ) {
-        return "$col$as$alias";
+        return ("$col$as$alias", @binds);
     }
     else {
-        return $col;
+        return ($col, @binds);
     }
 }
 
