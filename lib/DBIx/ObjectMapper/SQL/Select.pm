@@ -44,17 +44,17 @@ sub as_sql {
     $stm .= ' WHERE ' . $where_stm if $where_stm;
     push @bind, @where_bind if @where_bind;
 
-    if( my $group_by = $self->group_by_as_sql ) {
-        $stm .= ' GROUP BY ' . $group_by;
-    }
+    my ($group_by, @group_binds) = $self->group_by_as_sql;
+    $stm .= ' GROUP BY ' . $group_by if $group_by;
+    push @bind, @group_binds if @group_binds;
 
     my ($having_stm, @having_bind) = $self->having_as_sql;
     $stm .= ' HAVING ' . $having_stm if $having_stm;
     push @bind, @having_bind if @having_bind;
 
-    if( my $order_by = $self->order_by_as_sql ) {
-        $stm .= ' ORDER BY ' . $order_by;
-    }
+    my ($order_by, @order_binds) = $self->order_by_as_sql;
+    $stm .= ' ORDER BY ' . $order_by if $order_by;
+    push @bind, @order_binds if @order_binds;
 
     if( ($self->limit || $self->offset) && ($self->{driver} ne 'Oracle') ) {
         my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
