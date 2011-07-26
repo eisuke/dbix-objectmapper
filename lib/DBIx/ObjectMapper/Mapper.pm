@@ -635,8 +635,8 @@ sub create_cache_key {
     my $key
         = $cond_type
         ? $cond_type . '#'
-            . join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond )
-        : join( '&', map { $_->[0]->name . '=' . $_->[2] } @cond );
+        . join( '&', map { $_->[0]->name . '=' . ( $_->[2] || q{} ) } @cond )
+        : join( '&', map { $_->[0]->name . '=' . ( $_->[2] || q{} ) } @cond );
 
     return md5_hex( $self->mapped_class . '@' . $key );
 }

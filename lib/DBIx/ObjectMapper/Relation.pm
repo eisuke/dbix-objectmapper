@@ -196,7 +196,7 @@ sub identity_condition {
     my $rel_mapper = $self->mapper;
     my @cond;
     for my $r ( keys %$rel_val ) {
-        next unless defined $rel_val->{$r};
+        next unless exists $rel_val->{$r};
         push @cond, $rel_mapper->table->c( $r ) == $rel_val->{$r};
     }
     return @cond;

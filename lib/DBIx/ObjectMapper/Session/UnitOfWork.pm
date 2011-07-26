@@ -60,8 +60,12 @@ sub get {
         }
     }
     elsif( defined( my $cached_obj = $self->_get_cache($key) ) ) {
-        $log->info( "{UnitOfWork} Cache Hit: "
-                . join( ',', map { join( '', @$_ ) } @cond ) );
+        {
+            no warnings;
+            $log->info( "{UnitOfWork} Cache Hit: "
+                    . join( ',', map { join( '', @$_ ) } @cond ) );
+        };
+
         if ( $cached_obj ) {
             if ( $option->{share_object} || $self->{option}{share_object} ) {
                 return $cached_obj;
