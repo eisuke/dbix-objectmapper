@@ -72,6 +72,29 @@ sub as_sql {
     return wantarray ? ($stm, @bind) : $stm;
 }
 
+sub _add_joins_with_param {
+    my $self = shift;
+    my $param = shift;
+    my @join_params = @_;
+    my @real_join_expressions = ();
+    while (@join_params) {
+        my $table = shift @join_params;
+        my $conditions = shift @join_params;
+        push @real_join_expressions, [$table, $conditions, $param];
+    }
+    return $self->add_join(@real_join_expressions);
+}
+
+sub add_inner_join {
+    my $self = shift;
+    $self->_add_joins_with_param('INNER', @_);
+}
+
+sub add_left_join {
+    my $self = shift;
+    $self->_add_joins_with_param('LEFT', @_);
+}
+
 1;
 
 __END__
