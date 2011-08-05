@@ -191,7 +191,8 @@ sub to_storage_on_update {
 
 sub from_storage {
     my ( $self, $val ) = @_;
-    $val = $self->{from_storage}->($val) if $val and $self->{from_storage};
+    $val = $self->{from_storage}->($val)
+        if defined $val and $self->{from_storage};
     return $self->type->from_storage($val);
 }
 
