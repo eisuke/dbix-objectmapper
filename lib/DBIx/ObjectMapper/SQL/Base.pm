@@ -340,6 +340,10 @@ sub convert_condition_to_sql {
                 $stm .= ' BETWEEN ? AND ?';
                 push @bind, @{ $w->[2] };
             }
+            elsif( uc($w->[1]) eq 'LIKE' and @{$w->[2]} == 2 ) {
+                $stm .= ' LIKE ? ESCAPE ?';
+                push @bind, @{ $w->[2] };
+            }
             else {
                 confess 'Invalid Parameters in WHERE clause.('
                     . join( ',', @$w ) . ')';

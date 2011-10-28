@@ -122,7 +122,11 @@ sub not_in {
     $self->op( 'NOT IN', \@values );
 }
 
-sub like { $_[0]->op( 'LIKE', $_[1]) }
+sub like {
+    my ($self, $value, $escape_character) = @_;
+    return defined($escape_character) ? $self->op( 'LIKE', [$value, $escape_character] ) :
+                                        $self->op( 'LIKE', $value );
+}
 
 sub not_like { $_[0]->op( 'NOT LIKE', $_[1]) }
 
