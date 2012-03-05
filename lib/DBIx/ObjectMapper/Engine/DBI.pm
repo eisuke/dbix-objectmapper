@@ -21,6 +21,7 @@ sub _init {
     my $param = shift || confess 'invalid parameter.';
     $param = [ $param, @_ ] unless ref $param;
 
+    my $external_dbh;
     my @connect_info;
     my $option;
     if ( ref $param eq 'ARRAY' ) {
@@ -28,6 +29,7 @@ sub _init {
         $option = $param->[3] if $param->[3];
     }
     elsif ( ref $param eq 'HASH' ) {
+        $external_dbh = delete $param->{external_dbh};
         @connect_info = (
             delete $param->{dsn},
             delete $param->{username},
@@ -60,6 +62,7 @@ sub _init {
         %{ $option || {} }
     };
 
+    $self->{external_dbh}       = $external_dbh;
     $self->{connect_info}       = \@connect_info;
     $self->{driver_type}        = undef;
     $self->{driver}             = undef;
@@ -156,11 +159,16 @@ sub _connect {
     my $self = shift;
 
     my $dbh = do {
-        if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
-            local $DBI::connect_via = 'connect'; # Disable Apache::DBI.
-            DBI->connect( @{ $self->{connect_info} } );
-        } else {
-            DBI->connect( @{ $self->{connect_info} } );
+        if ($self->{external_dbh}) {
+            $self->{external_dbh};
+        }
+        else {
+            if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
+                local $DBI::connect_via = 'connect'; # Disable Apache::DBI.
+                DBI->connect( @{ $self->{connect_info} } );
+            } else {
+                DBI->connect( @{ $self->{connect_info} } );
+            }
         }
     };
 
