@@ -6,7 +6,7 @@ use Module::Install::Base ();
 
 use vars qw{$VERSION @ISA $ISCORE};
 BEGIN {
-	$VERSION = '0.97';
+	$VERSION = '1.04';
 	@ISA     = 'Module::Install::Base';
 	$ISCORE  = 1;
 }
@@ -48,6 +48,14 @@ sub auto_install {
     while (my ($mod, $ver) = splice(@requires, 0, 2)) {
         $seen{$mod}{$ver}++;
     }
+    my @build_requires = map @$_, map @$_, grep ref, $self->build_requires;
+    while (my ($mod, $ver) = splice(@build_requires, 0, 2)) {
+        $seen{$mod}{$ver}++;
+    }
+    my @configure_requires = map @$_, map @$_, grep ref, $self->configure_requires;
+    while (my ($mod, $ver) = splice(@configure_requires, 0, 2)) {
+        $seen{$mod}{$ver}++;
+    }
 
     my @deduped;
     while (my ($mod, $ver) = splice(@features_require, 0, 2)) {
@@ -63,6 +71,17 @@ sub auto_install {
         "# --- $class section:\n" .
         Module::AutoInstall::postamble()
     );
+}
+
+sub installdeps_target {
+    my ($self, @args) = @_;
+
+    $self->include('Module::AutoInstall');
+    require Module::AutoInstall;
+
+    Module::AutoInstall::_installdeps_target(1);
+
+    $self->auto_install(@args);
 }
 
 sub auto_install_now {
