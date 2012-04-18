@@ -56,7 +56,7 @@ sub _init {
         RaiseError         => 1,
         PrintError         => 0,
         ShowErrorStatement => 1,
-        HandleError        => sub{ confess($_[0]) },
+        HandleError        => sub{ croak($_[0]) },
         %{ $option || {} }
     };
 
