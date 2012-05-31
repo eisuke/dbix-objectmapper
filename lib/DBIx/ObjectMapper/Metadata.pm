@@ -88,6 +88,7 @@ sub select { $_[0]->query_object->select }
 sub insert { $_[0]->query_object->insert }
 sub delete { $_[0]->query_object->delete }
 sub update { $_[0]->query_object->update }
+sub union  { $_[0]->query_object->union  }
 
 1;
 

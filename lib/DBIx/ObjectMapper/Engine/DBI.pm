@@ -579,6 +579,16 @@ sub delete {
     return $ret;
 }
 
+sub union {
+    my ( $self, $query, $callback ) = @_;
+    my $query_class = ref( $self->query ) . '::Union';
+    unless ( ref $query eq $query_class ) {
+        $query = $self->_as_query_object( 'union', $query );
+    }
+    return $self->iterator->new( $query, $self, $callback );
+}
+
+
 # XXXX TODO CREATE TABLE
 # sub create {  }
 

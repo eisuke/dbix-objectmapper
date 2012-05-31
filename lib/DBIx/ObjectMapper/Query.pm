@@ -14,5 +14,6 @@ sub insert { DBIx::ObjectMapper::Query::Insert->new( shift->metadata, @_ ) }
 sub update { DBIx::ObjectMapper::Query::Update->new( shift->metadata, @_ ) }
 sub delete { DBIx::ObjectMapper::Query::Delete->new( shift->metadata, @_ ) }
 sub count  { DBIx::ObjectMapper::Query::Count->new( shift->metadata, @_ ) }
+sub union  { DBIx::ObjectMapper::Query::Union->new( shift->metadata, @_ ) }
 
 1;
