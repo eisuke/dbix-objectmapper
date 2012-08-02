@@ -212,7 +212,7 @@ sub disconnect {
     if( my $dbh = $self->{_dbh} ) {
         $self->dbh_do( $self->{disconnect_do}, $dbh );
         while( $self->{txn_depth} > 0 ) {
-            $self->_txn_rollback;
+            $self->txn_rollback;
         }
         $dbh->disconnect;
         $self->log_connect('DISCONNECT');
