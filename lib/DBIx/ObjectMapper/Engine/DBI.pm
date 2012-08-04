@@ -209,7 +209,14 @@ sub _connect {
 
 sub disconnect {
     my ($self) = @_;
-    if( my $dbh = $self->{_dbh} ) {
+    my $dbh = $self->{_dbh};
+    if (
+        $dbh &&
+        (
+            !defined($self->{external_dbh}) ||
+            $self->{external_dbh} != $dbh
+        )
+    ) {
         $self->dbh_do( $self->{disconnect_do}, $dbh );
         while( $self->{txn_depth} > 0 ) {
             $self->txn_rollback;
