@@ -110,7 +110,7 @@ sub get_tables {
     my ( $self, $dbh ) = @_;
     return $self->_truncate_quote_and_sep(
         sort {$a cmp $b}
-        grep { $_ !~ /\.BIN\$0/ }
+        grep { $_ !~ /\.BIN\$/ }
         map {$_ =~ s/"//g; $_}
         (
             $dbh->tables(undef, $self->db_schema, undef, 'TABLE'),
