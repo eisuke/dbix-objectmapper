@@ -197,6 +197,9 @@ sub convert_table_to_sql {
     }
     elsif( blessed $table and $table->can('as_sql') ) {
         ( $stm, @bind ) = $table->as_sql('parts');
+        if($table->isa('DBIx::ObjectMapper::Query::Union')) {
+            $stm = '( ' . $stm . ' )';
+        }
     }
     elsif( ref $table eq 'SCALAR' ) {
         $stm = $$table;
