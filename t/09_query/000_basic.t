@@ -54,6 +54,22 @@ is ref($query->insert), 'DBIx::ObjectMapper::Query::Insert';
     };
 };
 
+{ # select with clone
+    my $regular_query1 = $query->select->from('artist');
+    my $regular_query2 = $regular_query1->order_by('id');
+    my $clone_query1   = $query->select->from('artist');
+    my $clone_query2   = $clone_query1->clone->order_by('id');
+
+    is($regular_query1->as_sql, $regular_query2->as_sql, 'Without clone, they are the same');
+    is($regular_query2->as_sql, $clone_query2->as_sql, 'Same final effects');
+    isnt($clone_query1->as_sql, $clone_query2->as_sql, 'Truly different queries');
+
+    my $sql = $clone_query1->as_sql;
+    $sql =~ s/\W/./g;
+
+    like($clone_query2->as_sql, qr($sql), 'But derivative');
+};
+
 { # select with callback
     my $it = $query->select(
         sub { { id => $_[0]->[0], name => $_[0]->[1] } }

@@ -37,7 +37,7 @@ sub connc   {
 
 my $ATTRIBUTES = {
     name  => { type => SCALAR },
-    table => { type => SCALAR },
+    table => { type => SCALAR|ARRAYREF },
     sep   => { type => SCALAR },
     type  => {
         type => OBJECT,
@@ -57,7 +57,20 @@ my $ATTRIBUTES = {
 };
 
 sub name           { $_[0]->{name} }
-sub table          { $_[0]->{table} }
+sub table          {
+    my $self = shift;
+    ref $self->{table} ?
+        $self->{table}->[1] || $self->{table}->[0] :
+        $self->{table}
+}
+sub table_name {
+    my $self = shift;
+    ref $self->{table} ? $self->{table}->[0] : $self->{table}
+}
+sub alias_name {
+    my $self = shift;
+    ref $self->{table} ? $self->{table}->[1] : undef;
+}
 sub sep            { $_[0]->{sep} }
 sub type           { $_[0]->{type} }
 sub is_nullable    { $_[0]->{is_nullable} }
@@ -109,7 +122,11 @@ sub not_in {
     $self->op( 'NOT IN', \@values );
 }
 
-sub like { $_[0]->op( 'LIKE', $_[1]) }
+sub like {
+    my ($self, $value, $escape_character) = @_;
+    return defined($escape_character) ? $self->op( 'LIKE', [$value, $escape_character] ) :
+                                        $self->op( 'LIKE', $value );
+}
 
 sub not_like { $_[0]->op( 'NOT LIKE', $_[1]) }
 
@@ -179,7 +196,7 @@ sub _to_storage {
     if( defined $val and my $to_storage = $self->{to_storage} ) {
         $val = $to_storage->($val);
     }
-    return $self->type->to_storage($val);
+    return $self->type->to_storage($val, $self->name);
 }
 
 sub to_storage_on_update {

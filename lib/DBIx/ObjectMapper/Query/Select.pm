@@ -18,6 +18,7 @@ sub new {
     for my $meth ( qw( column from where join order_by
                        group_by limit offset having
                        add_column add_where add_join
+                       add_inner_join add_left_join
                        add_order_by add_group_by add_having ) ) {
         *{"$pkg\::$meth"} = sub {
             my $self = shift;

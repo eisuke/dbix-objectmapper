@@ -36,6 +36,7 @@ sub log       { $_[0]->{log} }
 sub namesep   { $_[0]->{namesep} }
 sub quote     { $_[0]->{quote} }
 sub time_zone { $_[0]->{time_zone} }
+sub connect_identifier { $_[0]->{connect_identifier} }
 
 sub init { }
 
@@ -228,5 +229,78 @@ sub set_savepoint {}
 sub release_savepoint {}
 
 sub rollback_savepoint {}
+
+sub bind_params { my ($self, $sth, @binds) = @_; @binds }
+
+sub _type_map_data {{
+    # String
+    'varchar'           => 'String',
+    'character varying' => 'String',
+    'char'              => 'String',
+    'character'         => 'String',
+
+    # Int
+    'int'       => 'Int',
+    'integer'   => 'Int',
+    'mediumint' => 'Int',
+
+    # SmallInt
+    'tinyint'  => 'SmallInt',
+    'smallint' => 'SmallInt',
+
+    # BigInt
+    'bigint' => 'BigInt',
+
+    # Boolean
+    'boolean' => 'Boolean',
+    'bool'    => 'Boolean',
+
+    # Text
+    'text' => 'Text',
+
+    # Date
+    'date' => 'Date',
+
+    # DateTime
+    'datetime'                    => 'Datetime',
+    'timestamp'                   => 'Datetime',
+    'timestamp without time zone' => 'Datetime',
+    'timestamp with time zone'    => 'Datetime',
+
+    # Time
+    'time'                   => 'Time',
+    'time without time zone' => 'Time',
+    'time with time zone'    => 'Time',
+
+    # Interval
+    'interval' => 'Interval',
+
+    # float
+    'float'            => 'Float',
+    'real'             => 'Float',
+    'double precision' => 'Float',
+    'double'           => 'Float',
+
+    # Numeric
+    'numeric'          => 'Numeric',
+    'decimal'          => 'Numeric',
+    'dec'              => 'Numeric',
+    'money'            => 'Numeric',
+
+    # Blob
+    'blob'     => 'Binary',
+    'bytea'    => 'Binary',
+    'longblob' => 'Binary',
+
+    # Bit
+    'bit'         => 'Bit',
+    'bit varying' => 'Bit',
+}}
+
+sub type_map {
+    my $class = shift;
+    my $type  = shift;
+    return $class->_type_map_data->{$type};
+}
 
 1;

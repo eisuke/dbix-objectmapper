@@ -4,6 +4,8 @@ use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use base qw(DBIx::ObjectMapper::Engine::DBI::Driver);
+use Scalar::Util qw(blessed);
+use DBD::Pg qw(:pg_types);
 
 sub init {
     my $self = shift;
@@ -125,6 +127,40 @@ sub release_savepoint {
 sub rollback_savepoint {
     my ($self, $dbh, $name) = @_;
     $dbh->pg_rollback_to($name);
+}
+
+sub bind_params {
+    my ($self, $sth, @binds) = @_;
+    my $bind_position = 0;
+
+    return map {
+        my $bind = $_;
+        $bind_position++;
+
+        if (ref $bind && blessed($bind) && $bind->isa('DBIx::ObjectMapper::Engine::DBI::BoundParam')) {
+            if ($bind->type eq 'binary') {
+                $sth->bind_param(
+                    $bind_position,
+                    undef,
+                    { pg_type => DBD::Pg::PG_BYTEA }
+                );
+            }
+            else {
+                confess 'Unknown type for a bound param: ' . $bind->type;
+            }
+            $bind->value;
+        }
+        else {
+            $bind;
+        }
+    } @binds;
+}
+
+sub _type_map_data {
+    my $class = shift;
+    my $map = $class->SUPER::_type_map_data(@_);
+    $map->{bytea} = 'ByteA';
+    return $map;
 }
 
 1;

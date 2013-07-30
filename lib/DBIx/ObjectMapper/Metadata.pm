@@ -54,6 +54,11 @@ sub table {
 
 *t = \&table;
 
+sub all_known_tables {
+    my $self = shift;
+    return values %{$self->{tables}};
+}
+
 sub autoload_all_tables {
     my $self   = shift;
     my $engine = $self->engine;
@@ -83,6 +88,7 @@ sub select { $_[0]->query_object->select }
 sub insert { $_[0]->query_object->insert }
 sub delete { $_[0]->query_object->delete }
 sub update { $_[0]->query_object->update }
+sub union  { $_[0]->query_object->union  }
 
 1;
 

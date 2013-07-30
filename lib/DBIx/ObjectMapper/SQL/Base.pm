@@ -72,11 +72,15 @@ sub _add_accessor {
 }
 
 sub _as_sql_accessor {
-    my ( $self, $field, $func ) = @_;
+    my ( $self, $field, $func, $is_oracle ) = @_;
     my @param
         = ref $self->{$field} eq 'ARRAY'
         ? @{ $self->{$field} }
         : ( $self->{$field} );
+
+    if ($is_oracle && $func eq 'build_where') {
+        return $self->build_where(@param, $self->oracle_limit);
+    }
 
     return $self->$func(@param);
 }
@@ -120,10 +124,13 @@ sub convert_columns_to_sql {
     my $class = shift;
     return unless @_;
 
-    return join ', ', map {
+    my @converted_columns = map {[
         $class->convert_column_alias_to_sql(
-            $class->convert_func_to_sql($_) );
-    } grep { defined $_ } @_;
+            $class->convert_func_to_sql($_) )
+    ]} grep { defined $_ } @_;
+
+    return (join ', ', map {$_->[0]} @converted_columns),
+           map {@$_[1..$#$_]} @converted_columns;
 }
 
 sub convert_func_to_sql {
@@ -131,6 +138,7 @@ sub convert_func_to_sql {
     return unless $func;
     return $func unless ref $func;
     return $$func if ref $func eq 'SCALAR';
+    return $func->as_sql('parts') if (blessed($func) && $func->can('as_sql'));
     return $func unless ref $func eq 'HASH';
 
     my $key   = ( keys %$func )[0];
@@ -143,6 +151,8 @@ sub convert_func_to_sql {
       . ')';
 }
 
+sub as_to_sql { $_[0]->{driver} eq 'Oracle' ? ' ' : ' AS ' }
+
 sub convert_column_alias_to_sql {
     my ($class, $param) = @_;
     return $param unless $param;
@@ -150,13 +160,14 @@ sub convert_column_alias_to_sql {
     return $$param if ref $param eq 'SCALAR';
     return $param unless ref $param eq 'ARRAY';
 
-    my $col = $class->convert_func_to_sql( $param->[0] );
+    my ($col, @binds) = $class->convert_func_to_sql( $param->[0] );
     my $alias = $param->[1];
+    my $as = $class->as_to_sql;
     if( $col and $alias ) {
-        return $col . ' AS ' . $alias;
+        return ("$col$as$alias", @binds);
     }
     else {
-        return $col;
+        return ($col, @binds);
     }
 }
 
@@ -166,7 +177,7 @@ sub convert_tables_to_sql {
     my @bind;
 
     for my $t ( @_ ) {
-        my ($table_stm, @table_bind) = $class->convert_table_to_sql(@_);
+        my ($table_stm, @table_bind) = $class->convert_table_to_sql($t);
         push @stm, $table_stm;
         push @bind, @table_bind if @table_bind;
     }
@@ -180,12 +191,15 @@ sub convert_table_to_sql {
     my ($stm, @bind);
     if( ref $table eq 'ARRAY' ) {
         my ($t_stm, @t_bind) = $class->convert_table_to_sql( $table->[0] );
-        $stm = $t_stm . ' AS ' . $table->[1];
+        $stm = $t_stm . $class->as_to_sql . $table->[1];
 
         push @bind, @t_bind if @t_bind;
     }
     elsif( blessed $table and $table->can('as_sql') ) {
         ( $stm, @bind ) = $table->as_sql('parts');
+        if($table->isa('DBIx::ObjectMapper::Query::Union')) {
+            $stm = '( ' . $stm . ' )';
+        }
     }
     elsif( ref $table eq 'SCALAR' ) {
         $stm = $$table;
@@ -230,6 +244,26 @@ sub convert_join_to_sql {
     }
 
     return ( $stm, @bind );
+}
+
+sub oracle_limit {
+    my $self = shift;
+    return () if ($self->{driver} ne 'Oracle');
+
+    my $limit = $self->limit_as_sql;
+    my $offset = $self->offset_as_sql || 0;
+
+    my @conditions = ();
+
+    if ($offset) {
+        push @conditions, ['ROWNUM', '>', $offset];
+    }
+
+    if ($limit) {
+        push @conditions, ['ROWNUM', '<=', $limit + $offset];
+    }
+
+    return @conditions;
 }
 
 sub build_where {
@@ -307,6 +341,10 @@ sub convert_condition_to_sql {
             }
             elsif( uc($w->[1]) eq 'BETWEEN' and @{$w->[2]} == 2 ) {
                 $stm .= ' BETWEEN ? AND ?';
+                push @bind, @{ $w->[2] };
+            }
+            elsif( uc($w->[1]) eq 'LIKE' and @{$w->[2]} == 2 ) {
+                $stm .= ' LIKE ? ESCAPE ?';
                 push @bind, @{ $w->[2] };
             }
             else {

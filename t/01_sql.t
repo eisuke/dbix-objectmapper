@@ -469,3 +469,73 @@ DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['fuga', undef, 'natural'] 
 
 --- expected
 SELECT * FROM hoge NATURAL JOIN fuga <= 
+
+=== left outer join default
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['fuga', undef] );
+
+--- expected
+SELECT * FROM hoge LEFT OUTER JOIN fuga <= 
+
+=== left join explicit function
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->add_left_join( 'fuga' );
+
+--- expected
+SELECT * FROM hoge LEFT JOIN fuga <= 
+
+=== inner join explicit function
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->add_inner_join( 'fuga' );
+
+--- expected
+SELECT * FROM hoge INNER JOIN fuga <= 
+
+=== inner join with condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['fuga', [\'id=1'], 'INNER'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN fuga ON ( id=1 ) <= 
+
+=== inner join explicit function with condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->add_inner_join( 'fuga' => [\'id=1'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN fuga ON ( id=1 ) <= 
+
+=== additive inner join with condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['moo', undef, 'INNER'] )->add_join( ['fuga', [\'id=1'], 'INNER'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN moo INNER JOIN fuga ON ( id=1 ) <= 
+
+=== additive inner join explicit function with condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['moo', undef, 'INNER'] )->add_inner_join( 'fuga' => [\'id=1'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN moo INNER JOIN fuga ON ( id=1 ) <= 
+
+=== additive left join explicit function with condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['moo', undef, 'INNER'] )->add_left_join( 'fuga' => [\'id=1'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN moo LEFT JOIN fuga ON ( id=1 ) <= 
+
+=== two inner joins explicit function with one condition
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->add_inner_join( 'fuga' => [\'id=1'], 'moo' );
+
+--- expected
+SELECT * FROM hoge INNER JOIN fuga ON ( id=1 ) INNER JOIN moo <= 
+
+=== two inner joins explicit function with two conditions
+--- input
+DBIx::ObjectMapper::SQL->select->from('hoge')->add_inner_join( 'fuga' => [\'id=1'], 'moo' => [\'moo_id=3'] );
+
+--- expected
+SELECT * FROM hoge INNER JOIN fuga ON ( id=1 ) INNER JOIN moo ON ( moo_id=3 ) <= 

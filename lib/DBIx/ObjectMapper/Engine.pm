@@ -35,6 +35,7 @@ sub update                   { }
 sub insert                   { }
 sub create                   { }
 sub delete                   { }
+sub union                    { }
 sub iterator                 { }
 
 1;
