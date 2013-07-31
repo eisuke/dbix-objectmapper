@@ -278,7 +278,18 @@ sub convert_condition_to_sql {
     return unless @$w;
 
     my @bind;
-    my $stm = $class->convert_func_to_sql($w->[0]);
+
+    my $col = $class->convert_func_to_sql($w->[0]);
+    my $stm;
+    if( ref $col eq 'ARRAY' ) {
+        my ( $col_sql, @col_bind ) = $class->convert_condition_to_sql($col);
+        $stm = '( ' . $col_sql . ' )';
+        push @bind, @col_bind;
+    }
+    else {
+        $stm = $col;
+    }
+
     splice @$w, 1, 0, '=' if @$w == 2;
 
     if( @$w == 3 ) {

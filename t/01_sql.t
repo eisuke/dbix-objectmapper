@@ -1,4 +1,5 @@
 use Test::Base;
+use Data::Dump ();
 plan tests => ( 1 * blocks ) + 18;
 
 use DBIx::ObjectMapper::SQL;
@@ -6,7 +7,7 @@ use DBIx::ObjectMapper::SQL;
 sub as_sql {
     my $param = shift;
     my ($sql, @bind) = $param->as_sql;
-    return $sql . ' <= ' . join(',', @bind);
+    return $sql . ' <= ' . join(',', map{ ref $_ ? Data::Dump::dump($_) : $_ } @bind);
 }
 
 filters {
@@ -469,3 +470,11 @@ DBIx::ObjectMapper::SQL->select->from('hoge')->join( ['fuga', undef, 'natural'] 
 
 --- expected
 SELECT * FROM hoge NATURAL JOIN fuga <= 
+
+=== cond_in_cond
+--- input
+DBIx::ObjectMapper::SQL->select( driver => 'Pg' )->from('hoge')->where( [ [ 'a', '&&', \['b'] ], \'true' ] );
+
+--- expected
+SELECT * FROM hoge WHERE ( ( a && ? ) = true ) <= ["b"]
+
