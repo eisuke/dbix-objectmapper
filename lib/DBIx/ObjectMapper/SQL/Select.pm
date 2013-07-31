@@ -54,7 +54,7 @@ sub as_sql {
     }
 
     if( $self->limit || $self->offset ) {
-        my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
+        my $method = $self->limit_syntax->{ lc( $self->{driver} || q{} ) };
         $method = $self->limit_syntax->{default}
             unless $method and $self->can($method);
         if( my $add_stm = $self->${method}() ) {
