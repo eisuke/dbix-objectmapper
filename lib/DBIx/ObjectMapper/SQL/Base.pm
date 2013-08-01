@@ -292,7 +292,7 @@ sub convert_condition_to_sql {
 
     splice @$w, 1, 0, '=' if @$w == 2;
 
-    if( @$w == 3 ) {
+    if( @$w >= 3 ) {
         splice @$w, 1, 1, '!=' if $w->[1] eq '<>';
 
         if ( ref $w->[2] eq 'ARRAY' ) {
@@ -357,6 +357,10 @@ sub convert_condition_to_sql {
         else {
             $stm .= ' ' . uc($w->[1]) . ' ?';
             push @bind, $w->[2];
+        }
+
+        if( @$w > 3 ) {
+            push @bind, (@$w)[3..$#$w];
         }
     }
     elsif( @$w == 1 and ref $w->[0] eq 'HASH' ) {

@@ -478,3 +478,9 @@ DBIx::ObjectMapper::SQL->select( driver => 'Pg' )->from('hoge')->where( [ [ 'a',
 --- expected
 SELECT * FROM hoge WHERE ( ( a && ? ) = true ) <= ["b"]
 
+=== cond_in_array
+--- input
+DBIx::ObjectMapper::SQL->select( driver => 'Pg' )->from('hoge')->where( [ 'a', 'LIKE', \'ANY(?)', [ 'a%', 'b%', 'c%'] ] );
+
+--- expected
+SELECT * FROM hoge WHERE ( a LIKE ANY(?) ) <= ["a%", "b%", "c%"]
