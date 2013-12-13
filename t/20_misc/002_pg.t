@@ -150,7 +150,7 @@ $table->insert(
 };
 
 { # update
-    ok $table->update->set( modified => $now )->where( $table->c('id') == 1 )->execute;
+    ok $table->update->set( modified => $now, array_int => [1,2,3] )->where( $table->c('id') == 1 )->execute;
     my $d = $table->find(1);
     is $d->{modified}, $now;
 };
