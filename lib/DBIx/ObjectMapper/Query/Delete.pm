@@ -28,7 +28,7 @@ sub execute {
         ->( $self->metadata, $self->builder, $self->builder->{table}->[0] );
     my $res = $self->engine->delete( $self->builder, $self->callback, @_ );
     $self->{after}
-        ->( $self->metadata, $res, $self->builder->{table}->[0] );
+        ->( $self->metadata, $res, $self->builder->{table}->[0], $self->builder );
     return $res;
 }
 

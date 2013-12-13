@@ -35,7 +35,7 @@ sub execute {
         ->( $self->metadata, $self->builder, $self->builder->{into}->[0] );
     my $res = $self->engine->insert( $self->builder, $self->callback,
         $primary_key );
-    $self->{after}->( $self->metadata, $res, $self->builder->{into}->[0] );
+    $self->{after}->( $self->metadata, $res, $self->builder->{into}->[0], $self->builder );
     return $res;
 }
 
