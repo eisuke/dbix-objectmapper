@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
-use Class::MOP;
+use Class::Load;
 use Scalar::Util;
 use Hash::Merge;
 use Class::Inspector;
@@ -13,7 +13,7 @@ sub installed { Class::Inspector->installed($_[0]) }
 sub load_class {
     my $class_name = shift;
     return $class_name if loaded($class_name);
-    Class::MOP::load_class($class_name);
+    Class::Load::load_class($class_name);
 #    confess(
 #        "require $class_name was successful but the package is not defined")
 #      unless loaded($class_name);
@@ -21,7 +21,7 @@ sub load_class {
     return $class_name;
 }
 
-sub loaded { Class::MOP::is_class_loaded($_[0]) }
+sub loaded { Class::Load::is_class_loaded($_[0]) }
 
 sub is_deeply {
     my ( $X, $Y ) = @_;

@@ -6,6 +6,7 @@ our $VERSION = '0.3018';
 
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
+use Class::Load;
 
 use DBIx::ObjectMapper::Log;
 use DBIx::ObjectMapper::Utils;
@@ -83,8 +84,8 @@ sub relation {
         = $class
         . '::Relation::'
         . DBIx::ObjectMapper::Utils::camelize($rel_type);
-    Class::MOP::load_class($rel_class)
-        unless Class::MOP::is_class_loaded($rel_class);
+    Class::Load::load_class($rel_class)
+        unless Class::Load::is_class_loaded($rel_class);
     return $rel_class->new( @_ );
 }
 

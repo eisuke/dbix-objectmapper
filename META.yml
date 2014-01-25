@@ -32,6 +32,7 @@ requires:
   Class::Data::Inheritable: 0
   Class::Inspector: 0
   Class::MOP: 0
+  Class::Load: 0.20
   DBD::SQLite: 1.14
   DBI: 1.4
   Data::Dump: 0
