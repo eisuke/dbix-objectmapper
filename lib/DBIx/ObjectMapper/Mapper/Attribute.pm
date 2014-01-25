@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Params::Validate qw(:all);
-use Class::MOP;
+use Class::Load;
 
 sub new {
     my $class  = shift;
@@ -40,8 +40,8 @@ sub new {
     }
 
     my $attribute_class = $class . '::' . $type;
-    Class::MOP::load_class($attribute_class)
-        unless Class::MOP::is_class_loaded($attribute_class);
+    Class::Load::load_class($attribute_class)
+        unless Class::Load::is_class_loaded($attribute_class);
     my $self = bless \%option, $attribute_class;
     $self->init;
 

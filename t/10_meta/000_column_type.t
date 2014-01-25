@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
-use Class::MOP;
+use Class::Load;
 use DBIx::ObjectMapper::Engine::DBI;
 use DateTime::Format::SQLite;
 
@@ -12,7 +12,7 @@ $CHECK_BIT = 0 if $@;
 sub build_pkg($) {
     my $t = shift;
     my $pkg = 'DBIx::ObjectMapper::Metadata::Table::Column::Type::' . $t;
-    Class::MOP::load_class($pkg);
+    Class::Load::load_class($pkg);
     return $pkg;
 }
 
