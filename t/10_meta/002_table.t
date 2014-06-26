@@ -117,8 +117,8 @@ use DBIx::ObjectMapper::Metadata::Sugar qw(:all);
     ok my $meta = DBIx::ObjectMapper::Metadata::Table->new(
         testmetadata => [
             Col( name => Text(undef, utf8 => 1) ),
-            Col( created => Default { time() } ),
-            Col( updated => OnUpdate { time() }),
+            Col( created => Time(), Default { time() } ),
+            Col( updated => Time(), OnUpdate { time() } ),
         ],
         {
             engine => $engine,
