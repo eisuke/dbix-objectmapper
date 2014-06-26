@@ -5,7 +5,6 @@ use Carp::Clan qw/^DBIx::ObjectMapper/;
 use Try::Tiny;
 use Class::MOP;
 use Scalar::Util;
-use Hash::Merge;
 use Class::Inspector;
 
 sub installed { Class::Inspector->installed($_[0]) }
@@ -79,12 +78,15 @@ sub is_deeply {
     }
 }
 
+# This function is intended to merge the values behind the toplevel keys in
+# two hashrefs, such that the second/new hashref overrides values in the
+# first/old hashref or supplies them if they are missing.
 sub merge_hashref {
     my ( $old, $new ) = @_;
-    croak "Invlid Parameter. usage: merge_hashref(HashRef,HashRef)"
+    croak "Invalid Parameter. usage: merge_hashref(HashRef,HashRef)"
         unless ref $old eq 'HASH' and ref $new eq 'HASH';
-    Hash::Merge::set_behavior( 'RIGHT_PRECEDENT' );
-    return Hash::Merge::merge($old,$new);
+
+    return {%$old, %$new};
 }
 
 sub camelize {

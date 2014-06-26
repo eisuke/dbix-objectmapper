@@ -492,7 +492,19 @@ sub _set_column {
     my $override_column = $self->column_map->{ $c->{name} };
     if ( defined $override_column ) {
         my $org = $self->column( $c->{name} );
+        my $overriding_type = $c->{type};
         $c = DBIx::ObjectMapper::Utils::merge_hashref( { %$org }, $c );
+
+        # But we don't actually want a basic merge_hashref when it comes to
+        # the type object.  We actually want to merge specified/overriden
+        # values, such as utf8.  This is something even the old Hash::Merge
+        # package can't do exactly how we want.  Therefore, we now carefully
+        # merge those:
+        for my $attribute (keys %$overriding_type) {
+            $c->{type}->{$attribute} = defined($overriding_type->{$attribute}) ?
+                                            $overriding_type->{$attribute} :
+                                            $org->{type}->{$attribute};
+        }
     }
 
     my $name = delete $c->{name} || confess 'column name not found.';

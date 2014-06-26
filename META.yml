@@ -39,7 +39,6 @@ requires:
   DateTime::Format::SQLite: 0
   Digest::MD5: 0
   Filter::Util::Call: 0
-  Hash::Merge: 0.12
   List::MoreUtils: 0
   Log::Any: 0
   Module::Find: 0

@@ -21,7 +21,6 @@ requires 'Class::MOP';
 requires 'Class::Inspector';
 requires 'Class::Data::Inheritable';
 requires 'Data::Page' => 2.00;
-requires 'Hash::Merge' => 0.12;
 requires 'Params::Validate';
 requires 'Log::Any';
 requires 'Digest::MD5';
