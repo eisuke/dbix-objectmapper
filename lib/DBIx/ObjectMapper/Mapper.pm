@@ -165,7 +165,7 @@ sub new {
         elsif( $option->{polymorphic_on} and $option->{polymorphic_identity} ) {
             $option->{default_condition} = [
                 $option->{table}->c( $option->{polymorphic_on} )
-                    == $option->{polymorphic_identity} ];
+                    eq $option->{polymorphic_identity} ];
 
             $option->{default_value}->{$option->{polymorphic_on}}
                 = $option->{polymorphic_identity};
