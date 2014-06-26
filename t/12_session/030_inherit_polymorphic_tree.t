@@ -14,8 +14,8 @@ my $mapper = DBIx::ObjectMapper->new(
             q{CREATE TABLE employee(id integer primary key, type text, name text, memo text)},
             q{CREATE TABLE engineer(id integer primary key, language text, FOREIGN KEY(id) REFERENCES person(id))},
             q{CREATE TABLE manager(id integer primary key, type text, golf_swing text, FOREIGN KEY(id) REFERENCES employee(id))},
-            q{CREATE TABLE geek_manager (id integer primary key, language TEXT, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
-            q{CREATE TABLE deadshit_manager (id integer primary key, iq integer, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
+            q{CREATE TABLE geek_manager (id integer primary key, type text, language TEXT, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
+            q{CREATE TABLE deadshit_manager (id integer primary key, type text, iq integer, memo text, FOREIGN KEY (id) REFERENCES employee(id))},
         ],
     }),
 );
@@ -184,7 +184,8 @@ $mapper->maps(
         properties => {
             old_language => {
                 isa => $mapper->metadata->t('geek_manager')->c('language'),
-            }
+            },
+            t => { isa => $mapper->metadata->t('geek_manager')->c('type') },
         }
     }
 );
@@ -194,6 +195,11 @@ $mapper->maps(
     inherits => 'My::Manager',
     polymorphic_on => 'type',
     polymorphic_identity => 'deadshit_manager',
+    attributes => {
+        properties => {
+            t => { isa => $mapper->metadata->t('deadshit_manager')->c('type') },
+        }
+    }
 );
 
 my @languages = (

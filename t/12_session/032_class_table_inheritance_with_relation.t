@@ -13,7 +13,7 @@ my $mapper = DBIx::ObjectMapper->new(
         on_connect_do => [
             q{CREATE TABLE language (id integer primary key, name text)},
             q{CREATE TABLE employee(id integer primary key, type text)},
-            q{CREATE TABLE engineer(id integer primary key, language_id integer REFERENCES language(id), FOREIGN KEY(id) REFERENCES person(id))},
+            q{CREATE TABLE engineer(id integer primary key, type text, language_id integer REFERENCES language(id), FOREIGN KEY(id) REFERENCES person(id))},
             q{CREATE TABLE project (id integer primary key, engineer_id integer REFERENCES engineer(id) )},
         ],
     }),
@@ -37,6 +37,12 @@ my $project = $mapper->metadata->t( 'project' => 'autoload' );
         my $self = shift;
         $self->{id} = shift if @_;
         return $self->{id};
+    }
+
+    sub type {
+        my $self = shift;
+        $self->{type} = shift if @_;
+        return $self->{type};
     }
 
     1;
