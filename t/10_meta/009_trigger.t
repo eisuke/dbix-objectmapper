@@ -92,10 +92,23 @@ $artist->delete->execute;
 is $trigger_cnt{before_delete}, 1;
 is $trigger_cnt{after_delete}, 1;
 
-eval "require Test::Memory::Cycle";
-unless( $@ ) {
+SKIP: {
+    eval "require Test::Memory::Cycle";
+    if ($@) {
+        skip("Error requiring Test::Memory::Cycle: $@", 2);
+    }
+
+    # Versions of Devel::Cycle less than 1.09 had a bug when looking at
+    # closed-over variables in coderefs: Devel::Cycle attempted to dereference
+    # all such variables as scalar references.  This dies when, for example,
+    # the variable is a hashref.  Skip these tests if Devel::Cycle is an
+    # earlier version.
+    if (Devel::Cycle->VERSION lt '1.09') {
+        skip("Skipped memory cycle test because your version (" . Devel::Cycle->VERSION. ") of Devel::Cycle is ancient and buggy", 2);
+    }
+
     Test::Memory::Cycle::memory_cycle_ok( $artist );
     Test::Memory::Cycle::memory_cycle_ok( $meta );
-}
+};
 
 done_testing;
