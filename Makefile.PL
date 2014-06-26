@@ -30,7 +30,6 @@ requires 'DateTime';
 requires 'Sub::Exporter';
 requires 'Capture::Tiny';
 requires 'Data::Dump';
-requires 'Module::Find';
 requires 'Cache::LRU';
 
 build_requires 'Test::More'     => 0.88;

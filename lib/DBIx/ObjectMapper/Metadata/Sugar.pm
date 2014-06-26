@@ -2,7 +2,6 @@ package DBIx::ObjectMapper::Metadata::Sugar;
 use strict;
 use warnings;
 use Sub::Exporter;
-use Module::Find;
 use DBIx::ObjectMapper::Utils;
 
 our @ATTRS = qw(Col PrimaryKey NotNull OnUpdate Default ToStorage Unique
@@ -37,10 +36,33 @@ sub ServerDefault  { server_default => $_[0] }
 sub ForeignKey     { foreign_key    => [ $_[0] => $_[1] ] }
 sub ServerCheck    { server_check   => $_[0] }
 
-our @TYPES;
+our @TYPES = qw(
+    Array
+    BigInt
+    Binary
+    Bit
+    Blob
+    Boolean
+    ByteA
+    Date
+    Datetime
+    Float
+    Int
+    Interval
+    Mush
+    Numeric
+    SmallInt
+    String
+    Text
+    Time
+    Undef
+    Uri
+    Yaml
+);
+
 {
     my $namespace = 'DBIx::ObjectMapper::Metadata::Table::Column::Type';
-    my @type_classes = Module::Find::findallmod($namespace);
+    my @type_classes = map { "${namespace}::$_" } @TYPES;
 
     my $pkg = __PACKAGE__;
     for my $type_class ( @type_classes ) {
@@ -49,7 +71,6 @@ our @TYPES;
         $name =~ s/^$namespace\:://;
         no strict 'refs';
         *{"$pkg\::$name"} = sub { type => $type_class->new(@_) };
-        push @TYPES, $name;
     }
 };
 
