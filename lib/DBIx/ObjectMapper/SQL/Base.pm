@@ -72,15 +72,11 @@ sub _add_accessor {
 }
 
 sub _as_sql_accessor {
-    my ( $self, $field, $func, $is_oracle ) = @_;
+    my ( $self, $field, $func ) = @_;
     my @param
         = ref $self->{$field} eq 'ARRAY'
         ? @{ $self->{$field} }
         : ( $self->{$field} );
-
-    if ($is_oracle && $func eq 'build_where') {
-        return $self->build_where(@param, $self->oracle_limit);
-    }
 
     return $self->$func(@param);
 }
@@ -244,26 +240,6 @@ sub convert_join_to_sql {
     }
 
     return ( $stm, @bind );
-}
-
-sub oracle_limit {
-    my $self = shift;
-    return () if ($self->{driver} ne 'Oracle');
-
-    my $limit = $self->limit_as_sql;
-    my $offset = $self->offset_as_sql || 0;
-
-    my @conditions = ();
-
-    if ($offset) {
-        push @conditions, ['ROWNUM', '>', $offset];
-    }
-
-    if ($limit) {
-        push @conditions, ['ROWNUM', '<=', $limit + $offset];
-    }
-
-    return @conditions;
 }
 
 sub build_where {
