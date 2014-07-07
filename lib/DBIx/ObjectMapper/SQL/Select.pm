@@ -13,7 +13,7 @@ __PACKAGE__->initdata({
     limit    => 0,
     offset   => 0,
     having   => [],
-    driver   => undef, # Pg, mysql, SQLite ...
+    driver   => '', # Pg, mysql, SQLite ...
 });
 
 __PACKAGE__->accessors({
