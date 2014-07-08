@@ -24,9 +24,8 @@ __PACKAGE__->accessors({
     num_check              => [qw(limit offset)],
 });
 
-sub as_sql {
+sub _generate_subquery {
     my $self = shift;
-    my $mode = shift;
 
     my @bind;
     my ($from, @from_bind) = $self->from_as_sql;
@@ -56,13 +55,62 @@ sub as_sql {
     $stm .= ' ORDER BY ' . $order_by if $order_by;
     push @bind, @order_binds if @order_binds;
 
+    return ($stm, @bind);
+}
+
+sub _final_column_name {
+    my ($class, $raw_column) = @_;
+
+    if (!ref $raw_column || ref $raw_column eq 'HASH') {
+        return $class->convert_func_to_sql( $raw_column );
+    }
+
+    if (defined($raw_column->[1])) {
+        return $raw_column->[1];
+    }
+
+    my ($column) = $class->convert_func_to_sql( $raw_column->[0] );
+    return $column;
+}
+
+sub _apply_oracle_limits {
+    my ($self, $original_stm, @bind) = @_;
+
+    my $lower_limit = $self->offset ? $self->offset_as_sql : 1;
+    return ($original_stm, @bind) if !$lower_limit;
+    my $upper_limit = $self->limit  ? $self->limit_as_sql + $lower_limit - 1 : undef;
+
+    my $final_column_list = join(', ', map {$self->_final_column_name($_)} @{$self->column});
+    my $stm = "SELECT $final_column_list FROM ( " .
+                   "SELECT /*+ first_row */ rownum AS oracle_rownum_XYZZY, $final_column_list FROM ( $original_stm ) " .
+              ") WHERE oracle_rownum_XYZZY >= $lower_limit" .
+                    (defined($upper_limit) ? " AND oracle_rownum_XYZZY <= $upper_limit" : "");
+
+    return ($stm, @bind);
+}
+
+sub _apply_limit_syntax {
+    my ($self, $stm, @bind) = @_;
+
+    my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
+    $method = $self->limit_syntax->{default}
+        unless $method and $self->can($method);
+    if( my $add_stm = $self->${method}() ) {
+        $stm .= $add_stm;
+    }
+
+    return ($stm, @bind);
+}
+
+sub as_sql {
+    my $self = shift;
+    my $mode = shift;
+
+    my ($stm, @bind) = $self->_generate_subquery();
+
     if( $self->limit || $self->offset ) {
-        my $method = $self->limit_syntax->{ lc( $self->{driver} ) };
-        $method = $self->limit_syntax->{default}
-            unless $method and $self->can($method);
-        if( my $add_stm = $self->${method}() ) {
-            $stm .= $add_stm;
-        }
+        ($stm, @bind) = $self->{driver} eq 'Oracle' ? $self->_apply_oracle_limits($stm, @bind) :
+                                                      $self->_apply_limit_syntax($stm, @bind);
     }
 
     if( $mode and $mode eq 'parts' ) {
