@@ -83,26 +83,7 @@ sub get_table_fk_info {
     my ($self, $dbh, $table) = @_;
 
     if (!$self->{_cache}->{_oracle}->{foreign_keys}->{$table}) {
-        #my $sth = $dbh->foreign_key_info(undef, undef, undef, '', $self->db_schema, $table);
-        my $sth = $self->_foreign_key_info($dbh,undef, undef, undef, '', $self->db_schema, $table);
-        my %constraints = ();
-
-        while (my $row = $sth->fetchrow_hashref) {
-            my $constraint_name = $row->{FK_NAME};
-            if (!$constraints{$constraint_name}) {
-                $constraints{$constraint_name} = {
-                    keys  => [],
-                    refs  => [],
-                    table => $row->{UK_TABLE_NAME},
-                };
-            }
-
-            my $constraint_info = $constraints{$constraint_name};
-            push @{$constraint_info->{keys}}, $row->{FK_COLUMN_NAME};
-            push @{$constraint_info->{refs}}, $row->{UK_COLUMN_NAME};
-        }
-
-        $self->{_cache}->{_oracle}->{foreign_keys}->{$table} = [values %constraints];
+        $self->{_cache}->{_oracle}->{foreign_keys}->{$table} = $self->_foreign_key_info($dbh,undef, undef, undef, '', $self->db_schema, $table);
     }
 
     return $self->{_cache}->{_oracle}->{foreign_keys}->{$table};
@@ -188,10 +169,7 @@ sub type_map {
     return $class->_type_map_data->{$type};
 }
 
-###### horrid DBD::Oracle override below 
-###### REMOVE WHEN PERL IS UPGRADED!!!!!
-###### code base from DBD::Oracle v1.68
-
+###### DBD::Oracle override below because DBD::Oracle is inefficient for large schemas
 sub _primary_key_info {
     my($self, $dbh, $catalog, $schema, $table) = @_;
     if (ref $catalog eq 'HASH') {
@@ -226,61 +204,117 @@ SQL
     $sth;
 }
 
+sub build_constraint_cache {
+    my ($self, $dbh, $attr) = @_;
+    my $cache = {};
+    my $sth;
+
+    $sth = $dbh->prepare(q{
+        select OWNER, R_OWNER, TABLE_NAME, CONSTRAINT_NAME, R_CONSTRAINT_NAME, CONSTRAINT_TYPE
+          from ALL_CONSTRAINTS
+          where CONSTRAINT_TYPE in ('P','U', 'R')
+    }) or return undef;
+    $sth->execute() or return undef;
+    $cache->{constraints} = [map {
+                                +{
+                                    OWNER             => $_->[0],
+                                    R_OWNER           => $_->[1],
+                                    TABLE_NAME        => $_->[2],
+                                    CONSTRAINT_NAME   => $_->[3],
+                                    R_CONSTRAINT_NAME => $_->[4],
+                                    CONSTRAINT_TYPE   => $_->[5],
+                                }
+                            }
+                            @{$sth->fetchall_arrayref}];
+
+    $sth = $dbh->prepare(q{
+        select OWNER, CONSTRAINT_NAME, COLUMN_NAME, POSITION
+          from ALL_CONS_COLUMNS
+         order by POSITION
+    }) or return undef;
+    $sth->execute() or return undef;
+    $cache->{columns} = [map {
+                                +{
+                                    OWNER           => $_->[0],
+                                    CONSTRAINT_NAME => $_->[1],
+                                    COLUMN_NAME     => $_->[2],
+                                    POSITION        => $_->[3],
+                                }
+                            }
+                        @{$sth->fetchall_arrayref}];
+
+    $self->{_constraint_cache} = $cache;
+    return 1;
+}
+
 sub _foreign_key_info {
     my $self = shift;
     my $dbh  = shift;
     my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
-        'UK_TABLE_SCHEM' => $_[1],'UK_TABLE_NAME ' => $_[2]
-            ,'FK_TABLE_SCHEM' => $_[4],'FK_TABLE_NAME ' => $_[5] };
-    my $SQL = <<'SQL';  # XXX: DEFERABILITY
-SELECT *
-  FROM
-(
-  SELECT /*+ CHOOSE */
-         to_char( NULL )    UK_TABLE_CAT
-       , uk.OWNER           UK_TABLE_SCHEM
-       , uk.TABLE_NAME      UK_TABLE_NAME
-       , uc.COLUMN_NAME     UK_COLUMN_NAME
-       , to_char( NULL )    FK_TABLE_CAT
-       , fk.OWNER           FK_TABLE_SCHEM
-       , fk.TABLE_NAME      FK_TABLE_NAME
-       , fc.COLUMN_NAME     FK_COLUMN_NAME
-       , uc.POSITION        ORDINAL_POSITION
-       , 3                  UPDATE_RULE
-       , decode( fk.DELETE_RULE, 'CASCADE', 0, 'RESTRICT', 1, 'SET NULL', 2, 'NO ACTION', 3, 'SET DEFAULT', 4 )
-                            DELETE_RULE
-       , fk.CONSTRAINT_NAME FK_NAME
-       , uk.CONSTRAINT_NAME UK_NAME
-       , to_char( NULL )    DEFERABILITY
-       , decode( uk.CONSTRAINT_TYPE, 'P', 'PRIMARY', 'U', 'UNIQUE')
-                            UNIQUE_OR_PRIMARY
-    FROM ALL_CONSTRAINTS    uk
-       , ALL_CONS_COLUMNS   uc
-       , ALL_CONSTRAINTS    fk
-       , ALL_CONS_COLUMNS   fc
-   WHERE uk.OWNER            = uc.OWNER
-     AND uk.CONSTRAINT_NAME  = uc.CONSTRAINT_NAME
-     AND fk.OWNER            = fc.OWNER
-     AND fk.CONSTRAINT_NAME  = fc.CONSTRAINT_NAME
-     AND uk.CONSTRAINT_TYPE IN ('P','U')
-     AND fk.CONSTRAINT_TYPE  = 'R'
-     AND uk.CONSTRAINT_NAME  = fk.R_CONSTRAINT_NAME
-     AND uk.OWNER            = fk.R_OWNER
-     AND uc.POSITION         = fc.POSITION
-)
- WHERE 1              = 1
-SQL
-    my @BindVals = ();
-    while ( my ( $k, $v ) = each %$attr ) {
-        if ( $v ) {
-            $SQL .= "   AND $k = ?\n";
-            push @BindVals, $v;
-        }
+        'UK_TABLE_SCHEM' => $_[1],'UK_TABLE_NAME' => $_[2]
+            ,'FK_TABLE_SCHEM' => $_[4],'FK_TABLE_NAME' => $_[5] };
+
+    if (!$self->{_constraint_cache}) {
+        return unless $self->build_constraint_cache($dbh, $attr);
     }
-    $SQL .= " ORDER BY UK_TABLE_SCHEM, UK_TABLE_NAME, FK_TABLE_SCHEM, FK_TABLE_NAME, ORDINAL_POSITION\n";
-    my $sth = $dbh->prepare( $SQL ) or return undef;
-    $sth->execute( @BindVals ) or return undef;
-    $sth;
+
+    my @constraints = grep {
+                          ($_->{CONSTRAINT_TYPE} eq 'R') &&
+                          ($_->{R_CONSTRAINT_NAME}) &&
+                          ($_->{OWNER} eq $attr->{FK_TABLE_SCHEM}) &&
+                          ($_->{TABLE_NAME} eq $attr->{FK_TABLE_NAME})
+                      }
+                      @{$self->{_constraint_cache}->{constraints}};
+
+    for my $constraint (@constraints) {
+        next if $constraint->{columns};
+
+        my ($foreign_table) = map { $_->{TABLE_NAME} }
+                              grep {
+                                  ($_->{CONSTRAINT_TYPE} eq 'P' || $_->{CONSTRAINT_TYPE} eq 'U') &&
+                                  $_->{OWNER} eq $constraint->{R_OWNER} &&
+                                  $_->{CONSTRAINT_NAME} eq $constraint->{R_CONSTRAINT_NAME} &&
+                                  ($attr->{UK_TABLE_NAME} ? ($_->{TABLE_NAME} eq $attr->{UK_TABLE_NAME}) : 1)
+                              } @{$self->{_constraint_cache}->{constraints}};
+
+        my @fk_columns = sort {$a->{POSITION} <=> $b->{POSITION}}
+                         map {
+                             +{
+                                 foreign_table => $foreign_table,
+                                 %$_
+                             }
+                         }
+                         grep {
+                             $_->{OWNER} eq $attr->{FK_TABLE_SCHEM} &&
+                             $_->{CONSTRAINT_NAME} eq $constraint->{CONSTRAINT_NAME}
+                         }
+                         @{$self->{_constraint_cache}->{columns}};
+
+        for my $fk_column (@fk_columns) {
+            next if $fk_column->{foreign_column};
+            ($fk_column->{foreign_column}) = map { $_->{COLUMN_NAME} }
+                                             grep {
+                                                 $_->{OWNER} eq $constraint->{R_OWNER} &&
+                                                 $_->{CONSTRAINT_NAME} eq $constraint->{R_CONSTRAINT_NAME} &&
+                                                 $_->{POSITION} eq $fk_column->{POSITION}
+                                             }
+                                             @{$self->{_constraint_cache}->{columns}};
+        }
+
+        $constraint->{columns} = \@fk_columns;
+    }
+
+    my @final_constraints = map {
+                                my $constraint = $_;
+                                +{
+                                    table => $constraint->{columns}[0]->{foreign_table},
+                                    keys  => [map {$_->{COLUMN_NAME}} @{$constraint->{columns}}],
+                                    refs  => [map {$_->{foreign_column}} @{$constraint->{columns}}],
+                                }
+                            }
+                            @constraints;
+
+    return \@final_constraints;
 }
 
 1;
