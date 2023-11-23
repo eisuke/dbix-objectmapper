@@ -67,7 +67,7 @@ ok(!$@) or diag "Creation eval failed: $@";
     }
 
     if (!$pid) {
-        exit $cd->engine->connected ? 1 : 0;
+        exit($cd->engine->connected ? 1 : 0);
     }
 
     if (waitpid($pid, 0) == $pid) {
